@@ -330,24 +330,24 @@ const handleCandidateClick = (candidate) => {
       `}</style>
 
       {/* ========================================= */}
-      {/* 1. SECTION ONE: NAVIGATION                */}
+      {/* 1. SECTION ONE: NAVIGATION (Micro-UI Scale) */}
       {/* ========================================= */}
-      <div style={{ width: navExpanded ? '195px' : '64px', background: '#0a0a0c', borderRight: '1px solid #1a1a1a', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column', padding: '18px 0', zIndex: 40 }}>
+      <div style={{ width: navExpanded ? '195px' : '48px', background: '#0a0a0c', borderRight: '1px solid #1a1a1a', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column', padding: '16px 0', zIndex: 40 }}>
         
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: navExpanded ? 'space-between' : 'center', padding: navExpanded ? '0 24px' : '0', marginBottom: '40px' }}>
-          {navExpanded && <span style={{ color: '#666', fontSize: '11px', fontWeight: '800', letterSpacing: '1.5px' }}>NAVIGATION</span>}
-          <div onClick={() => setNavExpanded(!navExpanded)} style={{ width: '28px', height: '28px', background: '#121214', border: '1px solid #222', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2"><polyline points={navExpanded ? "15 18 9 12 15 6" : "9 18 15 12 9 6"} /></svg>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: navExpanded ? 'space-between' : 'center', padding: navExpanded ? '0 16px' : '0', marginBottom: '32px' }}>
+          {navExpanded && <span style={{ color: '#666', fontSize: '9px', fontWeight: '800', letterSpacing: '1.5px' }}>NAVIGATION</span>}
+          <div onClick={() => setNavExpanded(!navExpanded)} style={{ width: '20px', height: '20px', background: '#121214', border: '1px solid #222', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2"><polyline points={navExpanded ? "15 18 9 12 15 6" : "9 18 15 12 9 6"} /></svg>
           </div>
         </div>
 
-        {/* NAV ITEMS: Removed History, wired active page routing */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '0 16px', alignItems: navExpanded ? 'stretch' : 'center' }}>
+        {/* NAV ITEMS */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '0 8px', alignItems: navExpanded ? 'stretch' : 'center' }}>
           {[
-            { id: 'Command', label: 'Command', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg> },
-            { id: 'News/Updates', label: 'News & Impact', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg> },
-            { id: 'Export', label: 'Export Data', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> },
-            { id: 'API', label: 'API Keys', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg> }
+            { id: 'Command', label: 'Command', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg> },
+            { id: 'News/Updates', label: 'News & Impact', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg> },
+            { id: 'Export', label: 'Export Data', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> },
+            { id: 'API', label: 'API Keys', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg> }
           ].map(item => {
             const isActive = activePage === item.id;
             return (
@@ -356,9 +356,9 @@ const handleCandidateClick = (candidate) => {
                 onClick={() => { setActivePage(item.id); if (item.id !== 'Command') setCanvasMode('map'); }}
                 style={{ 
                   background: isActive ? blueShadesGradient : 'transparent', 
-                  padding: isActive ? '1.5px' : '0', 
-                  borderRadius: '10px', 
-                  width: navExpanded ? '100%' : (isActive ? '51px' : '48px'),
+                  padding: isActive ? '1px' : '0', 
+                  borderRadius: '8px', 
+                  width: navExpanded ? '100%' : (isActive ? '34px' : '32px'),
                   display: 'flex',
                   cursor: 'pointer'
                 }}
@@ -367,20 +367,44 @@ const handleCandidateClick = (candidate) => {
                   background: isActive ? '#0a0a0c' : 'transparent', 
                   border: 'none', 
                   color: isActive ? '#00e5ff' : '#888', 
-                  borderRadius: isActive ? '8.5px' : '8px', 
+                  borderRadius: '7px', 
                   display: 'flex', 
                   alignItems: 'center', 
-                  gap: '16px', 
-                  padding: '12px 16px', 
+                  gap: '12px', 
+                  padding: '8px', 
                   cursor: 'pointer', 
                   width: '100%', 
-                  height: '48px', 
+                  height: '32px', 
                   justifyContent: navExpanded ? 'flex-start' : 'center', 
                   transition: 'all 0.2s' 
                 }}>
                   {item.icon}
-                  {navExpanded && <span style={{ fontSize: '14px', fontWeight: isActive ? '700' : '500' }}>{item.label}</span>}
+                  {navExpanded && <span style={{ fontSize: '11px', fontWeight: isActive ? '700' : '500' }}>{item.label}</span>}
                 </button>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* BOTTOM RESOURCES */}
+        <div style={{ marginTop: 'auto', padding: '24px 8px 8px 8px', borderTop: '1px solid #1a1a1a', display: 'flex', flexDirection: 'column', gap: '6px', alignItems: navExpanded ? 'stretch' : 'center' }}>
+          {navExpanded && <span style={{ color: '#666', fontSize: '9px', fontWeight: '800', letterSpacing: '1.5px', paddingLeft: '8px', marginBottom: '6px' }}>RESOURCES</span>}
+          {[
+            { id: 'About', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg> },
+            { id: 'Documentation', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> },
+            { id: 'Support', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> }
+          ].map(item => {
+            const isActive = activePage === item.id;
+            return (
+              <div 
+                key={item.id} 
+                onClick={() => setActivePage(item.id)}
+                style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px', color: isActive ? '#00e5ff' : '#888', cursor: 'pointer', borderRadius: '6px', width: navExpanded ? '100%' : '32px', height: '32px', justifyContent: navExpanded ? 'flex-start' : 'center', transition: 'color 0.2s', background: isActive ? 'rgba(0,229,255,0.06)' : 'transparent' }} 
+                onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.color = '#fff'; }} 
+                onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.color = '#888'; }}
+              >
+                {item.icon}
+                {navExpanded && <span style={{ fontSize: '11px', fontWeight: '600' }}>{item.id}</span>}
               </div>
             );
           })}
@@ -657,27 +681,26 @@ const handleCandidateClick = (candidate) => {
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
               
               {/* 1. CHAT HEADER ROW */}
-              <div style={{ padding: '16px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }}>
-                {/* MODERNIZED HISTORY BUTTON (Top Left) */}
-                <button onClick={() => setIsHistoryOpen(!isHistoryOpen)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', padding: '8px 16px', borderRadius: '20px', color: '#ededef', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: '600', transition: 'background 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.background='rgba(255,255,255,0.03)'} onMouseLeave={(e)=>e.currentTarget.style.background='transparent'}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              <div style={{ padding: '12px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }}>
+                {/* MODERNIZED HISTORY BUTTON (Micro-UI Scale) */}
+                <button onClick={() => setIsHistoryOpen(!isHistoryOpen)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', padding: '6px 12px', borderRadius: '16px', color: '#ededef', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: '600', transition: 'background 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.background='rgba(255,255,255,0.03)'} onMouseLeave={(e)=>e.currentTarget.style.background='transparent'}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                   History
                 </button>
 
-                {/* THE NAVIGATION FIX (Only appears when Data is ready) */}
                 {isDataGenerated && (
                   <button 
                     onClick={() => { 
                       setCommandTab('data'); 
-                      setCanvasMode('map'); // Correctly targets the map canvas
+                      setCanvasMode('map'); 
                     }} 
                     style={{ 
                       background: 'rgba(0, 229, 255, 0.1)', border: '1px solid rgba(0, 229, 255, 0.3)', 
-                      color: '#00e5ff', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '700', 
-                      cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' 
+                      color: '#00e5ff', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '700', 
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' 
                     }}
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                       <polyline points="22 4 12 14.01 9 11.01"></polyline>
                     </svg>
