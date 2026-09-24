@@ -414,17 +414,21 @@ const handleCandidateClick = (candidate) => {
 
 
       {/* ========================================================= */}
-      {/* 2. SECTION TWO: MAIN COMMAND DECK & CHAT                 */}
+      {/* 2. SECTION TWO: MAIN COMMAND DECK & CHAT                  */}
       {/* ========================================================= */}
       <div style={{ 
-        width: deckExpanded ? '650px' : '0px', /* Locked width prevents half-screen takeover */
-        flexShrink: 0, 
+        width: deckExpanded ? '360px' : '0px',
+        minWidth: deckExpanded ? '360px' : '0px', 
+        maxWidth: deckExpanded ? '360px' : '0px',
+        flex: deckExpanded ? '0 0 360px' : '0 0 0px', /* Bulletproof flex lock */
         display: 'flex', 
         flexDirection: 'column', 
         background: '#050505', 
         borderRight: deckExpanded ? '1px solid #1a1a1a' : 'none', 
         position: 'relative',
-        transition: 'width 0.3s ease'
+        transition: 'all 0.3s ease',
+        height: '100vh',
+        overflow: 'hidden'
       }}>
         
         {/* Valgo-Style Right Border Collapse Button */}
@@ -802,7 +806,7 @@ const handleCandidateClick = (candidate) => {
                       <h2 style={{ fontSize: '28px', color: '#fff', fontWeight: '600', marginBottom: '8px' }}>Hi, Founder.</h2>
                       <p style={{ fontSize: '16px', color: '#888', marginBottom: '40px' }}>What would you like to discover now?</p>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', width: '100%', maxWidth: '640px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '32px', width: '100%', padding: '0 4px' }}>
                         {[
                           { title: "Where is the best rubber in Wuse?", sub: "Commodity pricing & volume" },
                           { title: "Map the cashflow in Las Vegas", sub: "Macro-liquidity analysis" },
