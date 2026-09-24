@@ -1,17 +1,23 @@
 :root {
   font-family: system-ui, -apple-system, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+  font-size: 13px; /* Sets a crisp, professional baseline font size */
 }
 
-body {
+html, body {
   margin: 0;
   padding: 0;
-  box-sizing: border-box;
-  font-size: 14px; /* Ensures a standard baseline, not inherited browser defaults */
+  width: 100%;
+  height: 100vh;
   background-color: #050505;
+  overflow: hidden; /* Prevents scrollbars from shifting the layout */
 }
 
 * {
-  box-sizing: inherit;
+  box-sizing: border-box;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  display: flex;
 }
