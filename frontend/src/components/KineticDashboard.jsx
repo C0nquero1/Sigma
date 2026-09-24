@@ -438,10 +438,10 @@ const handleCandidateClick = (candidate) => {
       {/* 2. SECTION TWO: MAIN COMMAND DECK & CHAT                  */}
       {/* ========================================================= */}
       <div style={{ 
-        width: deckExpanded ? '410px' : '0px',
-        minWidth: deckExpanded ? '410px' : '0px', 
-        maxWidth: deckExpanded ? '410px' : '0px',
-        flex: deckExpanded ? '0 0 410px' : '0 0 0px', 
+        width: deckExpanded ? '500px' : '0px',
+        minWidth: deckExpanded ? '500px' : '0px', 
+        maxWidth: deckExpanded ? '500px' : '0px',
+        flex: deckExpanded ? '0 0 500px' : '0 0 0px', 
         display: 'flex', 
         flexDirection: 'column', 
         background: '#050505', 
@@ -809,13 +809,13 @@ const handleCandidateClick = (candidate) => {
               </div>
 
               {/* 3. MAIN CHAT AREA */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', minHeight: 0 }}>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', height: '100%', borderTop: '1px solid #1a1a1a' /* FIX: Added the demarcation line */ }}>
                 
                 {/* Soft Blue Fade Background */}
                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '400px', background: 'linear-gradient(180deg, rgba(0, 119, 255, 0.15) 0%, rgba(0, 119, 255, 0.02) 60%, transparent 100%)', pointerEvents: 'none', zIndex: 0 }} />
                 
-                {/* Chat Feed */}
-                <div style={{ flex: 1, overflowY: 'auto', padding: '0 32px 180px 32px', display: 'flex', flexDirection: 'column', gap: '32px', zIndex: 10 }}>
+                {/* Chat Feed (Scrollable Middle Section) */}
+                <div style={{ flex: 1, overflowY: 'auto', padding: '0 24px', display: 'flex', flexDirection: 'column', gap: '24px', zIndex: 10 }}>
                   
                   {/* Modern Chat Greeting & Prompt Suggestions */}
                   {chatHistory.length === 0 && !isSearching && (
@@ -948,12 +948,12 @@ const handleCandidateClick = (candidate) => {
                           onChange={(e) => setInputValue(e.target.value)}
                           placeholder="Ask Street AI..." 
                           disabled={isSearching}
-                          style={{ width: '100%', background: 'transparent', border: 'none', padding: '16px 60px 16px 24px', color: '#fff', fontSize: '15px', fontWeight: '500', outline: 'none', fontFamily: sans }}
+                          style={{ width: '100%', background: 'transparent', border: 'none', padding: '12px 48px 12px 20px', color: '#fff', fontSize: '13px', fontWeight: '500', outline: 'none', fontFamily: sans }}
                         />
                       </div>
                       
-                      <button type="submit" disabled={isSearching || !inputValue.trim()} style={{ position: 'absolute', right: '8px', background: (isSearching || !inputValue.trim()) ? '#1a1a1c' : '#00e5ff', border: 'none', width: '38px', height: '38px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: (isSearching || !inputValue.trim()) ? 'default' : 'pointer', transition: 'all 0.2s' }}>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={(isSearching || !inputValue.trim()) ? '#666' : '#000'} strokeWidth="3"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+                      <button type="submit" disabled={isSearching || !inputValue.trim()} style={{ position: 'absolute', right: '6px', background: (isSearching || !inputValue.trim()) ? '#1a1a1c' : '#00e5ff', border: 'none', width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: (isSearching || !inputValue.trim()) ? 'default' : 'pointer', transition: 'all 0.2s' }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={(isSearching || !inputValue.trim()) ? '#666' : '#000'} strokeWidth="3"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
                       </button>
                     </form>
                   </div>

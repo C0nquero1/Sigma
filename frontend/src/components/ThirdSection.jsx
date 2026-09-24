@@ -393,25 +393,25 @@ export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated
              </g>
           </svg>
   
-            {/* TOP LEFT: ACTIVE DRAWING TOOLS (Studied from UI reference) */}
-          <div style={{ position: 'absolute', top: '24px', left: '24px', display: 'flex', flexDirection: 'column', gap: '8px', zIndex: 9999 }}>
-             <button onClick={() => setActiveTool(activeTool === 'rect' ? null : 'rect')} style={{ background: '#121212', border: `1px solid ${activeTool === 'rect' ? '#00e5ff' : '#2a2a2a'}`, color: activeTool === 'rect' ? '#00e5ff' : '#a0a0a0', padding: '8px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}>
-               <div style={{ width: '12px', height: '12px', border: `1.5px solid ${activeTool === 'rect' ? '#00e5ff' : '#a0a0a0'}`, borderRadius: '2px' }} /> Rectangle Area
+            {/* TOP LEFT: ACTIVE DRAWING TOOLS (Micro-UI Scale) */}
+          <div style={{ position: 'absolute', top: '16px', left: '16px', display: 'flex', flexDirection: 'column', gap: '6px', zIndex: 9999 }}>
+             <button onClick={() => setActiveTool(activeTool === 'rect' ? null : 'rect')} style={{ background: '#121212', border: `1px solid ${activeTool === 'rect' ? '#00e5ff' : '#2a2a2a'}`, color: activeTool === 'rect' ? '#00e5ff' : '#a0a0a0', padding: '4px 8px', borderRadius: '4px', fontSize: '9px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}>
+               <div style={{ width: '8px', height: '8px', border: `1px solid ${activeTool === 'rect' ? '#00e5ff' : '#a0a0a0'}`, borderRadius: '1px' }} /> Rectangle Area
              </button>
-             <button onClick={() => setActiveTool(activeTool === 'poly' ? null : 'poly')} style={{ background: '#121212', border: `1px solid ${activeTool === 'poly' ? '#00e5ff' : '#2a2a2a'}`, color: activeTool === 'poly' ? '#00e5ff' : '#a0a0a0', padding: '8px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}>
-               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={activeTool === 'poly' ? '#00e5ff' : 'currentColor'} strokeWidth="2"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5" /></svg> Polygon Area
+             <button onClick={() => setActiveTool(activeTool === 'poly' ? null : 'poly')} style={{ background: '#121212', border: `1px solid ${activeTool === 'poly' ? '#00e5ff' : '#2a2a2a'}`, color: activeTool === 'poly' ? '#00e5ff' : '#a0a0a0', padding: '4px 8px', borderRadius: '4px', fontSize: '9px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}>
+               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={activeTool === 'poly' ? '#00e5ff' : 'currentColor'} strokeWidth="2"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5" /></svg> Polygon Area
              </button>
           </div>
 
-          {/* TOP RIGHT: MAP CONTROLS (Studied from UI reference) */}
-          <div style={{ position: 'absolute', top: '24px', right: '24px', display: 'flex', gap: '8px', zIndex: 9999, alignItems: 'flex-start' }}>
-             <button onClick={() => { if(mapRef.current) mapRef.current.zoomIn(); }} style={{ background: '#121212', border: '1px solid #2a2a2a', color: '#a0a0a0', padding: '8px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}>
-                Zoom in <span style={{ color: '#888', border: '1px solid #444', borderRadius: '4px', padding: '1px 5px', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>C</span>
+          {/* TOP RIGHT: MAP CONTROLS (Micro-UI Scale) */}
+          <div style={{ position: 'absolute', top: '16px', right: '16px', display: 'flex', gap: '6px', zIndex: 9999, alignItems: 'flex-start' }}>
+             <button onClick={() => { if(mapRef.current) mapRef.current.zoomIn(); }} style={{ background: '#121212', border: '1px solid #2a2a2a', color: '#a0a0a0', padding: '4px 8px', borderRadius: '4px', fontSize: '9px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}>
+                Zoom in <span style={{ color: '#888', border: '1px solid #444', borderRadius: '2px', padding: '1px 3px', fontSize: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>C</span>
              </button>
              
              <div style={{ position: 'relative' }}>
-               <button onClick={() => setStyleMenuOpen(!styleMenuOpen)} style={{ background: '#121212', border: '1px solid #2a2a2a', color: '#a0a0a0', padding: '8px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg> Map style
+               <button onClick={() => setStyleMenuOpen(!styleMenuOpen)} style={{ background: '#121212', border: '1px solid #2a2a2a', color: '#a0a0a0', padding: '4px 8px', borderRadius: '4px', fontSize: '9px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg> Map style
                </button>
                
                {styleMenuOpen && (
