@@ -439,16 +439,16 @@ export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated
                </div>
             )}
   
-            {/* Valgo Legend (Updated to 6-Tier True Valgo Scale) */}
-          <div style={{ position: 'absolute', bottom: '40px', left: '24px', width: '260px', background: 'rgba(5, 5, 7, 0.9)', backdropFilter: 'blur(16px)', border: '1px solid #222', borderRadius: '6px', padding: '20px', zIndex: 40, boxShadow: '0 20px 40px rgba(0,0,0,0.8)' }}>
-             <div style={{ color: '#888', fontSize: '10px', textTransform: 'uppercase', fontFamily: mono, fontWeight: '700', letterSpacing: '1px', marginBottom: '16px' }}>Per-Cell Calibrated Volume (NGN)</div>
-             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11px', fontFamily: mono, color: '#ccc', fontWeight: '700' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><div style={{ width: '12px', height: '12px', background: '#0c1938', borderRadius: '2px' }}/> 0 - 25,000</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><div style={{ width: '12px', height: '12px', background: '#1a3668', borderRadius: '2px' }}/> 25,001 - 60,000</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><div style={{ width: '12px', height: '12px', background: '#28648c', borderRadius: '2px' }}/> 60,001 - 130,000</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><div style={{ width: '12px', height: '12px', background: '#3ca096', borderRadius: '2px' }}/> 130,001 - 350,000</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><div style={{ width: '12px', height: '12px', background: '#74c365', borderRadius: '2px' }}/> 350,001 - 660,000</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}><div style={{ width: '12px', height: '12px', background: '#d4d95c', borderRadius: '2px' }}/> 660,000+ NGN</div>
+            {/* Valgo Legend (Matched to Reference) */}
+          <div style={{ position: 'absolute', bottom: '24px', left: '24px', width: '240px', background: 'rgba(5, 5, 7, 0.95)', backdropFilter: 'blur(16px)', border: '1px solid #1a1a1a', borderRadius: '6px', padding: '16px', zIndex: 40, boxShadow: '0 20px 40px rgba(0,0,0,0.8)' }}>
+             <div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', fontFamily: mono, fontWeight: '700', letterSpacing: '0.5px', marginBottom: '14px' }}>Per-Cell Calibrated Volume (NGN)</div>
+             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '10px', fontFamily: mono, color: '#ccc', fontWeight: '600' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><div style={{ width: '10px', height: '10px', background: '#0c1938', borderRadius: '2px' }}/> 0 - 25,000</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><div style={{ width: '10px', height: '10px', background: '#1a3668', borderRadius: '2px' }}/> 25,001 - 60,000</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><div style={{ width: '10px', height: '10px', background: '#28648c', borderRadius: '2px' }}/> 60,001 - 130,000</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><div style={{ width: '10px', height: '10px', background: '#3ca096', borderRadius: '2px' }}/> 130,001 - 350,000</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><div style={{ width: '10px', height: '10px', background: '#74c365', borderRadius: '2px' }}/> 350,001 - 660,000</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><div style={{ width: '10px', height: '10px', background: '#d4d95c', borderRadius: '2px' }}/> 660,000+ NGN</div>
              </div>
           </div>
   

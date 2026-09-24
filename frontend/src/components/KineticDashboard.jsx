@@ -330,9 +330,9 @@ const handleCandidateClick = (candidate) => {
       `}</style>
 
       {/* ========================================= */}
-      {/* 1. SECTION ONE: NAVIGATION (All Shades of Blue Outline) */}
+      {/* 1. SECTION ONE: NAVIGATION                */}
       {/* ========================================= */}
-      <div style={{ width: navExpanded ? '260px' : '84px', background: '#0a0a0c', borderRight: '1px solid #1a1a1a', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column', padding: '24px 0', zIndex: 40 }}>
+      <div style={{ width: navExpanded ? '195px' : '64px', background: '#0a0a0c', borderRight: '1px solid #1a1a1a', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column', padding: '18px 0', zIndex: 40 }}>
         
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: navExpanded ? 'space-between' : 'center', padding: navExpanded ? '0 24px' : '0', marginBottom: '40px' }}>
           {navExpanded && <span style={{ color: '#666', fontSize: '11px', fontWeight: '800', letterSpacing: '1.5px' }}>NAVIGATION</span>}
@@ -417,10 +417,10 @@ const handleCandidateClick = (candidate) => {
       {/* 2. SECTION TWO: MAIN COMMAND DECK & CHAT                  */}
       {/* ========================================================= */}
       <div style={{ 
-        width: deckExpanded ? '420px' : '0px',
-        minWidth: deckExpanded ? '420px' : '0px', 
-        maxWidth: deckExpanded ? '420px' : '0px',
-        flex: deckExpanded ? '0 0 420px' : '0 0 0px', 
+        width: deckExpanded ? '650px' : '0px',
+        minWidth: deckExpanded ? '650px' : '0px', 
+        maxWidth: deckExpanded ? '650px' : '0px',
+        flex: deckExpanded ? '0 0 650px' : '0 0 0px', 
         display: 'flex', 
         flexDirection: 'column', 
         background: '#050505', 
@@ -428,7 +428,7 @@ const handleCandidateClick = (candidate) => {
         position: 'relative',
         transition: 'all 0.3s ease',
         height: '100vh',
-        overflow: 'hidden'
+        overflow: ' visible'
       }}>
         
         {/* Valgo-Style Right Border Collapse Button */}
@@ -799,14 +799,14 @@ const handleCandidateClick = (candidate) => {
                   
                   {/* Modern Chat Greeting & Prompt Suggestions */}
                   {chatHistory.length === 0 && !isSearching && (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '20px', animation: 'fadeIn 0.5s ease-out', marginTop: '40px' }}>
-                      <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#1a1a1c', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px', border: '1px solid #333' }}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '24px', animation: 'fadeIn 0.5s ease-out', marginTop: '20px' }}>
+                      <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: '#1a1a1c', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px', border: '1px solid #333' }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
                       </div>
-                      <h2 style={{ fontSize: '28px', color: '#fff', fontWeight: '600', marginBottom: '8px' }}>Hi, Founder.</h2>
-                      <p style={{ fontSize: '16px', color: '#888', marginBottom: '40px' }}>What would you like to discover now?</p>
+                      <h2 style={{ fontSize: '24px', color: '#fff', fontWeight: '600', marginBottom: '8px' }}>Hi, Founder.</h2>
+                      <p style={{ fontSize: '13px', color: '#888', marginBottom: '32px' }}>What would you like to discover now?</p>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '32px', width: '100%', padding: '0 4px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '32px', width: '100%' }}>
                         {[
                           { title: "Where is the best rubber in Wuse?", sub: "Commodity pricing & volume" },
                           { title: "Map the cashflow in Las Vegas", sub: "Macro-liquidity analysis" },
@@ -816,12 +816,12 @@ const handleCandidateClick = (candidate) => {
                           <div
                             key={idx}
                             onClick={() => setInputValue(prompt.title)}
-                            style={{ padding: '16px', background: '#0a0a0c', border: '1px solid #222', borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left' }}
+                            style={{ padding: '14px', background: 'transparent', border: '1px solid #222', borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left' }}
                             onMouseEnter={(e) => e.currentTarget.style.border = '1px solid #444'}
                             onMouseLeave={(e) => e.currentTarget.style.border = '1px solid #222'}
                           >
-                            <div style={{ color: '#ddd', fontSize: '13px', fontWeight: '600', marginBottom: '4px' }}>{prompt.title}</div>
-                            <div style={{ color: '#666', fontSize: '11px' }}>{prompt.sub}</div>
+                            <div style={{ color: '#e0e0e0', fontSize: '11px', fontWeight: '600', marginBottom: '4px', lineHeight: '1.4' }}>{prompt.title}</div>
+                            <div style={{ color: '#666', fontSize: '10px' }}>{prompt.sub}</div>
                           </div>
                         ))}
                       </div>
