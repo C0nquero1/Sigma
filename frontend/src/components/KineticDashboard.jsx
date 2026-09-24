@@ -417,10 +417,10 @@ const handleCandidateClick = (candidate) => {
       {/* 2. SECTION TWO: MAIN COMMAND DECK & CHAT                  */}
       {/* ========================================================= */}
       <div style={{ 
-        width: deckExpanded ? '360px' : '0px',
-        minWidth: deckExpanded ? '360px' : '0px', 
-        maxWidth: deckExpanded ? '360px' : '0px',
-        flex: deckExpanded ? '0 0 360px' : '0 0 0px', /* Bulletproof flex lock */
+        width: deckExpanded ? '35vw' : '0vw',
+        minWidth: deckExpanded ? '35vw' : '0vw', 
+        maxWidth: deckExpanded ? '35vw' : '0vw',
+        flex: deckExpanded ? '0 0 35vw' : '0 0 0vw', 
         display: 'flex', 
         flexDirection: 'column', 
         background: '#050505', 
