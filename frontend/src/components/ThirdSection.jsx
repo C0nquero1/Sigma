@@ -347,11 +347,11 @@ export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated
     return (
       <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', background: '#050505', zIndex: 10, overflow: 'hidden', fontFamily: sans }}>
         
-        {/* PERFECTLY PERSISTENT TOP MASTER TOGGLE PILL (zIndex: 9999 ensures it's never covered) */}
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '64px', display: 'flex', alignItems: 'center', padding: '0 24px', zIndex: 9999, pointerEvents: 'none' }}>
-          <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', background: 'rgba(10,10,12,0.85)', backdropFilter: 'blur(10px)', border: '1px solid #333', borderRadius: '24px', padding: '4px', pointerEvents: 'auto', boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }}>
-            <button onClick={() => setCanvasMode('map')} style={{ padding: '6px 20px', borderRadius: '20px', border: 'none', fontSize: '13px', fontWeight: '700', cursor: 'pointer', background: canvasMode === 'map' ? 'rgba(255,255,255,0.1)' : 'transparent', color: canvasMode === 'map' ? '#fff' : '#888', transition: 'all 0.2s' }}>Map View</button>
-            <button onClick={() => setCanvasMode('analysis')} style={{ padding: '6px 20px', borderRadius: '20px', border: 'none', fontSize: '13px', fontWeight: '700', cursor: 'pointer', background: canvasMode === 'analysis' ? 'rgba(255,255,255,0.1)' : 'transparent', color: canvasMode === 'analysis' ? '#fff' : '#888', transition: 'all 0.2s' }}>Deep Analysis</button>
+        {/* PERFECTLY PERSISTENT TOP MASTER TOGGLE PILL */}
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '54px', display: 'flex', alignItems: 'center', padding: '0 24px', zIndex: 9999, pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', background: 'rgba(10,10,12,0.85)', backdropFilter: 'blur(10px)', border: '1px solid #333', borderRadius: '24px', padding: '3px', pointerEvents: 'auto', boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }}>
+            <button onClick={() => setCanvasMode('map')} style={{ padding: '4px 14px', borderRadius: '20px', border: 'none', fontSize: '10px', fontWeight: '700', cursor: 'pointer', background: canvasMode === 'map' ? 'rgba(255,255,255,0.1)' : 'transparent', color: canvasMode === 'map' ? '#fff' : '#888', transition: 'all 0.2s' }}>Map View</button>
+            <button onClick={() => setCanvasMode('analysis')} style={{ padding: '4px 14px', borderRadius: '20px', border: 'none', fontSize: '10px', fontWeight: '700', cursor: 'pointer', background: canvasMode === 'analysis' ? 'rgba(255,255,255,0.1)' : 'transparent', color: canvasMode === 'analysis' ? '#fff' : '#888', transition: 'all 0.2s' }}>Deep Analysis</button>
           </div>
         </div>
   
@@ -439,16 +439,16 @@ export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated
                </div>
             )}
   
-            {/* Valgo Legend (Matched to Reference) */}
-          <div style={{ position: 'absolute', bottom: '24px', left: '24px', width: '240px', background: 'rgba(5, 5, 7, 0.95)', backdropFilter: 'blur(16px)', border: '1px solid #1a1a1a', borderRadius: '6px', padding: '16px', zIndex: 40, boxShadow: '0 20px 40px rgba(0,0,0,0.8)' }}>
-             <div style={{ color: '#888', fontSize: '9px', textTransform: 'uppercase', fontFamily: mono, fontWeight: '700', letterSpacing: '0.5px', marginBottom: '14px' }}>Per-Cell Calibrated Volume (NGN)</div>
-             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '10px', fontFamily: mono, color: '#ccc', fontWeight: '600' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><div style={{ width: '10px', height: '10px', background: '#0c1938', borderRadius: '2px' }}/> 0 - 25,000</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><div style={{ width: '10px', height: '10px', background: '#1a3668', borderRadius: '2px' }}/> 25,001 - 60,000</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><div style={{ width: '10px', height: '10px', background: '#28648c', borderRadius: '2px' }}/> 60,001 - 130,000</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><div style={{ width: '10px', height: '10px', background: '#3ca096', borderRadius: '2px' }}/> 130,001 - 350,000</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><div style={{ width: '10px', height: '10px', background: '#74c365', borderRadius: '2px' }}/> 350,001 - 660,000</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><div style={{ width: '10px', height: '10px', background: '#d4d95c', borderRadius: '2px' }}/> 660,000+ NGN</div>
+            {/* Valgo Legend (Micro-UI Scale) */}
+          <div style={{ position: 'absolute', bottom: '24px', left: '24px', width: '200px', background: 'rgba(5, 5, 7, 0.95)', backdropFilter: 'blur(16px)', border: '1px solid #1a1a1a', borderRadius: '6px', padding: '12px', zIndex: 40, boxShadow: '0 20px 40px rgba(0,0,0,0.8)' }}>
+             <div style={{ color: '#888', fontSize: '8px', textTransform: 'uppercase', fontFamily: mono, fontWeight: '700', letterSpacing: '0.5px', marginBottom: '10px' }}>Per-Cell Calibrated Volume (NGN)</div>
+             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '9px', fontFamily: mono, color: '#ccc', fontWeight: '600' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '8px', height: '8px', background: '#0c1938', borderRadius: '2px' }}/> 0 - 25,000</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '8px', height: '8px', background: '#1a3668', borderRadius: '2px' }}/> 25,001 - 60,000</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '8px', height: '8px', background: '#28648c', borderRadius: '2px' }}/> 60,001 - 130,000</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '8px', height: '8px', background: '#3ca096', borderRadius: '2px' }}/> 130,001 - 350,000</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '8px', height: '8px', background: '#74c365', borderRadius: '2px' }}/> 350,001 - 660,000</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '8px', height: '8px', background: '#d4d95c', borderRadius: '2px' }}/> 660,000+ NGN</div>
              </div>
           </div>
   

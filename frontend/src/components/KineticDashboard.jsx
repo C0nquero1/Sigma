@@ -388,7 +388,7 @@ const handleCandidateClick = (candidate) => {
         </div>
 
         {/* BOTTOM ICONS (About, Docs, Support) - Pushed to the very bottom */}
-        <div style={{ marginTop: 'auto', padding: '0 8px', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: navExpanded ? 'stretch' : 'center' }}>
+        <div style={{ marginTop: 'auto', paddingTop: '16px', paddingLeft: '8px', paddingRight: '8px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: navExpanded ? 'stretch' : 'center' }}>
           {[
             { id: 'About', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg> },
             { id: 'Documentation', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> },
@@ -438,10 +438,10 @@ const handleCandidateClick = (candidate) => {
       {/* 2. SECTION TWO: MAIN COMMAND DECK & CHAT                  */}
       {/* ========================================================= */}
       <div style={{ 
-        width: deckExpanded ? '500px' : '0px',
-        minWidth: deckExpanded ? '500px' : '0px', 
-        maxWidth: deckExpanded ? '500px' : '0px',
-        flex: deckExpanded ? '0 0 500px' : '0 0 0px', 
+        width: deckExpanded ? '470px' : '0px',
+        minWidth: deckExpanded ? '470px' : '0px', 
+        maxWidth: deckExpanded ? '470px' : '0px',
+        flex: deckExpanded ? '0 0 470px' : '0 0 0px', 
         display: 'flex', 
         flexDirection: 'column', 
         background: '#050505', 
