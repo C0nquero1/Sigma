@@ -431,30 +431,6 @@ const handleCandidateClick = (candidate) => {
           })}
         </div>
 
-        {/* BOTTOM RESOURCES: Wired directly to activePage */}
-        <div style={{ marginTop: 'auto', padding: '32px 16px 16px 16px', borderTop: '1px solid #1a1a1a', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: navExpanded ? 'stretch' : 'center' }}>
-          {navExpanded && <span style={{ color: '#666', fontSize: '11px', fontWeight: '800', letterSpacing: '1.5px', paddingLeft: '8px', marginBottom: '8px' }}>RESOURCES</span>}
-          {[
-            { id: 'About', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg> },
-            { id: 'Documentation', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> },
-            { id: 'Support', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> }
-          ].map(item => {
-            const isActive = activePage === item.id;
-            return (
-              <div 
-                key={item.id} 
-                onClick={() => setActivePage(item.id)}
-                style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '10px 16px', color: isActive ? '#00e5ff' : '#888', cursor: 'pointer', borderRadius: '8px', width: navExpanded ? '100%' : '48px', height: '48px', justifyContent: navExpanded ? 'flex-start' : 'center', transition: 'color 0.2s', background: isActive ? 'rgba(0,229,255,0.06)' : 'transparent' }} 
-                onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.color = '#fff'; }} 
-                onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.color = '#888'; }}
-              >
-                {item.icon}
-                {navExpanded && <span style={{ fontSize: '14px', fontWeight: '600' }}>{item.id}</span>}
-              </div>
-            );
-          })}
-        </div>
-
       </div> 
 
 
