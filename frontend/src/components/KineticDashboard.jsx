@@ -330,18 +330,19 @@ const handleCandidateClick = (candidate) => {
       `}</style>
 
       {/* ========================================= */}
-      {/* 1. SECTION ONE: NAVIGATION (Micro-UI Scale) */}
+      {/* 1. SECTION ONE: NAVIGATION (7-Icon Layout) */}
       {/* ========================================= */}
       <div style={{ width: navExpanded ? '195px' : '48px', background: '#0a0a0c', borderRight: '1px solid #1a1a1a', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column', padding: '16px 0', zIndex: 40 }}>
         
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: navExpanded ? 'space-between' : 'center', padding: navExpanded ? '0 16px' : '0', marginBottom: '32px' }}>
+        {/* Toggle Button */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: navExpanded ? 'space-between' : 'center', padding: navExpanded ? '0 16px' : '0', marginBottom: '24px' }}>
           {navExpanded && <span style={{ color: '#666', fontSize: '9px', fontWeight: '800', letterSpacing: '1.5px' }}>NAVIGATION</span>}
           <div onClick={() => setNavExpanded(!navExpanded)} style={{ width: '20px', height: '20px', background: '#121214', border: '1px solid #222', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2"><polyline points={navExpanded ? "15 18 9 12 15 6" : "9 18 15 12 9 6"} /></svg>
           </div>
         </div>
 
-        {/* NAV ITEMS */}
+        {/* TOP ICONS (Command, News, Export, API) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '0 8px', alignItems: navExpanded ? 'stretch' : 'center' }}>
           {[
             { id: 'Command', label: 'Command', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg> },
@@ -386,9 +387,8 @@ const handleCandidateClick = (candidate) => {
           })}
         </div>
 
-        {/* BOTTOM RESOURCES */}
-        <div style={{ marginTop: 'auto', padding: '24px 8px 8px 8px', borderTop: '1px solid #1a1a1a', display: 'flex', flexDirection: 'column', gap: '6px', alignItems: navExpanded ? 'stretch' : 'center' }}>
-          {navExpanded && <span style={{ color: '#666', fontSize: '9px', fontWeight: '800', letterSpacing: '1.5px', paddingLeft: '8px', marginBottom: '6px' }}>RESOURCES</span>}
+        {/* BOTTOM ICONS (About, Docs, Support) - Pushed to the very bottom */}
+        <div style={{ marginTop: 'auto', padding: '0 8px', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: navExpanded ? 'stretch' : 'center' }}>
           {[
             { id: 'About', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg> },
             { id: 'Documentation', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> },
@@ -398,13 +398,34 @@ const handleCandidateClick = (candidate) => {
             return (
               <div 
                 key={item.id} 
-                onClick={() => setActivePage(item.id)}
-                style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px', color: isActive ? '#00e5ff' : '#888', cursor: 'pointer', borderRadius: '6px', width: navExpanded ? '100%' : '32px', height: '32px', justifyContent: navExpanded ? 'flex-start' : 'center', transition: 'color 0.2s', background: isActive ? 'rgba(0,229,255,0.06)' : 'transparent' }} 
-                onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.color = '#fff'; }} 
-                onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.color = '#888'; }}
+                onClick={() => { setActivePage(item.id); setCanvasMode('map'); }}
+                style={{ 
+                  background: isActive ? blueShadesGradient : 'transparent', 
+                  padding: isActive ? '1px' : '0', 
+                  borderRadius: '8px', 
+                  width: navExpanded ? '100%' : (isActive ? '34px' : '32px'),
+                  display: 'flex',
+                  cursor: 'pointer'
+                }}
               >
-                {item.icon}
-                {navExpanded && <span style={{ fontSize: '11px', fontWeight: '600' }}>{item.id}</span>}
+                <button style={{ 
+                  background: isActive ? '#0a0a0c' : 'transparent', 
+                  border: 'none', 
+                  color: isActive ? '#00e5ff' : '#888', 
+                  borderRadius: '7px', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '12px', 
+                  padding: '8px', 
+                  cursor: 'pointer', 
+                  width: '100%', 
+                  height: '32px', 
+                  justifyContent: navExpanded ? 'flex-start' : 'center', 
+                  transition: 'all 0.2s' 
+                }}>
+                  {item.icon}
+                  {navExpanded && <span style={{ fontSize: '11px', fontWeight: isActive ? '700' : '500' }}>{item.id}</span>}
+                </button>
               </div>
             );
           })}
@@ -441,10 +462,10 @@ const handleCandidateClick = (candidate) => {
       {/* 2. SECTION TWO: MAIN COMMAND DECK & CHAT                  */}
       {/* ========================================================= */}
       <div style={{ 
-        width: deckExpanded ? '650px' : '0px',
-        minWidth: deckExpanded ? '650px' : '0px', 
-        maxWidth: deckExpanded ? '650px' : '0px',
-        flex: deckExpanded ? '0 0 650px' : '0 0 0px', 
+        width: deckExpanded ? '410px' : '0px',
+        minWidth: deckExpanded ? '410px' : '0px', 
+        maxWidth: deckExpanded ? '410px' : '0px',
+        flex: deckExpanded ? '0 0 410px' : '0 0 0px', 
         display: 'flex', 
         flexDirection: 'column', 
         background: '#050505', 
