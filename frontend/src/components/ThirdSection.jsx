@@ -11,7 +11,7 @@ export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated
   // Interactive States
   const [activeTool, setActiveTool] = useState(null); // 'rect' or 'poly'
   const [styleMenuOpen, setStyleMenuOpen] = useState(false);
-  const [currentZoom, setCurrentZoom] = useState(8.5);
+  const [currentZoom, setCurrentZoom] = useState(9.5);
   const [dimLevel, setDimLevel] = useState(56);
   
   // Dynamic Geolocation State (Takes you to the prompted location)
@@ -35,7 +35,7 @@ export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated
         
         mapRef.current.flyTo({ 
           center: [resolvedLocation.lng, resolvedLocation.lat], 
-          zoom: 8.5, 
+          zoom: 9.5, 
           pitch: 0, 
           speed: 1.5,
           essential: true
@@ -58,7 +58,7 @@ export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated
     
     // Dynamic nodes sync to the KineticDashboard with vol/tx multipliers for real-time data projection
     const cNodes = [
-      { id: 'macro', lng: targetCoords.lng, lat: targetCoords.lat, zoom: 8.5, pitch: 0, name: 'Macro Spatial Distribution', type: 'City Baseline', color: '#0055ff', volMultiplier: 1.0, txMultiplier: 1.0, description: `Real-time kinetic flow mapping across ${commodityContext} agents for ${searchQuery}, trailing 24 hours.` },
+      { id: 'macro', lng: targetCoords.lng, lat: targetCoords.lat, zoom: 9.5, pitch: 0, name: 'Macro Spatial Distribution', type: 'City Baseline', color: '#0055ff', volMultiplier: 1.0, txMultiplier: 1.0, description: `Real-time kinetic flow mapping across ${commodityContext} agents for ${searchQuery}, trailing 24 hours.` },
       { id: 'hub', lng: targetCoords.lng - 0.015, lat: targetCoords.lat + 0.015, zoom: 14.8, pitch: 45, name: 'Primary Aggregator Hub', type: 'Wholesale Node', color: '#00e5ff', volMultiplier: 0.68, txMultiplier: 0.45, description: `Zoomed into Primary Aggregator Hub. Detecting massive wholesale inventory displacement. Flowmap vectors indicate 68% of capital is concentrated here.` },
       { id: 'transit', lng: targetCoords.lng - 0.01, lat: targetCoords.lat - 0.01, zoom: 15.5, pitch: 60, name: 'Major Transit Corridor', type: 'Friction Point', color: '#ff007f', volMultiplier: 0.45, txMultiplier: 0.30, description: `Tracking Major Transit Corridor. High friction detected. Mobile money transfers show a bottleneck pattern due to logistics loading zones.` },
       { id: 'micro', lng: targetCoords.lng + 0.02, lat: targetCoords.lat + 0.01, zoom: 16.5, pitch: 70, name: 'Capillary Distribution Market', type: 'Micro-Vendors', color: '#ffcc00', volMultiplier: 0.15, txMultiplier: 0.85, description: `Micro-Vendor Capillary Market. Flowmap reveals highly decentralized, low-value/high-frequency transactions forming the terminal edge of the ${commodityContext} supply chain.` }

@@ -1030,90 +1030,90 @@ const handleCandidateClick = (candidate) => {
                 )}
 
                 {/* SECTION 1: Generative Financial KPI Card */}
-                <div style={{ background: '#0a0a0c', borderRadius: '16px', padding: '24px', border: '1px solid #222', position: 'relative', opacity: activeTourNode ? 0.4 : 1, transition: 'opacity 0.3s' }}>
+                <div style={{ background: '#0a0a0c', borderRadius: '10px', padding: '14px', border: '1px solid #222', position: 'relative', opacity: activeTourNode ? 0.4 : 1, transition: 'opacity 0.3s' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
-                        <div style={{ fontSize: '16px', fontWeight: '700', color: '#fff' }}>{scanData?.ui_labels?.card_1_title || 'Cash Volume & Velocity'}</div>
-                        <div style={{ fontSize: '12px', color: '#888', marginTop: '6px', maxWidth: '340px', lineHeight: '1.4' }}>{scanData?.ui_labels?.card_1_subtitle || `Daily unbanked cash volume generated from ${contextHub}`}</div>
+                        <div style={{ fontSize: '11px', fontWeight: '700', color: '#fff' }}>{scanData?.ui_labels?.card_1_title || 'Cash Volume & Velocity'}</div>
+                        <div style={{ fontSize: '8px', color: '#888', marginTop: '4px', maxWidth: '300px', lineHeight: '1.4' }}>{scanData?.ui_labels?.card_1_subtitle || `Daily unbanked cash volume generated from ${contextHub}`}</div>
                     </div>
                     {/* Modern Interactive Timeframe Pill */}
                     <div style={{ position: 'relative' }}>
-                      <button onClick={() => setTimeframeDropdown(!timeframeDropdown)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ededef', padding: '8px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', backdropFilter: 'blur(10px)', transition: 'background 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.background='rgba(255,255,255,0.1)'} onMouseLeave={(e)=>e.currentTarget.style.background='rgba(255,255,255,0.05)'}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> {scanData?.financial_metrics?.time_horizon || timeframe} <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                      <button onClick={() => setTimeframeDropdown(!timeframeDropdown)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ededef', padding: '4px 8px', borderRadius: '12px', fontSize: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', backdropFilter: 'blur(10px)', transition: 'background 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.background='rgba(255,255,255,0.1)'} onMouseLeave={(e)=>e.currentTarget.style.background='rgba(255,255,255,0.05)'}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> {scanData?.financial_metrics?.time_horizon || timeframe} <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
                       </button>
                       {timeframeDropdown && (
-                         <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '8px', background: '#121214', border: '1px solid #333', borderRadius: '12px', padding: '8px', zIndex: 100, width: '160px', boxShadow: '0 10px 40px rgba(0,0,0,0.8)' }}>
+                         <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: '#121214', border: '1px solid #333', borderRadius: '8px', padding: '4px', zIndex: 100, width: '120px', boxShadow: '0 10px 40px rgba(0,0,0,0.8)' }}>
                            {['Live (1hr)', 'Last 12hrs', 'Last 24hrs', 'Trailing 7 Days'].map(t => (
-                             <div key={t} onClick={() => { setTimeframe(t); setTimeframeDropdown(false); }} style={{ padding: '10px 12px', fontSize: '12px', fontWeight: '500', color: timeframe === t ? '#00e5ff' : '#aaa', cursor: 'pointer', borderRadius: '6px', background: timeframe === t ? 'rgba(0,229,255,0.1)' : 'transparent', transition: 'background 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.background= timeframe === t ? 'rgba(0,229,255,0.1)' : 'rgba(255,255,255,0.05)'} onMouseLeave={(e)=>e.currentTarget.style.background= timeframe === t ? 'rgba(0,229,255,0.1)' : 'transparent'}>{t}</div>
+                             <div key={t} onClick={() => { setTimeframe(t); setTimeframeDropdown(false); }} style={{ padding: '6px 8px', fontSize: '9px', fontWeight: '500', color: timeframe === t ? '#00e5ff' : '#aaa', cursor: 'pointer', borderRadius: '4px', background: timeframe === t ? 'rgba(0,229,255,0.1)' : 'transparent', transition: 'background 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.background= timeframe === t ? 'rgba(0,229,255,0.1)' : 'rgba(255,255,255,0.05)'} onMouseLeave={(e)=>e.currentTarget.style.background= timeframe === t ? 'rgba(0,229,255,0.1)' : 'transparent'}>{t}</div>
                            ))}
                          </div>
                       )}
                     </div>
                   </div>
                   
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '16px', marginTop: '24px' }}>
-                    <div style={{ fontSize: '46px', fontWeight: '800', color: '#fff', letterSpacing: '-1px' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginTop: '14px' }}>
+                    <div style={{ fontSize: '20px', fontWeight: '800', color: '#fff', letterSpacing: '-0.5px' }}>
                     {formatCurrency(displayVolume)}
                     </div>
-                    <span style={{fontSize:'13px', color:'#00e5ff', background:'rgba(0,229,255,0.1)', padding:'6px 10px', borderRadius:'6px', fontWeight:'700'}}>
+                    <span style={{fontSize:'8px', color:'#00e5ff', background:'rgba(0,229,255,0.1)', padding:'2px 6px', borderRadius:'4px', fontWeight:'700'}}>
                       {digitalPercentage}% digital
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '16px', marginTop: '24px' }}>
-                    <div style={{ flex: 1, background: '#121214', padding: '20px', borderRadius: '12px', border: '1px solid #1a1a1a', transition: 'border 0.2s', cursor: 'default' }} onMouseEnter={(e)=>e.currentTarget.style.border='1px solid #333'} onMouseLeave={(e)=>e.currentTarget.style.border='1px solid #1a1a1a'}>
-                        <div style={{ fontSize: '12px', color: '#888', fontWeight: '600' }}>{scanData?.ui_labels?.metric_1_label || 'Street vs Formal Gap'}</div>
-                        <div style={{ fontSize: '24px', color: '#fff', fontWeight: '700', marginTop: '8px' }}>
-                          +{priceMarkup}% <span style={{fontSize:'11px', color:'#3fb950', fontWeight:'600'}}>spread</span>
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
+                    <div style={{ flex: 1, background: '#121214', padding: '10px', borderRadius: '8px', border: '1px solid #1a1a1a', transition: 'border 0.2s', cursor: 'default' }} onMouseEnter={(e)=>e.currentTarget.style.border='1px solid #333'} onMouseLeave={(e)=>e.currentTarget.style.border='1px solid #1a1a1a'}>
+                        <div style={{ fontSize: '9px', color: '#888', fontWeight: '600' }}>{scanData?.ui_labels?.metric_1_label || 'Street vs Formal Gap'}</div>
+                        <div style={{ fontSize: '15px', color: '#fff', fontWeight: '700', marginTop: '4px' }}>
+                          +{priceMarkup}% <span style={{fontSize:'8px', color:'#3fb950', fontWeight:'600'}}>spread</span>
                         </div>
                     </div>
-                    <div style={{ flex: 1, background: '#121214', padding: '20px', borderRadius: '12px', border: '1px solid #1a1a1a', transition: 'border 0.2s', cursor: 'default' }} onMouseEnter={(e)=>e.currentTarget.style.border='1px solid #333'} onMouseLeave={(e)=>e.currentTarget.style.border='1px solid #1a1a1a'}>
-                        <div style={{ fontSize: '12px', color: '#888', fontWeight: '600' }}>{scanData?.ui_labels?.metric_2_label || 'Transaction Velocity'}</div>
-                        <div style={{ fontSize: '24px', color: '#fff', fontWeight: '700', marginTop: '8px' }}>
-                        {displayVelocity.toLocaleString()} <span style={{fontSize:'11px', color:'#ff7b72', fontWeight:'600'}}>tx/period</span>
+                    <div style={{ flex: 1, background: '#121214', padding: '10px', borderRadius: '8px', border: '1px solid #1a1a1a', transition: 'border 0.2s', cursor: 'default' }} onMouseEnter={(e)=>e.currentTarget.style.border='1px solid #333'} onMouseLeave={(e)=>e.currentTarget.style.border='1px solid #1a1a1a'}>
+                        <div style={{ fontSize: '9px', color: '#888', fontWeight: '600' }}>{scanData?.ui_labels?.metric_2_label || 'Transaction Velocity'}</div>
+                        <div style={{ fontSize: '15px', color: '#fff', fontWeight: '700', marginTop: '4px' }}>
+                        {displayVelocity.toLocaleString()} <span style={{fontSize:'8px', color:'#ff7b72', fontWeight:'600'}}>tx/period</span>
                         </div>
                     </div>
                   </div>
 
                   {expandedSections.vol && (
-                    <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px dashed #222', animation: 'fadeIn 0.4s ease-out' }}>
-                      <div style={{ fontSize: '12px', color: '#888', fontWeight: '600', marginBottom: '16px' }}>Liquidity Channel Distribution</div>
-                      <div style={{ display: 'flex', gap: '12px' }}>
-                        <div style={{ flex: digitalPercentage || 15, height: '8px', background: '#00e5ff', borderRadius: '4px' }} title="Digital/USSD Flow" />
-                        <div style={{ flex: (100 - digitalPercentage) || 85, height: '8px', background: '#ff007f', borderRadius: '4px' }} title="Physical Dark Cash" />
+                    <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px dashed #222', animation: 'fadeIn 0.4s ease-out' }}>
+                      <div style={{ fontSize: '9px', color: '#888', fontWeight: '600', marginBottom: '10px' }}>Liquidity Channel Distribution</div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <div style={{ flex: digitalPercentage || 15, height: '6px', background: '#00e5ff', borderRadius: '3px' }} title="Digital/USSD Flow" />
+                        <div style={{ flex: (100 - digitalPercentage) || 85, height: '6px', background: '#ff007f', borderRadius: '3px' }} title="Physical Dark Cash" />
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#aaa', marginTop: '8px', fontWeight: '600' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', color: '#aaa', marginTop: '6px', fontWeight: '600' }}>
                         <span>Digital/USSD: {formatCurrency(digitalCash)} ({digitalPercentage}%)</span>
                         <span>Physical Cash: {formatCurrency(physicalCash)} ({(100 - digitalPercentage).toFixed(1)}%)</span>
                       </div>
                     </div>
                   )}
-                  <button onClick={() => setExpandedSections({...expandedSections, vol: !expandedSections.vol})} style={{ width: '100%', marginTop: '24px', background: 'transparent', border: 'none', color: '#00e5ff', fontSize: '12px', fontWeight: '600', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', opacity: 0.8, transition: 'opacity 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.opacity=1} onMouseLeave={(e)=>e.currentTarget.style.opacity=0.8}>
+                  <button onClick={() => setExpandedSections({...expandedSections, vol: !expandedSections.vol})} style={{ width: '100%', marginTop: '14px', background: 'transparent', border: 'none', color: '#00e5ff', fontSize: '9px', fontWeight: '600', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px', opacity: 0.8, transition: 'opacity 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.opacity=1} onMouseLeave={(e)=>e.currentTarget.style.opacity=0.8}>
                     {expandedSections.vol ? 'Collapse metrics ↑' : 'See advanced metrics ↓'}
                   </button>
-                </div>
-
+                </div>                                                                                                                                                                
+                
                 {/* SECTION 2: Generative Ranking & Distribution Card */}
-                <div style={{ background: '#0a0a0c', borderRadius: '16px', padding: '24px', border: '1px solid #222', opacity: activeTourNode ? 0.4 : 1, transition: 'opacity 0.3s' }}>
-                  <div style={{ fontSize: '16px', fontWeight: '700', color: '#fff' }}>{scanData?.breakdown_meta?.card_2_title || 'Active Vendor Network'}</div>
-                  <div style={{ fontSize: '12px', color: '#888', marginTop: '6px', maxWidth: '340px', lineHeight: '1.4' }}>{scanData?.breakdown_meta?.card_2_subtitle || `Active distribution profiles across ${contextHub}`}</div>
+                <div style={{ background: '#0a0a0c', borderRadius: '10px', padding: '14px', border: '1px solid #222', opacity: activeTourNode ? 0.4 : 1, transition: 'opacity 0.3s' }}>
+                  <div style={{ fontSize: '11px', fontWeight: '700', color: '#fff' }}>{scanData?.breakdown_meta?.card_2_title || 'Active Vendor Network'}</div>
+                  <div style={{ fontSize: '8px', color: '#888', marginTop: '4px', maxWidth: '300px', lineHeight: '1.4' }}>{scanData?.breakdown_meta?.card_2_subtitle || `Active distribution profiles across ${contextHub}`}</div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', marginTop: '24px', gap: '32px' }}>
-                    <div style={{ position: 'relative', width: '120px', height: '120px', flexShrink: 0 }}>
-                      <svg width="120" height="120" viewBox="0 0 100 100">
+                  <div style={{ display: 'flex', alignItems: 'center', marginTop: '14px', gap: '16px' }}>
+                    <div style={{ position: 'relative', width: '80px', height: '80px', flexShrink: 0 }}>
+                      <svg width="80" height="80" viewBox="0 0 100 100">
                           <circle cx="50" cy="50" r="40" fill="none" stroke="#222" strokeWidth="12" />
                           <circle cx="50" cy="50" r="40" fill="none" stroke="#00e5ff" strokeWidth="12" strokeDasharray="251" strokeDashoffset="100" style={{ transition: 'stroke-dashoffset 1s ease-in-out' }} />
                           <circle cx="50" cy="50" r="40" fill="none" stroke="#ff007f" strokeWidth="12" strokeDasharray="251" strokeDashoffset="180" style={{ transition: 'stroke-dashoffset 1s ease-in-out' }} />
                       </svg>
-                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: '800', color: '#fff' }}>100%</div>
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: '800', color: '#fff' }}>100%</div>
                     </div>
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {(scanData?.breakdown_data || []).map((x, idx) => {
                           const fallbackColors = ['#00e5ff', '#ff007f', '#ffcc00', '#3fb950', '#a371f7'];
                           const c = x.color || fallbackColors[idx % fallbackColors.length];
                           return (
-                            <div key={x.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#aaa', fontWeight: '500', padding: '6px 12px', borderRadius: '6px', transition: 'background 0.2s', cursor: 'pointer' }} onMouseEnter={(e)=>e.currentTarget.style.background='#121214'} onMouseLeave={(e)=>e.currentTarget.style.background='transparent'}>
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><div style={{width:'8px', height:'8px', borderRadius:'50%', background: c, boxShadow: `0 0 8px ${c}`}}/> {x.label}</span>
+                            <div key={x.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#aaa', fontWeight: '500', padding: '4px 8px', borderRadius: '4px', transition: 'background 0.2s', cursor: 'pointer' }} onMouseEnter={(e)=>e.currentTarget.style.background='#121214'} onMouseLeave={(e)=>e.currentTarget.style.background='transparent'}>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{width:'6px', height:'6px', borderRadius:'50%', background: c, boxShadow: `0 0 6px ${c}`}}/> {x.label}</span>
                                 <span style={{ color: '#fff', fontWeight: '700' }}>{(x.value * 100).toFixed(0)}%</span>
                             </div>
                           );
@@ -1122,60 +1122,60 @@ const handleCandidateClick = (candidate) => {
                   </div>
 
                   {expandedSections.demo && (
-                    <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px dashed #222', animation: 'fadeIn 0.4s ease-out' }}>
+                    <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px dashed #222', animation: 'fadeIn 0.4s ease-out' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <div><div style={{ fontSize: '11px', color: '#888', fontWeight: '600' }}>Total Foot Traffic</div><div style={{ fontSize: '18px', color: '#fff', fontWeight: '800', marginTop: '4px' }}>{displayContributors.toLocaleString()}</div></div>
-                        <div><div style={{ fontSize: '11px', color: '#888', fontWeight: '600' }}>Active Buyers</div><div style={{ fontSize: '18px', color: '#00e5ff', fontWeight: '800', marginTop: '4px' }}>{displayBuyers.toLocaleString()}</div></div>
-                        <div><div style={{ fontSize: '11px', color: '#888', fontWeight: '600' }}>Permanent Vendors</div><div style={{ fontSize: '18px', color: '#ff007f', fontWeight: '800', marginTop: '4px' }}>{displayMerchants.toLocaleString()}</div></div>
+                        <div><div style={{ fontSize: '8px', color: '#888', fontWeight: '600' }}>Total Foot Traffic</div><div style={{ fontSize: '14px', color: '#fff', fontWeight: '800', marginTop: '2px' }}>{displayContributors.toLocaleString()}</div></div>
+                        <div><div style={{ fontSize: '8px', color: '#888', fontWeight: '600' }}>Active Buyers</div><div style={{ fontSize: '14px', color: '#00e5ff', fontWeight: '800', marginTop: '2px' }}>{displayBuyers.toLocaleString()}</div></div>
+                        <div><div style={{ fontSize: '8px', color: '#888', fontWeight: '600' }}>Permanent Vendors</div><div style={{ fontSize: '14px', color: '#ff007f', fontWeight: '800', marginTop: '2px' }}>{displayMerchants.toLocaleString()}</div></div>
                       </div>
                     </div>
                   )}
-                  <button onClick={() => setExpandedSections({...expandedSections, demo: !expandedSections.demo})} style={{ width: '100%', marginTop: '24px', background: 'transparent', border: 'none', color: '#00e5ff', fontSize: '12px', fontWeight: '600', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', opacity: 0.8, transition: 'opacity 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.opacity=1} onMouseLeave={(e)=>e.currentTarget.style.opacity=0.8}>
+                  <button onClick={() => setExpandedSections({...expandedSections, demo: !expandedSections.demo})} style={{ width: '100%', marginTop: '14px', background: 'transparent', border: 'none', color: '#00e5ff', fontSize: '9px', fontWeight: '600', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px', opacity: 0.8, transition: 'opacity 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.opacity=1} onMouseLeave={(e)=>e.currentTarget.style.opacity=0.8}>
                     {expandedSections.demo ? 'Collapse breakdown ↑' : 'See advanced breakdown ↓'}
                   </button>
-                </div>
-
+                </div>                                                                                                                                                                              
+                
                 {/* SECTION 3: Dynamic Market Friction & Flow */}
-                <div style={{ background: '#0a0a0c', borderRadius: '16px', padding: '24px', border: '1px solid #222', opacity: activeTourNode ? 0.4 : 1, transition: 'opacity 0.3s' }}>
+                <div style={{ background: '#0a0a0c', borderRadius: '10px', padding: '14px', border: '1px solid #222', opacity: activeTourNode ? 0.4 : 1, transition: 'opacity 0.3s' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <div style={{ fontSize: '16px', fontWeight: '700', color: '#fff' }}>{scanData?.ui_labels?.card_3_title || 'Market Friction & Flow'}</div>
-                      <div style={{ fontSize: '12px', color: '#888', marginTop: '6px' }}>{scanData?.ui_labels?.card_3_subtitle || `Real-time activity and friction flags in ${contextHub}`}</div>
+                      <div style={{ fontSize: '11px', fontWeight: '700', color: '#fff' }}>{scanData?.ui_labels?.card_3_title || 'Market Friction & Flow'}</div>
+                      <div style={{ fontSize: '8px', color: '#888', marginTop: '4px' }}>{scanData?.ui_labels?.card_3_subtitle || `Real-time activity and friction flags in ${contextHub}`}</div>
                     </div>
-                    <button style={{ background: '#121214', border: '1px solid #333', borderRadius: '6px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', cursor: 'pointer', transition: 'color 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.color='#fff'} onMouseLeave={(e)=>e.currentTarget.style.color='#aaa'}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                    <button style={{ background: '#121214', border: '1px solid #333', borderRadius: '4px', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', cursor: 'pointer', transition: 'color 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.color='#fff'} onMouseLeave={(e)=>e.currentTarget.style.color='#aaa'}>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
                     </button>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
                       {[{title: 'Inflow Peak', val: '12.1k', c: '#00e5ff'}, {title: 'Outflow Dip', val: '8.4k', c: '#ff007f'}, {title: 'Friction Events', val: '142', c: '#ffcc00'}].map((x, idx) => (
-                        <div key={x.title} style={{ flex: 1, background: '#121214', border: '1px solid #1a1a1a', borderRadius: '12px', padding: '16px', transition: 'border 0.2s, transform 0.2s', cursor: 'pointer' }} onMouseEnter={(e)=>{e.currentTarget.style.border='1px solid #333'; e.currentTarget.style.transform='translateY(-2px)'}} onMouseLeave={(e)=>{e.currentTarget.style.border='1px solid #1a1a1a'; e.currentTarget.style.transform='translateY(0)'}}>
-                            <div style={{ fontSize: '11px', color: '#888', fontWeight: '600' }}>{x.title}</div>
-                            <div style={{ fontSize: '20px', color: '#fff', fontWeight: '800', marginTop: '8px' }}>{x.val}</div>
-                            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '2px', height: '24px', marginTop: '16px' }}>
-                              {[40,70,30,80,50,90,100].map((h, i) => <div key={i} style={{ flex: 1, background: (idx === 0 && i === 6) ? x.c : '#222', height: `${h}%`, borderRadius: '2px', transition: 'height 0.3s' }} />)}
+                        <div key={x.title} style={{ flex: 1, background: '#121214', border: '1px solid #1a1a1a', borderRadius: '8px', padding: '10px', transition: 'border 0.2s, transform 0.2s', cursor: 'pointer' }} onMouseEnter={(e)=>{e.currentTarget.style.border='1px solid #333'; e.currentTarget.style.transform='translateY(-2px)'}} onMouseLeave={(e)=>{e.currentTarget.style.border='1px solid #1a1a1a'; e.currentTarget.style.transform='translateY(0)'}}>
+                            <div style={{ fontSize: '8px', color: '#888', fontWeight: '600' }}>{x.title}</div>
+                            <div style={{ fontSize: '14px', color: '#fff', fontWeight: '800', marginTop: '6px' }}>{x.val}</div>
+                            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '2px', height: '16px', marginTop: '10px' }}>
+                              {[40,70,30,80,50,90,100].map((h, i) => <div key={i} style={{ flex: 1, background: (idx === 0 && i === 6) ? x.c : '#222', height: `${h}%`, borderRadius: '1px', transition: 'height 0.3s' }} />)}
                             </div>
                         </div>
                       ))}
                   </div>
 
                   {expandedSections.flow && (
-                    <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px dashed #222', animation: 'fadeIn 0.4s ease-out' }}>
-                      <div style={{ fontSize: '12px', color: '#888', fontWeight: '600', marginBottom: '16px' }}>Live Friction Event Log</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px dashed #222', animation: 'fadeIn 0.4s ease-out' }}>
+                      <div style={{ fontSize: '9px', color: '#888', fontWeight: '600', marginBottom: '10px' }}>Live Friction Event Log</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {[{time: '14:22', event: 'Sudden outflow detected at North Gate', sev: 'Moderate'}, {time: '14:18', event: 'Price anomaly in commodity sector', sev: 'High'}].map((log, i) => (
-                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', borderLeft: `3px solid ${log.sev === 'High' ? '#ff007f' : '#ffcc00'}` }}>
-                             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                               <span style={{ fontSize: '10px', color: '#666', fontFamily: mono }}>{log.time}</span>
-                               <span style={{ fontSize: '12px', color: '#ccc', fontWeight: '500' }}>{log.event}</span>
+                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 8px', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', borderLeft: `2px solid ${log.sev === 'High' ? '#ff007f' : '#ffcc00'}` }}>
+                             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                               <span style={{ fontSize: '8px', color: '#666', fontFamily: mono }}>{log.time}</span>
+                               <span style={{ fontSize: '9px', color: '#ccc', fontWeight: '500' }}>{log.event}</span>
                              </div>
-                             <span style={{ fontSize: '10px', color: log.sev === 'High' ? '#ff007f' : '#ffcc00', fontWeight: '700' }}>{log.sev}</span>
+                             <span style={{ fontSize: '8px', color: log.sev === 'High' ? '#ff007f' : '#ffcc00', fontWeight: '700' }}>{log.sev}</span>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
-                  <button onClick={() => setExpandedSections({...expandedSections, flow: !expandedSections.flow})} style={{ width: '100%', marginTop: '24px', background: 'transparent', border: 'none', color: '#00e5ff', fontSize: '12px', fontWeight: '600', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', opacity: 0.8, transition: 'opacity 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.opacity=1} onMouseLeave={(e)=>e.currentTarget.style.opacity=0.8}>
+                  <button onClick={() => setExpandedSections({...expandedSections, flow: !expandedSections.flow})} style={{ width: '100%', marginTop: '14px', background: 'transparent', border: 'none', color: '#00e5ff', fontSize: '9px', fontWeight: '600', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px', opacity: 0.8, transition: 'opacity 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.opacity=1} onMouseLeave={(e)=>e.currentTarget.style.opacity=0.8}>
                     {expandedSections.flow ? 'Collapse event logs ↑' : 'See live event logs ↓'}
                   </button>
                 </div>
