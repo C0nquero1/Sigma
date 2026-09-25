@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ThirdSection from './ThirdSection';
 
+
 const sans = "system-ui, -apple-system, sans-serif";
 const mono = "ui-monospace, monospace";
 
@@ -438,10 +439,10 @@ const handleCandidateClick = (candidate) => {
       {/* 2. SECTION TWO: MAIN COMMAND DECK & CHAT                  */}
       {/* ========================================================= */}
       <div style={{ 
-        width: deckExpanded ? '470px' : '0px',
-        minWidth: deckExpanded ? '470px' : '0px', 
-        maxWidth: deckExpanded ? '470px' : '0px',
-        flex: deckExpanded ? '0 0 470px' : '0 0 0px', 
+        width: deckExpanded ? '460px' : '0px',
+        minWidth: deckExpanded ? '460px' : '0px', 
+        maxWidth: deckExpanded ? '460px' : '0px',
+        flex: deckExpanded ? '0 0 460px' : '0 0 0px', 
         display: 'flex', 
         flexDirection: 'column', 
         background: '#050505', 
