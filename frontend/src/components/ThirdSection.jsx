@@ -35,8 +35,9 @@ export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated
         
         mapRef.current.flyTo({ 
           center: [resolvedLocation.lng, resolvedLocation.lat], 
-          zoom: 9.5, 
-          pitch: 0, 
+          zoom: 15.5,     // Increased from 14.5 for a much tighter, zoomed-in view
+          pitch: 60,      // Increased from 0 to 60 for the 3D cinematic angle
+          bearing: -15,   // Adds a slight camera rotation
           speed: 1.5,
           essential: true
         });
@@ -267,7 +268,7 @@ export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated
       if (mapRef.current) {
         mapRef.current.flyTo({
           center: [resolvedLocation.lng, resolvedLocation.lat],
-          zoom: 11.5,
+          zoom: 14.5,
           speed: 1.5,
           essential: true
         });

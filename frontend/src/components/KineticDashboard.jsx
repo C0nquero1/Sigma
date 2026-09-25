@@ -740,7 +740,7 @@ const handleCandidateClick = (candidate) => {
               </div>
 
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', height: '100%', borderTop: '1px solid #1a1a1a' }}>
-                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '400px', background: 'linear-gradient(180deg, rgba(60, 160, 150, 0.1) 0%, rgba(60, 160, 150, 0.01) 60%, transparent 100%)', pointerEvents: 'none', zIndex: 0 }} />
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '400px', background: 'linear-gradient(180deg, rgba(0, 229, 255, 0.15) 0%, rgba(0, 229, 255, 0.01) 60%, transparent 100%)', pointerEvents: 'none', zIndex: 0 }} />
                 
                 <div style={{ flex: 1, overflowY: 'auto', padding: '32px 24px 24px 24px', display: 'flex', flexDirection: 'column', gap: '16px', zIndex: 10 }}>
                   {chatHistory.length === 0 && !isSearching && (
@@ -770,19 +770,19 @@ const handleCandidateClick = (candidate) => {
                   {(isSearching || isDataGenerated) && (
                     <div style={{ display: 'flex', gap: '12px', flexDirection: 'row-reverse', animation: 'fadeIn 0.3s ease-out' }}>
                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                        <div style={{ fontSize: '11px', color: '#e0e0e0', background: 'rgba(60, 160, 150, 0.15)', padding: '8px 14px', borderRadius: '14px 2px 14px 14px', border: '1px solid rgba(60, 160, 150, 0.2)', maxWidth: '85%', fontWeight: '500', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-                          {searchQuery}
-                        </div>
+                      <div style={{ fontSize: '11px', color: '#e0e0e0', background: 'rgba(0, 229, 255, 0.15)', padding: '8px 14px', borderRadius: '14px 2px 14px 14px', border: '1px solid rgba(0, 229, 255, 0.3)', maxWidth: '85%', fontWeight: '500', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                      {searchQuery}
+                       </div>
                       </div>
                     </div>
                   )}
 
-                  {isSearching ? (
-                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#3ca096" strokeWidth="2" className="animate-spin"><circle cx="12" cy="12" r="10"/></svg>
-                      <div style={{ fontSize: '10px', color: '#3ca096', fontStyle: 'italic', fontFamily: mono, opacity: 0.8 }}>Analyzing live nodes...</div>
-                    </div>
-                  ) : isDataGenerated ? (
+                   {isSearching ? (
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" strokeWidth="2" className="animate-spin"><circle cx="12" cy="12" r="10"/></svg>
+                  <div style={{ fontSize: '10px', color: '#00e5ff', fontStyle: 'italic', fontFamily: mono, opacity: 0.8 }}>Analyzing live nodes...</div>
+                 </div>
+                ) : isDataGenerated ? (
                     <div style={{ display: 'flex', gap: '12px', animation: 'fadeIn 0.3s ease-out' }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '11px', lineHeight: '1.5', color: '#ccc', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', padding: '10px 14px', borderRadius: '2px 14px 14px 14px', fontWeight: '500' }}>
@@ -823,9 +823,9 @@ const handleCandidateClick = (candidate) => {
                       </div>
                   )}
 
-                  <div style={{ padding: '2px', background: 'linear-gradient(90deg, #28648c, #3ca096)', borderRadius: '32px', boxShadow: '0 8px 30px rgba(60, 160, 150, 0.15)' }}>
-                    <form onSubmit={handlePromptSubmit} style={{ position: 'relative', display: 'flex', alignItems: 'center', background: '#050505', borderRadius: '30px' }}>
-                      <div style={{ position: 'relative', width: '100%' }}>
+                <div style={{ padding: '2px', background: 'linear-gradient(90deg, #0077ff, #00e5ff)', borderRadius: '32px', boxShadow: '0 8px 30px rgba(0, 229, 255, 0.15)' }}>
+                  <form onSubmit={handlePromptSubmit} style={{ position: 'relative', display: 'flex', alignItems: 'center', background: '#050505', borderRadius: '30px' }}>
+                     <div style={{ position: 'relative', width: '100%' }}>
                         {liveSuggestions.length > 0 && (
                           <div style={{ position: 'absolute', bottom: '100%', left: '16px', right: '16px', background: '#121214', border: '1px solid #333', borderRadius: '12px', marginBottom: '16px', overflow: 'hidden', zIndex: 100, boxShadow: '0 -10px 40px rgba(0,0,0,0.8)' }}>
                             <div style={{ padding: '8px 16px', fontSize: '10px', color: '#666', textTransform: 'uppercase', letterSpacing: '1px', borderBottom: '1px solid #222' }}>Detected Locations</div>
@@ -842,8 +842,8 @@ const handleCandidateClick = (candidate) => {
                         )}
                         <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="Ask Street AI..." disabled={isSearching} style={{ width: '100%', background: 'transparent', border: 'none', padding: '12px 48px 12px 20px', color: '#fff', fontSize: '13px', fontWeight: '500', outline: 'none', fontFamily: sans }} />
                       </div>
-                      <button type="submit" disabled={isSearching || !inputValue.trim()} style={{ position: 'absolute', right: '6px', background: (isSearching || !inputValue.trim()) ? '#1a1a1c' : '#3ca096', border: 'none', width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: (isSearching || !inputValue.trim()) ? 'default' : 'pointer', transition: 'all 0.2s' }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={(isSearching || !inputValue.trim()) ? '#666' : '#000'} strokeWidth="3"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+                      <button type="submit" disabled={isSearching || !inputValue.trim()} style={{ position: 'absolute', right: '6px', background: (isSearching || !inputValue.trim()) ? '#1a1a1c' : '#00e5ff', border: 'none', width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: (isSearching || !inputValue.trim()) ? 'default' : 'pointer', transition: 'all 0.2s' }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={(isSearching || !inputValue.trim()) ? '#666' : '#000'} strokeWidth="3"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
                       </button>
                     </form>
                   </div>
