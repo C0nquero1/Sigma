@@ -951,39 +951,39 @@ const handleCandidateClick = (candidate) => {
 
               <div style={{ flex: 1, overflowY: 'auto', padding: '32px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
-                {/* DYNAMIC TOUR INJECTION */}
+                {/* DYNAMIC TOUR INJECTION (Micro-Scale & Color Synced) */}
                 {activeTourNode ? (
                   <div style={{ 
-                    background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.08) 0%, rgba(0, 0, 0, 0) 100%)', 
-                    border: `1px solid ${activeTourNode.color}`, 
-                    borderRadius: '12px', 
-                    padding: '20px', 
+                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(0, 0, 0, 0) 100%)', 
+                    border: `1px solid ${activeTourNode.color}50`, 
+                    borderRadius: '8px', 
+                    padding: '12px 14px', 
                     animation: 'fadeIn 0.4s ease-out',
                     position: 'relative',
                     overflow: 'hidden',
-                    marginBottom: '24px'
+                    marginBottom: '16px'
                   }}>
                      {/* Glowing edge effect matching the node color */}
-                     <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '4px', background: activeTourNode.color, boxShadow: `0 0 15px ${activeTourNode.color}` }} />
+                     <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '3px', background: activeTourNode.color, boxShadow: `0 0 10px ${activeTourNode.color}` }} />
                      
-                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                       <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: activeTourNode.color, animation: 'pulse 1s infinite' }} />
-                       <div style={{ fontSize: '11px', color: activeTourNode.color, fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', fontFamily: mono }}>
+                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                       <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: activeTourNode.color, animation: 'pulse 1s infinite' }} />
+                       <div style={{ fontSize: '9px', color: activeTourNode.color, fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', fontFamily: mono }}>
                          Isolated View: {activeTourNode.type}
                        </div>
                      </div>
                      
-                     <div style={{ fontSize: '22px', color: '#fff', fontWeight: '800', letterSpacing: '-0.5px' }}>{activeTourNode.name}</div>
-                     <div style={{ fontSize: '13px', color: '#aaa', marginTop: '8px', lineHeight: '1.6' }}>All dashboard metrics below are now filtering exclusively for data originating within this localized geofence.</div>
+                     <div style={{ fontSize: '14px', color: '#fff', fontWeight: '800', letterSpacing: '-0.2px' }}>{activeTourNode.name}</div>
+                     <div style={{ fontSize: '9px', color: '#aaa', marginTop: '4px', lineHeight: '1.4' }}>All dashboard metrics below are now filtering exclusively for data originating within this localized geofence.</div>
                      
-                     <div style={{ display: 'flex', gap: '12px', marginTop: '16px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '16px' }}>
+                     <div style={{ display: 'flex', gap: '10px', marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '10px' }}>
                          <div style={{ flex: 1 }}>
-                             <div style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase', fontFamily: mono }}>Volume Concentration</div>
-                             <div style={{ fontSize: '16px', color: '#fff', fontWeight: '700', marginTop: '4px' }}>{(activeTourNode.volMultiplier * 100).toFixed(0)}% of Grid</div>
+                             <div style={{ fontSize: '8px', color: '#888', textTransform: 'uppercase', fontFamily: mono }}>Volume Concentration</div>
+                             <div style={{ fontSize: '12px', color: '#fff', fontWeight: '700', marginTop: '4px' }}>{(activeTourNode.volMultiplier * 100).toFixed(0)}% of Grid</div>
                          </div>
                          <div style={{ flex: 1 }}>
-                             <div style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase', fontFamily: mono }}>Transaction Friction</div>
-                             <div style={{ fontSize: '16px', color: '#fff', fontWeight: '700', marginTop: '4px' }}>{(activeTourNode.txMultiplier * 100).toFixed(0)}% Baseline</div>
+                             <div style={{ fontSize: '8px', color: '#888', textTransform: 'uppercase', fontFamily: mono }}>Transaction Friction</div>
+                             <div style={{ fontSize: '12px', color: '#fff', fontWeight: '700', marginTop: '4px' }}>{(activeTourNode.txMultiplier * 100).toFixed(0)}% Baseline</div>
                          </div>
                      </div>
                   </div>
@@ -1024,7 +1024,7 @@ const handleCandidateClick = (candidate) => {
                       {timeframeDropdown && (
                          <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: '#121214', border: '1px solid #333', borderRadius: '8px', padding: '4px', zIndex: 100, width: '120px', boxShadow: '0 10px 40px rgba(0,0,0,0.8)' }}>
                            {['Live (1hr)', 'Last 12hrs', 'Last 24hrs', 'Trailing 7 Days'].map(t => (
-                             <div key={t} onClick={() => { setTimeframe(t); setTimeframeDropdown(false); }} style={{ padding: '6px 8px', fontSize: '9px', fontWeight: '500', color: timeframe === t ? '#00e5ff' : '#aaa', cursor: 'pointer', borderRadius: '4px', background: timeframe === t ? 'rgba(0,229,255,0.1)' : 'transparent', transition: 'background 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.background= timeframe === t ? 'rgba(0,229,255,0.1)' : 'rgba(255,255,255,0.05)'} onMouseLeave={(e)=>e.currentTarget.style.background= timeframe === t ? 'rgba(0,229,255,0.1)' : 'transparent'}>{t}</div>
+                             <div key={t} onClick={() => { setTimeframe(t); setTimeframeDropdown(false); }} style={{ padding: '6px 8px', fontSize: '9px', fontWeight: '500', color: timeframe === t ? '#3ca096' : '#aaa', cursor: 'pointer', borderRadius: '4px', background: timeframe === t ? 'rgba(60,160,150,0.1)' : 'transparent', transition: 'background 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.background= timeframe === t ? 'rgba(60,160,150,0.1)' : 'rgba(255,255,255,0.05)'} onMouseLeave={(e)=>e.currentTarget.style.background= timeframe === t ? 'rgba(60,160,150,0.1)' : 'transparent'}>{t}</div>
                            ))}
                          </div>
                       )}
@@ -1035,7 +1035,7 @@ const handleCandidateClick = (candidate) => {
                     <div style={{ fontSize: '20px', fontWeight: '800', color: '#fff', letterSpacing: '-0.5px' }}>
                     {formatCurrency(displayVolume)}
                     </div>
-                    <span style={{fontSize:'8px', color:'#00e5ff', background:'rgba(0,229,255,0.1)', padding:'2px 6px', borderRadius:'4px', fontWeight:'700'}}>
+                    <span style={{fontSize:'8px', color:'#3ca096', background:'rgba(60,160,150,0.15)', padding:'2px 6px', borderRadius:'4px', fontWeight:'700'}}>
                       {digitalPercentage}% digital
                     </span>
                   </div>
@@ -1044,13 +1044,13 @@ const handleCandidateClick = (candidate) => {
                     <div style={{ flex: 1, background: '#121214', padding: '10px', borderRadius: '8px', border: '1px solid #1a1a1a', transition: 'border 0.2s', cursor: 'default' }} onMouseEnter={(e)=>e.currentTarget.style.border='1px solid #333'} onMouseLeave={(e)=>e.currentTarget.style.border='1px solid #1a1a1a'}>
                         <div style={{ fontSize: '9px', color: '#888', fontWeight: '600' }}>{scanData?.ui_labels?.metric_1_label || 'Street vs Formal Gap'}</div>
                         <div style={{ fontSize: '15px', color: '#fff', fontWeight: '700', marginTop: '4px' }}>
-                          +{priceMarkup}% <span style={{fontSize:'8px', color:'#3fb950', fontWeight:'600'}}>spread</span>
+                          +{priceMarkup}% <span style={{fontSize:'8px', color:'#74c365', fontWeight:'600'}}>spread</span>
                         </div>
                     </div>
                     <div style={{ flex: 1, background: '#121214', padding: '10px', borderRadius: '8px', border: '1px solid #1a1a1a', transition: 'border 0.2s', cursor: 'default' }} onMouseEnter={(e)=>e.currentTarget.style.border='1px solid #333'} onMouseLeave={(e)=>e.currentTarget.style.border='1px solid #1a1a1a'}>
                         <div style={{ fontSize: '9px', color: '#888', fontWeight: '600' }}>{scanData?.ui_labels?.metric_2_label || 'Transaction Velocity'}</div>
                         <div style={{ fontSize: '15px', color: '#fff', fontWeight: '700', marginTop: '4px' }}>
-                        {displayVelocity.toLocaleString()} <span style={{fontSize:'8px', color:'#ff7b72', fontWeight:'600'}}>tx/period</span>
+                        {displayVelocity.toLocaleString()} <span style={{fontSize:'8px', color:'#d4d95c', fontWeight:'600'}}>tx/period</span>
                         </div>
                     </div>
                   </div>
@@ -1059,8 +1059,8 @@ const handleCandidateClick = (candidate) => {
                     <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px dashed #222', animation: 'fadeIn 0.4s ease-out' }}>
                       <div style={{ fontSize: '9px', color: '#888', fontWeight: '600', marginBottom: '10px' }}>Liquidity Channel Distribution</div>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <div style={{ flex: digitalPercentage || 15, height: '6px', background: '#00e5ff', borderRadius: '3px' }} title="Digital/USSD Flow" />
-                        <div style={{ flex: (100 - digitalPercentage) || 85, height: '6px', background: '#ff007f', borderRadius: '3px' }} title="Physical Dark Cash" />
+                        <div style={{ flex: digitalPercentage || 15, height: '6px', background: '#3ca096', borderRadius: '3px' }} title="Digital/USSD Flow" />
+                        <div style={{ flex: (100 - digitalPercentage) || 85, height: '6px', background: '#74c365', borderRadius: '3px' }} title="Physical Dark Cash" />
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', color: '#aaa', marginTop: '6px', fontWeight: '600' }}>
                         <span>Digital/USSD: {formatCurrency(digitalCash)} ({digitalPercentage}%)</span>
@@ -1068,7 +1068,7 @@ const handleCandidateClick = (candidate) => {
                       </div>
                     </div>
                   )}
-                  <button onClick={() => setExpandedSections({...expandedSections, vol: !expandedSections.vol})} style={{ width: '100%', marginTop: '14px', background: 'transparent', border: 'none', color: '#00e5ff', fontSize: '9px', fontWeight: '600', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px', opacity: 0.8, transition: 'opacity 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.opacity=1} onMouseLeave={(e)=>e.currentTarget.style.opacity=0.8}>
+                  <button onClick={() => setExpandedSections({...expandedSections, vol: !expandedSections.vol})} style={{ width: '100%', marginTop: '14px', background: 'transparent', border: 'none', color: '#3ca096', fontSize: '9px', fontWeight: '600', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px', opacity: 0.8, transition: 'opacity 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.opacity=1} onMouseLeave={(e)=>e.currentTarget.style.opacity=0.8}>
                     {expandedSections.vol ? 'Collapse metrics ↑' : 'See advanced metrics ↓'}
                   </button>
                 </div>                                                                                                                                                                
@@ -1082,14 +1082,14 @@ const handleCandidateClick = (candidate) => {
                     <div style={{ position: 'relative', width: '80px', height: '80px', flexShrink: 0 }}>
                       <svg width="80" height="80" viewBox="0 0 100 100">
                           <circle cx="50" cy="50" r="40" fill="none" stroke="#222" strokeWidth="12" />
-                          <circle cx="50" cy="50" r="40" fill="none" stroke="#00e5ff" strokeWidth="12" strokeDasharray="251" strokeDashoffset="100" style={{ transition: 'stroke-dashoffset 1s ease-in-out' }} />
-                          <circle cx="50" cy="50" r="40" fill="none" stroke="#ff007f" strokeWidth="12" strokeDasharray="251" strokeDashoffset="180" style={{ transition: 'stroke-dashoffset 1s ease-in-out' }} />
+                          <circle cx="50" cy="50" r="40" fill="none" stroke="#3ca096" strokeWidth="12" strokeDasharray="251" strokeDashoffset="100" style={{ transition: 'stroke-dashoffset 1s ease-in-out' }} />
+                          <circle cx="50" cy="50" r="40" fill="none" stroke="#74c365" strokeWidth="12" strokeDasharray="251" strokeDashoffset="180" style={{ transition: 'stroke-dashoffset 1s ease-in-out' }} />
                       </svg>
                       <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: '800', color: '#fff' }}>100%</div>
                     </div>
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {(scanData?.breakdown_data || []).map((x, idx) => {
-                          const fallbackColors = ['#00e5ff', '#ff007f', '#ffcc00', '#3fb950', '#a371f7'];
+                          const fallbackColors = ['#3ca096', '#74c365', '#d4d95c', '#28648c', '#1a3668'];
                           const c = x.color || fallbackColors[idx % fallbackColors.length];
                           return (
                             <div key={x.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#aaa', fontWeight: '500', padding: '4px 8px', borderRadius: '4px', transition: 'background 0.2s', cursor: 'pointer' }} onMouseEnter={(e)=>e.currentTarget.style.background='#121214'} onMouseLeave={(e)=>e.currentTarget.style.background='transparent'}>
@@ -1105,12 +1105,12 @@ const handleCandidateClick = (candidate) => {
                     <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px dashed #222', animation: 'fadeIn 0.4s ease-out' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <div><div style={{ fontSize: '8px', color: '#888', fontWeight: '600' }}>Total Foot Traffic</div><div style={{ fontSize: '14px', color: '#fff', fontWeight: '800', marginTop: '2px' }}>{displayContributors.toLocaleString()}</div></div>
-                        <div><div style={{ fontSize: '8px', color: '#888', fontWeight: '600' }}>Active Buyers</div><div style={{ fontSize: '14px', color: '#00e5ff', fontWeight: '800', marginTop: '2px' }}>{displayBuyers.toLocaleString()}</div></div>
-                        <div><div style={{ fontSize: '8px', color: '#888', fontWeight: '600' }}>Permanent Vendors</div><div style={{ fontSize: '14px', color: '#ff007f', fontWeight: '800', marginTop: '2px' }}>{displayMerchants.toLocaleString()}</div></div>
+                        <div><div style={{ fontSize: '8px', color: '#888', fontWeight: '600' }}>Active Buyers</div><div style={{ fontSize: '14px', color: '#3ca096', fontWeight: '800', marginTop: '2px' }}>{displayBuyers.toLocaleString()}</div></div>
+                        <div><div style={{ fontSize: '8px', color: '#888', fontWeight: '600' }}>Permanent Vendors</div><div style={{ fontSize: '14px', color: '#74c365', fontWeight: '800', marginTop: '2px' }}>{displayMerchants.toLocaleString()}</div></div>
                       </div>
                     </div>
                   )}
-                  <button onClick={() => setExpandedSections({...expandedSections, demo: !expandedSections.demo})} style={{ width: '100%', marginTop: '14px', background: 'transparent', border: 'none', color: '#00e5ff', fontSize: '9px', fontWeight: '600', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px', opacity: 0.8, transition: 'opacity 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.opacity=1} onMouseLeave={(e)=>e.currentTarget.style.opacity=0.8}>
+                  <button onClick={() => setExpandedSections({...expandedSections, demo: !expandedSections.demo})} style={{ width: '100%', marginTop: '14px', background: 'transparent', border: 'none', color: '#3ca096', fontSize: '9px', fontWeight: '600', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px', opacity: 0.8, transition: 'opacity 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.opacity=1} onMouseLeave={(e)=>e.currentTarget.style.opacity=0.8}>
                     {expandedSections.demo ? 'Collapse breakdown ↑' : 'See advanced breakdown ↓'}
                   </button>
                 </div>                                                                                                                                                                              
@@ -1128,7 +1128,7 @@ const handleCandidateClick = (candidate) => {
                   </div>
 
                   <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
-                      {[{title: 'Inflow Peak', val: '12.1k', c: '#00e5ff'}, {title: 'Outflow Dip', val: '8.4k', c: '#ff007f'}, {title: 'Friction Events', val: '142', c: '#ffcc00'}].map((x, idx) => (
+                      {[{title: 'Inflow Peak', val: '12.1k', c: '#3ca096'}, {title: 'Outflow Dip', val: '8.4k', c: '#28648c'}, {title: 'Friction Events', val: '142', c: '#d4d95c'}].map((x, idx) => (
                         <div key={x.title} style={{ flex: 1, background: '#121214', border: '1px solid #1a1a1a', borderRadius: '8px', padding: '10px', transition: 'border 0.2s, transform 0.2s', cursor: 'pointer' }} onMouseEnter={(e)=>{e.currentTarget.style.border='1px solid #333'; e.currentTarget.style.transform='translateY(-2px)'}} onMouseLeave={(e)=>{e.currentTarget.style.border='1px solid #1a1a1a'; e.currentTarget.style.transform='translateY(0)'}}>
                             <div style={{ fontSize: '8px', color: '#888', fontWeight: '600' }}>{x.title}</div>
                             <div style={{ fontSize: '14px', color: '#fff', fontWeight: '800', marginTop: '6px' }}>{x.val}</div>
@@ -1143,19 +1143,19 @@ const handleCandidateClick = (candidate) => {
                     <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px dashed #222', animation: 'fadeIn 0.4s ease-out' }}>
                       <div style={{ fontSize: '9px', color: '#888', fontWeight: '600', marginBottom: '10px' }}>Live Friction Event Log</div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {[{time: '14:22', event: 'Sudden outflow detected at North Gate', sev: 'Moderate'}, {time: '14:18', event: 'Price anomaly in commodity sector', sev: 'High'}].map((log, i) => (
-                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 8px', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', borderLeft: `2px solid ${log.sev === 'High' ? '#ff007f' : '#ffcc00'}` }}>
+                        {[{time: '14:22', event: 'Sudden outflow detected at North Gate', sev: 'Moderate'}, {time: '14:18', event: 'Price anomaly in commodity sector', sev: 'Peak'}].map((log, i) => (
+                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 8px', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', borderLeft: `2px solid ${log.sev === 'Peak' ? '#d4d95c' : '#74c365'}` }}>
                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                <span style={{ fontSize: '8px', color: '#666', fontFamily: mono }}>{log.time}</span>
                                <span style={{ fontSize: '9px', color: '#ccc', fontWeight: '500' }}>{log.event}</span>
                              </div>
-                             <span style={{ fontSize: '8px', color: log.sev === 'High' ? '#ff007f' : '#ffcc00', fontWeight: '700' }}>{log.sev}</span>
+                             <span style={{ fontSize: '8px', color: log.sev === 'Peak' ? '#d4d95c' : '#74c365', fontWeight: '700' }}>{log.sev}</span>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
-                  <button onClick={() => setExpandedSections({...expandedSections, flow: !expandedSections.flow})} style={{ width: '100%', marginTop: '14px', background: 'transparent', border: 'none', color: '#00e5ff', fontSize: '9px', fontWeight: '600', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px', opacity: 0.8, transition: 'opacity 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.opacity=1} onMouseLeave={(e)=>e.currentTarget.style.opacity=0.8}>
+                  <button onClick={() => setExpandedSections({...expandedSections, flow: !expandedSections.flow})} style={{ width: '100%', marginTop: '14px', background: 'transparent', border: 'none', color: '#3ca096', fontSize: '9px', fontWeight: '600', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px', opacity: 0.8, transition: 'opacity 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.opacity=1} onMouseLeave={(e)=>e.currentTarget.style.opacity=0.8}>
                     {expandedSections.flow ? 'Collapse event logs ↑' : 'See live event logs ↓'}
                   </button>
                 </div>

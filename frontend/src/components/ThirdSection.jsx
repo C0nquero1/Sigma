@@ -58,10 +58,10 @@ export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated
     
     // Dynamic nodes sync to the KineticDashboard with vol/tx multipliers for real-time data projection
     const cNodes = [
-      { id: 'macro', lng: targetCoords.lng, lat: targetCoords.lat, zoom: 9.5, pitch: 0, name: 'Macro Spatial Distribution', type: 'City Baseline', color: '#0055ff', volMultiplier: 1.0, txMultiplier: 1.0, description: `Real-time kinetic flow mapping across ${commodityContext} agents for ${searchQuery}, trailing 24 hours.` },
-      { id: 'hub', lng: targetCoords.lng - 0.015, lat: targetCoords.lat + 0.015, zoom: 14.8, pitch: 45, name: 'Primary Aggregator Hub', type: 'Wholesale Node', color: '#00e5ff', volMultiplier: 0.68, txMultiplier: 0.45, description: `Zoomed into Primary Aggregator Hub. Detecting massive wholesale inventory displacement. Flowmap vectors indicate 68% of capital is concentrated here.` },
-      { id: 'transit', lng: targetCoords.lng - 0.01, lat: targetCoords.lat - 0.01, zoom: 15.5, pitch: 60, name: 'Major Transit Corridor', type: 'Friction Point', color: '#ff007f', volMultiplier: 0.45, txMultiplier: 0.30, description: `Tracking Major Transit Corridor. High friction detected. Mobile money transfers show a bottleneck pattern due to logistics loading zones.` },
-      { id: 'micro', lng: targetCoords.lng + 0.02, lat: targetCoords.lat + 0.01, zoom: 16.5, pitch: 70, name: 'Capillary Distribution Market', type: 'Micro-Vendors', color: '#ffcc00', volMultiplier: 0.15, txMultiplier: 0.85, description: `Micro-Vendor Capillary Market. Flowmap reveals highly decentralized, low-value/high-frequency transactions forming the terminal edge of the ${commodityContext} supply chain.` }
+      { id: 'macro', lng: targetCoords.lng, lat: targetCoords.lat, zoom: 8.5, pitch: 0, name: 'Macro Spatial Distribution', type: 'City Baseline', color: '#28648c', volMultiplier: 1.0, txMultiplier: 1.0, description: `Real-time kinetic flow mapping across ${commodityContext} agents for ${searchQuery}, trailing 24 hours.` },
+      { id: 'hub', lng: targetCoords.lng - 0.015, lat: targetCoords.lat + 0.015, zoom: 14.8, pitch: 45, name: 'Primary Aggregator Hub', type: 'Wholesale Node', color: '#d4d95c', volMultiplier: 0.68, txMultiplier: 0.45, description: `Zoomed into Primary Aggregator Hub. Detecting massive wholesale inventory displacement. Flowmap vectors indicate 68% of capital is concentrated here.` },
+      { id: 'transit', lng: targetCoords.lng - 0.01, lat: targetCoords.lat - 0.01, zoom: 15.5, pitch: 60, name: 'Major Transit Corridor', type: 'Friction Point', color: '#74c365', volMultiplier: 0.45, txMultiplier: 0.30, description: `Tracking Major Transit Corridor. High friction detected. Mobile money transfers show a bottleneck pattern due to logistics loading zones.` },
+      { id: 'micro', lng: targetCoords.lng + 0.02, lat: targetCoords.lat + 0.01, zoom: 16.5, pitch: 70, name: 'Capillary Distribution Market', type: 'Micro-Vendors', color: '#3ca096', volMultiplier: 0.15, txMultiplier: 0.85, description: `Micro-Vendor Capillary Market. Flowmap reveals highly decentralized, low-value/high-frequency transactions forming the terminal edge of the ${commodityContext} supply chain.` }
     ];
 
     // Expanded web nodes for advanced flowmap graphics
@@ -463,7 +463,7 @@ export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated
                       width: isPlaying ? '280px' : '36px', height: '36px',
                       transition: 'all 0.5s cubic-bezier(0.25, 1, 0.5, 1)', overflow: 'hidden'
                   }}>
-                      <button onClick={() => setIsPlaying(!isPlaying)} style={{ width: '26px', height: '26px', borderRadius: '50%', background: isPlaying ? '#ff007f' : '#00e5ff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'background 0.3s' }}>
+                      <button onClick={() => setIsPlaying(!isPlaying)} style={{ width: '26px', height: '26px', borderRadius: '50%', background: isPlaying ? '#74c365' : '#3ca096', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'background 0.3s' }}>
                           {isPlaying ? (
                               <svg width="8" height="8" viewBox="0 0 24 24" fill="#fff"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
                           ) : (
