@@ -3,6 +3,16 @@ import React, { useRef, useEffect, useState, useMemo } from 'react';
 const sans = "system-ui, -apple-system, sans-serif";
 const mono = "ui-monospace, monospace";
 
+// THE SIGMA DARK GREEN PALETTE
+const sigmaPalette = {
+  level1: '#022c22', // Darkest green/black (0 - 25k)
+  level2: '#065f46', // Deep emerald (25k - 60k)
+  level3: '#059669', // Emerald (60k - 130k)
+  level4: '#10b981', // Bright green (130k - 350k)
+  level5: '#34d399', // Mint green (350k - 660k)
+  level6: '#a3e635'  // Neon yellow-green (660k+)
+};
+
 export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated = false, resolvedLocation = null, canvasMode = 'map', setCanvasMode, setActiveTourNode }) {
   const [mapStyle, setMapStyle] = useState('Dark'); // 'Dark' or 'Satellite'
   const [isPlaying, setIsPlaying] = useState(false);
@@ -107,15 +117,7 @@ export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated
 
         if (totalWeight > 22 || totalWeight < 0) continue; 
 
-        // THE SIGMA DARK GREEN PALETTE
-  const sigmaPalette = {
-    level1: '#022c22', // Darkest green/black (0 - 25k)
-    level2: '#065f46', // Deep emerald (25k - 60k)
-    level3: '#059669', // Emerald (60k - 130k)
-    level4: '#10b981', // Bright green (130k - 350k)
-    level5: '#34d399', // Mint green (350k - 660k)
-    level6: '#a3e635'  // Neon yellow-green (660k+)
-  };
+        
 
         const half = size / 2;
         features.push({
