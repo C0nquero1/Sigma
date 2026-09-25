@@ -4,7 +4,7 @@ import ThirdSection from './ThirdSection';
 const sans = "system-ui, -apple-system, sans-serif";
 const mono = "ui-monospace, monospace";
 
-const blueShadesGradient = "linear-gradient(135deg, #10b981 0%, #059669 30%, #047857 70%, #022c22 100%)";
+const blueShadesGradient = "linear-gradient(135deg, #00e5ff 0%, #0077ff 30%, #0033ff 70%, #00aaff 100%)";
 
 export default function KineticDashboard() {
   // Global States

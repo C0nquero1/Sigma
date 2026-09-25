@@ -1,17 +1,7 @@
-import React, { useRef, useEffect, useState, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 const sans = "system-ui, -apple-system, sans-serif";
 const mono = "ui-monospace, monospace";
-
-// THE SIGMA DARK GREEN PALETTE
-const sigmaPalette = {
-  level1: '#022c22', // Darkest green/black (0 - 25k)
-  level2: '#065f46', // Deep emerald (25k - 60k)
-  level3: '#059669', // Emerald (60k - 130k)
-  level4: '#10b981', // Bright green (130k - 350k)
-  level5: '#34d399', // Mint green (350k - 660k)
-  level6: '#a3e635'  // Neon yellow-green (660k+)
-};
 
 export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated = false, resolvedLocation = null, canvasMode = 'map', setCanvasMode, setActiveTourNode }) {
   const [mapStyle, setMapStyle] = useState('Dark'); // 'Dark' or 'Satellite'
@@ -43,17 +33,15 @@ export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated
            setTargetCoords({ lng: resolvedLocation.lng, lat: resolvedLocation.lat });
         }
         
-        // CAPPED ZOOM & CINEMATIC TILT: Prevents blank map tiles and reveals flow arrows
         mapRef.current.flyTo({ 
           center: [resolvedLocation.lng, resolvedLocation.lat], 
-          zoom: 14.5,     // Capped safely below Mapbox's tile limit
-          pitch: 60,      // Cinematic angle to see the flowmap arrows clearly
-          bearing: -15,   // Slight rotation for better 3D depth
-          duration: 2500, // Smooth flight transition
+          zoom: 9.5, 
+          pitch: 0, 
+          speed: 1.5,
           essential: true
         });
         
-        // Re-generate the grid over the new precise coordinates
+        // Re-generate the Valgo Voxel grid over the new precise coordinates
         const source = mapRef.current.getSource('valgo-grid');
         if (source) {
           source.setData(generateValgoGrid(resolvedLocation.lng, resolvedLocation.lat));
@@ -117,7 +105,13 @@ export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated
 
         if (totalWeight > 22 || totalWeight < 0) continue; 
 
-        
+        // True Valgo Thermal Scale (Deep Blue -> Cyan -> Green -> Yellow)
+        let color = '#d4d95c'; // Yellow/Gold (Core/Hottest)
+        if (totalWeight > 19) color = '#0c1938';      // Deep Space Blue (Edge/Coldest)
+        else if (totalWeight > 15) color = '#1a3668'; // Navy Blue
+        else if (totalWeight > 11) color = '#28648c'; // Ocean Teal
+        else if (totalWeight > 7) color = '#3ca096';  // Mint/Teal
+        else if (totalWeight > 3) color = '#74c365';  // Light Green
 
         const half = size / 2;
         features.push({
@@ -273,7 +267,7 @@ export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated
       if (mapRef.current) {
         mapRef.current.flyTo({
           center: [resolvedLocation.lng, resolvedLocation.lat],
-          zoom: 9.5,
+          zoom: 11.5,
           speed: 1.5,
           essential: true
         });
@@ -302,130 +296,6 @@ export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated
       mapRef.current.setPaintProperty('valgo-grid-layer', 'fill-opacity', isDataGenerated ? (isZoomedIn ? 0.15 : 0.85) : 0.0);
     }
   }, [isDataGenerated, currentZoom, tourStep]);
-
-  const centerLng = resolvedLocation ? resolvedLocation.lng : 7.3986;
-  const centerLat = resolvedLocation ? resolvedLocation.lat : 9.0765;
-
-  // A. PER-CELL CALIBRATED GRID (Discrete Squares)
-  const gridData = useMemo(() => {
-    const features = [];
-    const gridSize = 0.005; 
-    const steps = 6; 
-    const colors = Object.values(sigmaPalette);
-
-    for (let x = -steps; x <= steps; x++) {
-      for (let y = -steps; y <= steps; y++) {
-        const distance = Math.sqrt(x*x + y*y);
-        const intensityIndex = Math.max(0, 5 - Math.floor(distance));
-        
-        if (Math.random() > 0.3) {
-          features.push({
-            type: 'Feature',
-            properties: { color: colors[intensityIndex] }, // Assigns Sigma color
-            geometry: {
-              type: 'Polygon',
-              coordinates: [[
-                [centerLng + x * gridSize, centerLat + y * gridSize],
-                [centerLng + (x+1) * gridSize, centerLat + y * gridSize],
-                [centerLng + (x+1) * gridSize, centerLat + (y+1) * gridSize],
-                [centerLng + x * gridSize, centerLat + (y+1) * gridSize],
-                [centerLng + x * gridSize, centerLat + y * gridSize]
-              ]]
-            }
-          });
-        }
-      }
-    }
-    return { type: 'FeatureCollection', features };
-  }, [centerLng, centerLat]);
-
-  // B. POLYGON OUTLINER 
-  const polygonData = useMemo(() => {
-    const offset = 0.035;
-    return {
-      type: 'FeatureCollection',
-      features: [{
-        type: 'Feature',
-        geometry: {
-          type: 'Polygon',
-          coordinates: [[
-            [centerLng - offset, centerLat - offset],
-            [centerLng + offset, centerLat - offset],
-            [centerLng + offset, centerLat + offset],
-            [centerLng - offset, centerLat + offset],
-            [centerLng - offset, centerLat - offset]
-          ]]
-        }
-      }]
-    };
-  }, [centerLng, centerLat]);
-
-  // C. HIGH-VISIBILITY FLOWMAP ARROWS (Using Sigma Colors)
-  const flowData = useMemo(() => {
-    const features = [];
-    const colors = Object.values(sigmaPalette);
-    for(let i=0; i<15; i++) {
-      const startLng = centerLng + (Math.random() - 0.5) * 0.06;
-      const startLat = centerLat + (Math.random() - 0.5) * 0.06;
-      features.push({
-        type: 'Feature',
-        properties: { color: colors[Math.floor(Math.random() * colors.length)] },
-        geometry: {
-          type: 'LineString',
-          coordinates: [[startLng, startLat], [centerLng, centerLat]]
-        }
-      });
-    }
-    return { type: 'FeatureCollection', features };
-  }, [centerLng, centerLat]);
-  
-  // BULLETPROOF REACTIVE MAPBOX INJECTION
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !isDataGenerated) return;
-
-    const injectSigmaLayers = () => {
-      // 1. POLYGON BOUNDARY
-      if (!map.getSource('polygon-source')) {
-        map.addSource('polygon-source', { type: 'geojson', data: polygonData });
-        map.addLayer({ id: 'polygon-line', type: 'line', source: 'polygon-source', paint: { 'line-color': '#ffffff', 'line-width': 2, 'line-opacity': 0.8 } });
-      } else {
-        map.getSource('polygon-source').setData(polygonData);
-      }
-
-      // 2. DISCRETE S2 GRID
-      if (!map.getSource('grid-source')) {
-        map.addSource('grid-source', { type: 'geojson', data: gridData });
-        map.addLayer({ id: 'grid-fill', type: 'fill', source: 'grid-source', paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.85 } });
-        map.addLayer({ id: 'grid-borders', type: 'line', source: 'grid-source', paint: { 'line-color': 'rgba(255,255,255,0.1)', 'line-width': 1 } });
-      } else {
-        map.getSource('grid-source').setData(gridData);
-      }
-
-      // 3. DYNAMIC FLOW ARROWS (Only appears at Zoom > 12.5)
-      if (!map.getSource('flow-source')) {
-        map.addSource('flow-source', { type: 'geojson', data: flowData });
-        map.addLayer({ id: 'flow-lines', type: 'line', source: 'flow-source', minzoom: 12.5, paint: { 'line-color': ['get', 'color'], 'line-width': 2, 'line-opacity': 0.6 } });
-        map.addLayer({
-          id: 'flow-arrows',
-          type: 'symbol',
-          source: 'flow-source',
-          minzoom: 12.5,
-          layout: { 'symbol-placement': 'line', 'symbol-spacing': 40, 'text-field': '➤', 'text-size': 18, 'text-keep-upright': false },
-          paint: { 'text-color': ['get', 'color'] }
-        });
-      } else {
-        map.getSource('flow-source').setData(flowData);
-      }
-    };
-
-    // Guarantee the map is fully loaded before drawing
-    if (map.loaded()) {
-      injectSigmaLayers();
-    } else {
-      map.once('load', injectSigmaLayers);
-    }
-  }, [isDataGenerated, gridData, polygonData, flowData]);
 
   // Cinematic Tour Engine
   useEffect(() => {
@@ -569,27 +439,18 @@ export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated
                </div>
             )}
   
-            {/* Sigma Themed Grid Legend (Bottom Left) */}
-      <div style={{ position: 'absolute', bottom: '40px', left: '24px', background: 'rgba(10, 10, 12, 0.95)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '16px', zIndex: 10, backdropFilter: 'blur(10px)' }}>
-        <div style={{ fontSize: '9px', color: '#888', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '12px', fontFamily: mono }}>
-          PER-CELL VOL (NGN)
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {[
-            { c: sigmaPalette.level1, label: '0 - 25k' },
-            { c: sigmaPalette.level2, label: '25k - 60k' },
-            { c: sigmaPalette.level3, label: '60k - 130k' },
-            { c: sigmaPalette.level4, label: '130k - 350k' },
-            { c: sigmaPalette.level5, label: '350k - 660k' },
-            { c: sigmaPalette.level6, label: '660k+' }
-          ].map((item, idx) => (
-            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ width: '12px', height: '12px', background: item.c, borderRadius: '2px', border: '1px solid rgba(255,255,255,0.1)' }} />
-              <span style={{ fontSize: '10px', color: '#ccc', fontWeight: '600', fontFamily: mono }}>{item.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+            {/* Valgo Legend (Ultra-Micro Scale) */}
+          <div style={{ position: 'absolute', bottom: '36px', left: '24px', background: 'rgba(5, 5, 7, 0.75)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '6px', padding: '10px 14px', zIndex: 40, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+             <div style={{ color: '#888', fontSize: '7px', textTransform: 'uppercase', fontFamily: mono, fontWeight: '700', letterSpacing: '0.5px' }}>Per-Cell Vol (NGN)</div>
+             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '8px', fontFamily: mono, color: '#ccc', fontWeight: '500' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '6px', height: '6px', background: '#0c1938', borderRadius: '1px' }}/> 0 - 25k</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '6px', height: '6px', background: '#1a3668', borderRadius: '1px' }}/> 25k - 60k</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '6px', height: '6px', background: '#28648c', borderRadius: '1px' }}/> 60k - 130k</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '6px', height: '6px', background: '#3ca096', borderRadius: '1px' }}/> 130k - 350k</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '6px', height: '6px', background: '#74c365', borderRadius: '1px' }}/> 350k - 660k</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '6px', height: '6px', background: '#d4d95c', borderRadius: '1px' }}/> 660k+</div>
+             </div>
+          </div>
   
             {/* BOTTOM CENTER: Apple Cinematic Play Button */}
             {isDataGenerated && (
