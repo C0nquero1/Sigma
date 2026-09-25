@@ -445,11 +445,11 @@ const handleCandidateClick = (candidate) => {
         display: 'flex', 
         flexDirection: 'column', 
         background: '#050505', 
-        borderRight: deckExpanded ? '1px solid #1a1a1a' : 'none', 
+        borderRight: deckExpanded ? '1px solid #1a1a1c' : 'none', 
         position: 'relative',
         transition: 'all 0.3s ease',
         height: '100vh',
-        overflow: ' visible'
+        overflow: 'visible'
       }}>
         
         {/* Valgo-Style Right Border Collapse Button */}
@@ -459,106 +459,20 @@ const handleCandidateClick = (candidate) => {
 
         <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', opacity: deckExpanded ? 1 : 0 }}>
           
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', background: '#050507', animation: 'fadeIn 0.3s ease-out', borderRight: '1px solid #1a1a1c' }}>
-              {/* ========================================= */}
-              {/* DEEP ANALYSIS: LEFT FILTER TAB            */}
-              {/* ========================================= */}
-              
-              {/* Sleek Glassy Header */}
-              <div style={{ padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.01)', backdropFilter: 'blur(10px)', flexShrink: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(60, 160, 150, 0.1)', border: '1px solid rgba(60, 160, 150, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3ca096', boxShadow: '0 4px 12px rgba(60, 160, 150, 0.1)' }}>
-                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-                  </div>
-                  <span style={{ fontSize: '13px', color: '#fff', fontWeight: '800', letterSpacing: '1px' }}>DEEP FILTERS</span>
-                </div>
-                <button style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: '#aaa', padding: '6px 12px', fontSize: '10px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s' }} onMouseEnter={(e)=>{e.currentTarget.style.background='rgba(255,255,255,0.08)'; e.currentTarget.style.color='#fff'}} onMouseLeave={(e)=>{e.currentTarget.style.background='rgba(255,255,255,0.03)'; e.currentTarget.style.color='#aaa'}}>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg> Reset
-                </button>
-              </div>
-              
-              <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                 
-                 {/* Glassy Data Domain Toggles */}
-                 <div>
-                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#666', textTransform: 'uppercase', fontWeight: '700', marginBottom: '16px', letterSpacing: '1px' }}>
-                     <span>Data Domain</span><span>−</span>
-                   </div>
-                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                     <button style={{ background: 'linear-gradient(135deg, rgba(60,160,150,0.15) 0%, rgba(60,160,150,0.05) 100%)', border: '1px solid rgba(60, 160, 150, 0.4)', color: '#3ca096', padding: '12px', borderRadius: '8px', fontSize: '11px', fontWeight: '700', cursor: 'pointer', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1)' }}>Verified Nodes</button>
-                     <button style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', color: '#888', padding: '12px', borderRadius: '8px', fontSize: '11px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.background='rgba(255,255,255,0.05)'} onMouseLeave={(e)=>e.currentTarget.style.background='rgba(255,255,255,0.02)'}>Dark Liquidity</button>
-                     <button style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', color: '#888', padding: '12px', borderRadius: '8px', fontSize: '11px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.background='rgba(255,255,255,0.05)'} onMouseLeave={(e)=>e.currentTarget.style.background='rgba(255,255,255,0.02)'}>High Friction</button>
-                     <button style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', color: '#888', padding: '12px', borderRadius: '8px', fontSize: '11px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.background='rgba(255,255,255,0.05)'} onMouseLeave={(e)=>e.currentTarget.style.background='rgba(255,255,255,0.02)'}>Anomalies</button>
-                   </div>
-                 </div>
-
-                 {/* Modern Range Slider */}
-                 <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '24px' }}>
-                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#666', textTransform: 'uppercase', fontWeight: '700', marginBottom: '24px', letterSpacing: '1px' }}>
-                     <span>Capital Velocity Range</span><span>−</span>
-                   </div>
-                   <div style={{ padding: '0 8px' }}>
-                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff', marginBottom: '16px', fontWeight: '700', fontFamily: mono }}>
-                       <span style={{ background: 'rgba(255,255,255,0.05)', padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }}>₦10,000</span>
-                       <span style={{ background: 'rgba(255,255,255,0.05)', padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }}>₦2,500,000+</span>
-                     </div>
-                     <div style={{ height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', position: 'relative', marginTop: '16px' }}>
-                       <div style={{ position: 'absolute', left: '15%', right: '25%', height: '100%', background: 'linear-gradient(90deg, #28648c, #3ca096)', borderRadius: '3px', boxShadow: '0 0 10px rgba(60, 160, 150, 0.4)' }} />
-                       <div style={{ position: 'absolute', left: '15%', top: '50%', transform: 'translate(-50%, -50%)', width: '18px', height: '18px', background: '#fff', border: '3px solid #3ca096', borderRadius: '50%', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.8)' }} />
-                       <div style={{ position: 'absolute', right: '25%', top: '50%', transform: 'translate(50%, -50%)', width: '18px', height: '18px', background: '#fff', border: '3px solid #3ca096', borderRadius: '50%', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.8)' }} />
-                     </div>
-                   </div>
-                 </div>
-
-                 {/* Obsidian-Style Sub-sectors */}
-                 <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '24px' }}>
-                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#666', textTransform: 'uppercase', fontWeight: '700', marginBottom: '20px', letterSpacing: '1px' }}>
-                     <span>Node Sub-sectors</span><span>−</span>
-                   </div>
-                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                     {[
-                       { label: 'Commodity Trading', count: 142, active: true },
-                       { label: 'Mobile Money Agents', count: 89, active: true },
-                       { label: 'Informal Logistics', count: 54, active: false },
-                       { label: 'Wholesale Hubs', count: 12, active: false }
-                     ].map((s) => (
-                       <label key={s.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: s.active ? 'rgba(60, 160, 150, 0.05)' : 'rgba(255,255,255,0.02)', border: s.active ? '1px solid rgba(60, 160, 150, 0.2)' : '1px solid rgba(255,255,255,0.05)', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s' }}>
-                         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                           <div style={{ width: '18px', height: '18px', borderRadius: '4px', border: s.active ? 'none' : '1px solid #444', background: s.active ? '#3ca096' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                             {s.active && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#050507" strokeWidth="3"><polyline points="20 6 9 17 4 12"></polyline></svg>}
-                           </div>
-                           <span style={{ fontSize: '12px', color: s.active ? '#fff' : '#888', fontWeight: s.active ? '700' : '500' }}>{s.label}</span>
-                         </div>
-                         <span style={{ fontSize: '10px', color: s.active ? '#3ca096' : '#555', fontFamily: mono, fontWeight: '600' }}>{s.count}</span>
-                       </label>
-                     ))}
-                   </div>
-                 </div>
-                 
-                 {/* Superb Call to Action */}
-                 <button style={{ marginTop: 'auto', background: 'linear-gradient(135deg, #3ca096 0%, #28648c 100%)', color: '#fff', border: 'none', padding: '16px', borderRadius: '10px', fontSize: '13px', fontWeight: '800', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', boxShadow: '0 8px 24px rgba(60, 160, 150, 0.3)', transition: 'transform 0.1s' }} onMouseDown={(e)=>e.currentTarget.style.transform='scale(0.98)'} onMouseUp={(e)=>e.currentTarget.style.transform='scale(1)'}>
-                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="5 12 10 17 19 8"></polyline></svg>
-                   Apply Parameters
-                 </button>
-              </div>
-            </div>
-
-          ) : activePage !== 'Command' ? (
-
+          {activePage !== 'Command' ? (
+            /* ========================================= */
+            /* A. TELEMETRY & API PAGES                  */
+            /* ========================================= */
             <div style={{ flex: 1, padding: '32px', color: '#fff', overflowY: 'auto' }}>
               
               {/* Back to Scan Header */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px', paddingBottom: '16px', borderBottom: '1px solid #1a1a1a' }}>
-                <button 
-                  onClick={() => setActivePage('Command')} 
-                  style={{ background: 'transparent', border: '1px solid #333', padding: '6px 14px', borderRadius: '16px', color: '#ededef', fontSize: '12px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-                >
+                <button onClick={() => setActivePage('Command')} style={{ background: 'transparent', border: '1px solid #333', padding: '6px 14px', borderRadius: '16px', color: '#ededef', fontSize: '12px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6" /></svg> Return to Command
                 </button>
                 <div style={{ fontSize: '11px', color: '#00e5ff', fontFamily: mono, fontWeight: '700', letterSpacing: '1px' }}>SYSTEM D TELEMETRY SUITE</div>
               </div>
 
-              {/* ----------------- PAGE 1: NEWS & ECONOMIC IMPACT ----------------- */}
               {activePage === 'News/Updates' && (
                 <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
@@ -566,12 +480,9 @@ const handleCandidateClick = (candidate) => {
                       <h2 style={{ fontSize: '24px', fontWeight: '800', letterSpacing: '-0.5px' }}>Live Economic Footprint</h2>
                       <p style={{ color: '#888', fontSize: '13px', marginTop: '4px' }}>Real-time unbanked liquidity generated across your immediate geolocation, city, and nation.</p>
                     </div>
-                    <span style={{ fontSize: '11px', color: '#3fb950', background: 'rgba(63, 185, 80, 0.1)', padding: '6px 12px', borderRadius: '20px', fontWeight: '700', border: '1px solid rgba(63, 185, 80, 0.3)' }}>
-                      ● LIVE SENSORY SYNC
-                    </span>
+                    <span style={{ fontSize: '11px', color: '#3fb950', background: 'rgba(63, 185, 80, 0.1)', padding: '6px 12px', borderRadius: '20px', fontWeight: '700', border: '1px solid rgba(63, 185, 80, 0.3)' }}>● LIVE SENSORY SYNC</span>
                   </div>
 
-                  {/* Geolocation Targeting Card */}
                   <div style={{ background: '#0a0a0c', border: '1px solid #1a1a1a', borderRadius: '16px', padding: '24px', marginBottom: '24px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
@@ -583,23 +494,11 @@ const handleCandidateClick = (candidate) => {
                           <div style={{ fontSize: '18px', color: '#fff', fontWeight: '700', marginTop: '2px' }}>{contextHub || 'Abuja, Federal Capital Territory'}</div>
                         </div>
                       </div>
-                      <button 
-                        onClick={() => {
-                          if (navigator.geolocation) {
-                            navigator.geolocation.getCurrentPosition((pos) => {
-                              executeIntelligenceScan(`${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`);
-                            });
-                          }
-                        }}
-                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid #333', color: '#fff', padding: '8px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}
-                      >
-                        Pin My GPS
-                      </button>
+                      <button onClick={() => { if (navigator.geolocation) { navigator.geolocation.getCurrentPosition((pos) => { executeIntelligenceScan(`${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`); }); } }} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid #333', color: '#fff', padding: '8px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>Pin My GPS</button>
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
                       {[
-                        // FIX: Replaced hardcoded '₦' with dynamic formatting linked to your backend volume
                         { label: 'Your Immediate Sector', val: formatCurrency(totalVolume || 4800), sub: 'Neighborhood Node' },
                         { label: 'Metropolitan City', val: formatCurrency((totalVolume * 15) || 84200), sub: 'Hub Capital Flow' },
                         { label: 'National Aggregate', val: formatCurrency((totalVolume * 105) || 4100000), sub: 'Country Level' },
@@ -648,12 +547,10 @@ const handleCandidateClick = (candidate) => {
                 </div>
               )}
 
-              {/* ----------------- PAGE 2: API DEVELOPER PORTAL ----------------- */}
               {activePage === 'API' && (
                 <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
                   <h2 style={{ fontSize: '24px', fontWeight: '800', letterSpacing: '-0.5px', marginBottom: '8px' }}>Developer API & Webhooks</h2>
                   <p style={{ color: '#888', fontSize: '13px', marginBottom: '24px' }}>Programmatic access to Street AI reality stack telemetry, YOLO counts, and liquidity matrices.</p>
-
                   <div style={{ background: '#0a0a0c', border: '1px solid #1a1a1a', borderRadius: '16px', padding: '24px', marginBottom: '20px' }}>
                     <div style={{ fontSize: '12px', color: '#888', fontWeight: '700', textTransform: 'uppercase', marginBottom: '10px' }}>Active Production Key</div>
                     <div style={{ display: 'flex', gap: '10px' }}>
@@ -661,7 +558,6 @@ const handleCandidateClick = (candidate) => {
                       <button style={{ background: '#00e5ff', color: '#000', border: 'none', padding: '0 20px', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}>Copy</button>
                     </div>
                   </div>
-
                   <div style={{ background: '#0a0a0c', border: '1px solid #1a1a1a', borderRadius: '16px', padding: '24px' }}>
                     <div style={{ fontSize: '12px', color: '#888', fontWeight: '700', textTransform: 'uppercase', marginBottom: '12px' }}>Endpoint Verification</div>
                     <pre style={{ background: '#121214', padding: '16px', borderRadius: '8px', color: '#ccc', fontFamily: mono, fontSize: '12px', overflowX: 'auto', whiteSpace: 'pre-wrap' }}>
@@ -673,12 +569,10 @@ const handleCandidateClick = (candidate) => {
                 </div>
               )}
 
-              {/* ----------------- PAGE 3: EXPORT CENTER ----------------- */}
               {activePage === 'Export' && (
                 <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
                   <h2 style={{ fontSize: '24px', fontWeight: '800', letterSpacing: '-0.5px', marginBottom: '8px' }}>Intelligence Export Matrix</h2>
                   <p style={{ color: '#888', fontSize: '13px', marginBottom: '24px' }}>Export processed econometric models and raw spatial scans for external modeling.</p>
-
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     {[
                       { title: 'Full GeoJSON FeatureCollection', sub: 'Overture POI contours + S2 calibrated voxel cells', format: 'GEOJSON' },
@@ -700,12 +594,10 @@ const handleCandidateClick = (candidate) => {
                 </div>
               )}
 
-              {/* ----------------- PAGE 4: ABOUT, DOCS, SUPPORT ----------------- */}
               {['About', 'Documentation', 'Support'].includes(activePage) && (
                 <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
                   <h2 style={{ fontSize: '24px', fontWeight: '800', letterSpacing: '-0.5px', marginBottom: '8px' }}>{activePage}</h2>
                   <p style={{ color: '#888', fontSize: '13px', marginBottom: '24px' }}>Universal System D unbanked economic observation engine.</p>
-                  
                   <div style={{ background: '#0a0a0c', border: '1px solid #1a1a1a', borderRadius: '16px', padding: '28px' }}>
                     <div style={{ fontSize: '14px', color: '#ddd', lineHeight: '1.8' }}>
                       {activePage === 'About' && "Street AI tracks the global informal economy across dark cash and mobile money channels with 99% precision targets. By combining Sentinel orbital SAR, cellular RF signals, and decentralized pricing networks, the platform provides institutional-grade visibility into previously invisible markets."}
@@ -715,80 +607,119 @@ const handleCandidateClick = (candidate) => {
                   </div>
                 </div>
               )}
-
             </div>
-          ) : commandTab === 'chat' ? (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+            
+          ) : canvasMode === 'analysis' ? (
+            /* ========================================= */
+            /* B. DEEP ANALYSIS: LEFT FILTER TAB         */
+            /* ========================================= */
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', background: '#050507', animation: 'fadeIn 0.3s ease-out', borderRight: '1px solid #1a1a1c' }}>
+              <div style={{ padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.01)', backdropFilter: 'blur(10px)', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(60, 160, 150, 0.1)', border: '1px solid rgba(60, 160, 150, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3ca096', boxShadow: '0 4px 12px rgba(60, 160, 150, 0.1)' }}>
+                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                  </div>
+                  <span style={{ fontSize: '13px', color: '#fff', fontWeight: '800', letterSpacing: '1px' }}>DEEP FILTERS</span>
+                </div>
+                <button style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: '#aaa', padding: '6px 12px', fontSize: '10px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s' }} onMouseEnter={(e)=>{e.currentTarget.style.background='rgba(255,255,255,0.08)'; e.currentTarget.style.color='#fff'}} onMouseLeave={(e)=>{e.currentTarget.style.background='rgba(255,255,255,0.03)'; e.currentTarget.style.color='#aaa'}}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg> Reset
+                </button>
+              </div>
               
-              {/* CHAT HEADER ROW */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '32px' }}>
+                 <div>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#666', textTransform: 'uppercase', fontWeight: '700', marginBottom: '16px', letterSpacing: '1px' }}>
+                     <span>Data Domain</span><span>−</span>
+                   </div>
+                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                     <button style={{ background: 'linear-gradient(135deg, rgba(60,160,150,0.15) 0%, rgba(60,160,150,0.05) 100%)', border: '1px solid rgba(60, 160, 150, 0.4)', color: '#3ca096', padding: '12px', borderRadius: '8px', fontSize: '11px', fontWeight: '700', cursor: 'pointer', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1)' }}>Verified Nodes</button>
+                     <button style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', color: '#888', padding: '12px', borderRadius: '8px', fontSize: '11px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.background='rgba(255,255,255,0.05)'} onMouseLeave={(e)=>e.currentTarget.style.background='rgba(255,255,255,0.02)'}>Dark Liquidity</button>
+                     <button style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', color: '#888', padding: '12px', borderRadius: '8px', fontSize: '11px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.background='rgba(255,255,255,0.05)'} onMouseLeave={(e)=>e.currentTarget.style.background='rgba(255,255,255,0.02)'}>High Friction</button>
+                     <button style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', color: '#888', padding: '12px', borderRadius: '8px', fontSize: '11px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.background='rgba(255,255,255,0.05)'} onMouseLeave={(e)=>e.currentTarget.style.background='rgba(255,255,255,0.02)'}>Anomalies</button>
+                   </div>
+                 </div>
+
+                 <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '24px' }}>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#666', textTransform: 'uppercase', fontWeight: '700', marginBottom: '24px', letterSpacing: '1px' }}>
+                     <span>Capital Velocity Range</span><span>−</span>
+                   </div>
+                   <div style={{ padding: '0 8px' }}>
+                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#fff', marginBottom: '16px', fontWeight: '700', fontFamily: mono }}>
+                       <span style={{ background: 'rgba(255,255,255,0.05)', padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }}>₦10,000</span>
+                       <span style={{ background: 'rgba(255,255,255,0.05)', padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }}>₦2,500,000+</span>
+                     </div>
+                     <div style={{ height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', position: 'relative', marginTop: '16px' }}>
+                       <div style={{ position: 'absolute', left: '15%', right: '25%', height: '100%', background: 'linear-gradient(90deg, #28648c, #3ca096)', borderRadius: '3px', boxShadow: '0 0 10px rgba(60, 160, 150, 0.4)' }} />
+                       <div style={{ position: 'absolute', left: '15%', top: '50%', transform: 'translate(-50%, -50%)', width: '18px', height: '18px', background: '#fff', border: '3px solid #3ca096', borderRadius: '50%', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.8)' }} />
+                       <div style={{ position: 'absolute', right: '25%', top: '50%', transform: 'translate(50%, -50%)', width: '18px', height: '18px', background: '#fff', border: '3px solid #3ca096', borderRadius: '50%', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.8)' }} />
+                     </div>
+                   </div>
+                 </div>
+
+                 <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '24px' }}>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#666', textTransform: 'uppercase', fontWeight: '700', marginBottom: '20px', letterSpacing: '1px' }}>
+                     <span>Node Sub-sectors</span><span>−</span>
+                   </div>
+                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                     {[
+                       { label: 'Commodity Trading', count: 142, active: true },
+                       { label: 'Mobile Money Agents', count: 89, active: true },
+                       { label: 'Informal Logistics', count: 54, active: false },
+                       { label: 'Wholesale Hubs', count: 12, active: false }
+                     ].map((s) => (
+                       <label key={s.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: s.active ? 'rgba(60, 160, 150, 0.05)' : 'rgba(255,255,255,0.02)', border: s.active ? '1px solid rgba(60, 160, 150, 0.2)' : '1px solid rgba(255,255,255,0.05)', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s' }}>
+                         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                           <div style={{ width: '18px', height: '18px', borderRadius: '4px', border: s.active ? 'none' : '1px solid #444', background: s.active ? '#3ca096' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                             {s.active && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#050507" strokeWidth="3"><polyline points="20 6 9 17 4 12"></polyline></svg>}
+                           </div>
+                           <span style={{ fontSize: '12px', color: s.active ? '#fff' : '#888', fontWeight: s.active ? '700' : '500' }}>{s.label}</span>
+                         </div>
+                         <span style={{ fontSize: '10px', color: s.active ? '#3ca096' : '#555', fontFamily: mono, fontWeight: '600' }}>{s.count}</span>
+                       </label>
+                     ))}
+                   </div>
+                 </div>
+                 
+                 <button style={{ marginTop: 'auto', background: 'linear-gradient(135deg, #3ca096 0%, #28648c 100%)', color: '#fff', border: 'none', padding: '16px', borderRadius: '10px', fontSize: '13px', fontWeight: '800', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', boxShadow: '0 8px 24px rgba(60, 160, 150, 0.3)', transition: 'transform 0.1s' }} onMouseDown={(e)=>e.currentTarget.style.transform='scale(0.98)'} onMouseUp={(e)=>e.currentTarget.style.transform='scale(1)'}>
+                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="5 12 10 17 19 8"></polyline></svg>
+                   Apply Parameters
+                 </button>
+              </div>
+            </div>
+
+          ) : commandTab === 'chat' ? (
+            /* ========================================= */
+            /* C. MAIN CHAT TAB                          */
+            /* ========================================= */
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
               <div style={{ padding: '8px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 10, height: '40px', minHeight: '40px' }}>
                 <button onClick={() => setIsHistoryOpen(!isHistoryOpen)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', padding: '4px 10px', borderRadius: '12px', color: '#ededef', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '9px', fontWeight: '600' }}>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                  History
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> History
                 </button>
               </div>
 
-              {/* 2. REMODERNIZED AI-PLATFORM HISTORY PANEL */}
-              <div style={{ 
-                position: 'absolute', 
-                top: '40px', /* Pushed up to sit flush with the chat header */
-                left: isHistoryOpen ? 0 : '-100%', 
-                bottom: 0, 
-                width: '100%', 
-                background: 'rgba(7, 7, 9, 0.85)', 
-                backdropFilter: 'blur(24px)', 
-                zIndex: 40, 
-                transition: 'left 0.35s cubic-bezier(0.16, 1, 0.3, 1)', 
-                borderRight: '1px solid rgba(255,255,255,0.08)', 
-                padding: '16px 20px', /* Tighter internal padding */
-                display: 'flex', 
-                flexDirection: 'column' 
-              }}>
-                {/* Header & Quick Action Row */}
+              {/* History Panel Overlay */}
+              <div style={{ position: 'absolute', top: '40px', left: isHistoryOpen ? 0 : '-100%', bottom: 0, width: '100%', background: 'rgba(7, 7, 9, 0.95)', backdropFilter: 'blur(24px)', zIndex: 40, transition: 'left 0.3s cubic-bezier(0.16, 1, 0.3, 1)', borderRight: '1px solid rgba(255,255,255,0.08)', padding: '16px 20px', display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#00e5ff', boxShadow: '0 0 8px #00e5ff' }} />
+                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#3ca096', boxShadow: '0 0 8px #3ca096' }} />
                     <span style={{ fontSize: '9px', color: '#aaa', fontFamily: mono, fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase' }}>Query Ledger</span>
                   </div>
-                  <button 
-                    onClick={() => setIsHistoryOpen(false)}
-                    style={{ background: 'transparent', border: 'none', color: '#666', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px', borderRadius: '6px' }}
-                    onMouseEnter={(e)=>e.currentTarget.style.color='#fff'}
-                    onMouseLeave={(e)=>e.currentTarget.style.color='#666'}
-                  >
+                  <button onClick={() => setIsHistoryOpen(false)} style={{ background: 'transparent', border: 'none', color: '#666', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px', borderRadius: '6px' }} onMouseEnter={(e)=>e.currentTarget.style.color='#fff'} onMouseLeave={(e)=>e.currentTarget.style.color='#666'}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                   </button>
                 </div>
 
-                {/* New Scan Action Button */}
-                <div 
-                  onClick={() => { setIsHistoryOpen(false); setInputValue(''); }}
-                  style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'space-between', 
-                    padding: '10px 14px', 
-                    background: 'linear-gradient(90deg, rgba(0,229,255,0.12) 0%, rgba(0,119,255,0.05) 100%)', 
-                    border: '1px solid rgba(0,229,255,0.25)', 
-                    borderRadius: '8px', 
-                    cursor: 'pointer', 
-                    marginBottom: '16px',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e)=>e.currentTarget.style.border='1px solid #00e5ff'}
-                  onMouseLeave={(e)=>e.currentTarget.style.border='1px solid rgba(0,229,255,0.25)'}
-                >
+                <div onClick={() => { setIsHistoryOpen(false); setInputValue(''); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(60, 160, 150, 0.1)', border: '1px solid rgba(60, 160, 150, 0.3)', borderRadius: '8px', cursor: 'pointer', marginBottom: '16px', transition: 'all 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.border='1px solid #3ca096'} onMouseLeave={(e)=>e.currentTarget.style.border='1px solid rgba(60, 160, 150, 0.3)'}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#3ca096" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                     <span style={{ fontSize: '11px', color: '#fff', fontWeight: '600' }}>Run Market Inference</span>
                   </div>
                   <span style={{ fontSize: '9px', color: '#666', fontFamily: mono, background: '#121214', padding: '2px 4px', borderRadius: '4px', border: '1px solid #222' }}>Alt+N</span>
                 </div>
 
-                {/* Section Header */}
                 <div style={{ fontSize: '11px', color: '#555', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px', paddingLeft: '4px' }}>Recent Sessions</div>
 
-                {/* Chat Sessions List */}
                 <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px', paddingRight: '4px' }}>
                   {chatHistory.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '40px 16px', color: '#555', fontSize: '13px' }}>
@@ -796,32 +727,10 @@ const handleCandidateClick = (candidate) => {
                     </div>
                   ) : (
                     chatHistory.map((chat) => (
-                      <div 
-                        key={chat.id} 
-                        onClick={() => {
-                          setInputValue(chat.text);
-                          setIsHistoryOpen(false);
-                          executeIntelligenceScan(chat.text);
-                        }}
-                        style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'space-between',
-                          padding: '12px 14px', 
-                          background: 'rgba(255,255,255,0.02)', 
-                          border: '1px solid rgba(255,255,255,0.04)', 
-                          borderRadius: '8px', 
-                          cursor: 'pointer',
-                          transition: 'all 0.15s'
-                        }}
-                        onMouseEnter={(e)=>{ e.currentTarget.style.background = '#121214'; e.currentTarget.style.borderColor = '#333'; }}
-                        onMouseLeave={(e)=>{ e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)'; }}
-                      >
+                      <div key={chat.id} onClick={() => { setInputValue(chat.text); setIsHistoryOpen(false); executeIntelligenceScan(chat.text); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.15s' }} onMouseEnter={(e)=>{ e.currentTarget.style.background = '#121214'; e.currentTarget.style.borderColor = '#333'; }} onMouseLeave={(e)=>{ e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)'; }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', overflow: 'hidden' }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                          <span style={{ color: '#ccc', fontSize: '13px', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {chat.text}
-                          </span>
+                          <span style={{ color: '#ccc', fontSize: '13px', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{chat.text}</span>
                         </div>
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
                       </div>
@@ -830,16 +739,10 @@ const handleCandidateClick = (candidate) => {
                 </div>
               </div>
 
-              {/* 3. MAIN CHAT AREA */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', height: '100%', borderTop: '1px solid #1a1a1a' /* FIX: Added the demarcation line */ }}>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', height: '100%', borderTop: '1px solid #1a1a1a' }}>
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '400px', background: 'linear-gradient(180deg, rgba(60, 160, 150, 0.1) 0%, rgba(60, 160, 150, 0.01) 60%, transparent 100%)', pointerEvents: 'none', zIndex: 0 }} />
                 
-                {/* Soft Blue Fade Background */}
-                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '400px', background: 'linear-gradient(180deg, rgba(0, 119, 255, 0.15) 0%, rgba(0, 119, 255, 0.02) 60%, transparent 100%)', pointerEvents: 'none', zIndex: 0 }} />
-                
-                {/* Chat Feed (Scrollable Middle Section) */}
                 <div style={{ flex: 1, overflowY: 'auto', padding: '32px 24px 24px 24px', display: 'flex', flexDirection: 'column', gap: '16px', zIndex: 10 }}>
-                  
-                  {/* Modern Chat Greeting & Prompt Suggestions */}
                   {chatHistory.length === 0 && !isSearching && (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '24px', animation: 'fadeIn 0.5s ease-out', marginTop: '20px' }}>
                       <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: '#1a1a1c', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px', border: '1px solid #333' }}>
@@ -855,13 +758,7 @@ const handleCandidateClick = (candidate) => {
                           { title: "What sells the most in Balogun?", sub: "Consumer demand heat" },
                           { title: "Track vendor density in Dharavi", sub: "Spatial population metrics" }
                         ].map((prompt, idx) => (
-                          <div
-                            key={idx}
-                            onClick={() => setInputValue(prompt.title)}
-                            style={{ padding: '14px', background: 'transparent', border: '1px solid #222', borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left' }}
-                            onMouseEnter={(e) => e.currentTarget.style.border = '1px solid #444'}
-                            onMouseLeave={(e) => e.currentTarget.style.border = '1px solid #222'}
-                          >
+                          <div key={idx} onClick={() => setInputValue(prompt.title)} style={{ padding: '14px', background: 'transparent', border: '1px solid #222', borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left' }} onMouseEnter={(e) => e.currentTarget.style.border = '1px solid #444'} onMouseLeave={(e) => e.currentTarget.style.border = '1px solid #222'}>
                             <div style={{ color: '#e0e0e0', fontSize: '11px', fontWeight: '600', marginBottom: '4px', lineHeight: '1.4' }}>{prompt.title}</div>
                             <div style={{ color: '#666', fontSize: '10px' }}>{prompt.sub}</div>
                           </div>
@@ -870,32 +767,29 @@ const handleCandidateClick = (candidate) => {
                     </div>
                   )}
 
-                  {/* User Prompt Bubble (Distinct Blue-Tinted Shade) */}
                   {(isSearching || isDataGenerated) && (
                     <div style={{ display: 'flex', gap: '12px', flexDirection: 'row-reverse', animation: 'fadeIn 0.3s ease-out' }}>
                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                        <div style={{ fontSize: '11px', color: '#e0e0e0', background: 'rgba(0, 60, 140, 0.15)', padding: '8px 14px', borderRadius: '14px 2px 14px 14px', border: '1px solid rgba(0, 119, 255, 0.15)', maxWidth: '85%', fontWeight: '500', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                        <div style={{ fontSize: '11px', color: '#e0e0e0', background: 'rgba(60, 160, 150, 0.15)', padding: '8px 14px', borderRadius: '14px 2px 14px 14px', border: '1px solid rgba(60, 160, 150, 0.2)', maxWidth: '85%', fontWeight: '500', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
                           {searchQuery}
                         </div>
                       </div>
                     </div>
                   )}
 
-                  {/* AI Response Block */}
                   {isSearching ? (
                     <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" strokeWidth="2" className="animate-spin"><circle cx="12" cy="12" r="10"/></svg>
-                      <div style={{ fontSize: '10px', color: '#00e5ff', fontStyle: 'italic', fontFamily: mono, opacity: 0.8 }}>Analyzing live nodes...</div>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#3ca096" strokeWidth="2" className="animate-spin"><circle cx="12" cy="12" r="10"/></svg>
+                      <div style={{ fontSize: '10px', color: '#3ca096', fontStyle: 'italic', fontFamily: mono, opacity: 0.8 }}>Analyzing live nodes...</div>
                     </div>
                   ) : isDataGenerated ? (
                     <div style={{ display: 'flex', gap: '12px', animation: 'fadeIn 0.3s ease-out' }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '11px', lineHeight: '1.5', color: '#ccc', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', padding: '10px 14px', borderRadius: '2px 14px 14px 14px', fontWeight: '500' }}>
                           I have compiled the velocity estimates for {contextHub}. The spatial topology models have been generated.
-                          
-                          <div onClick={() => { setCommandTab('data'); }} style={{ marginTop: '12px', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', maxWidth: '240px', transition: 'border 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.border='1px solid #00e5ff'} onMouseLeave={(e)=>e.currentTarget.style.border='1px solid rgba(255,255,255,0.08)'}>
+                          <div onClick={() => { setCommandTab('data'); }} style={{ marginTop: '12px', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', maxWidth: '240px', transition: 'border 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.border='1px solid #3ca096'} onMouseLeave={(e)=>e.currentTarget.style.border='1px solid rgba(255,255,255,0.08)'}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <div style={{ width: '24px', height: '24px', background: 'rgba(0,229,255,0.1)', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00e5ff' }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></div>
+                              <div style={{ width: '24px', height: '24px', background: 'rgba(60,160,150,0.1)', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3ca096' }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></div>
                               <div>
                                 <div style={{ color: '#fff', fontSize: '10px', fontWeight: '700' }}>Overview Data Ready</div>
                                 <div style={{ color: '#888', fontSize: '8px', marginTop: '1px' }}>Click to view Overview Data</div>
@@ -909,83 +803,59 @@ const handleCandidateClick = (candidate) => {
                   ) : null}
                 </div>
 
-                {/* INPUT AREA WITH ELEVATED SCROLL-UP MENU & INLINE DISAMBIGUATION */}
                 <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '24px 32px 32px 32px', background: 'linear-gradient(180deg, rgba(7,7,9,0) 0%, rgba(7,7,9,1) 40%)', zIndex: 20 }}>
-                  
-                  {/* THE ELEVATED SCROLL UP MENU (Second Gate) */}
                   {showScrollUp && (
-                     <div style={{ position: 'absolute', bottom: '100%', left: '32px', right: '32px', background: 'rgba(10,10,12,0.95)', backdropFilter: 'blur(16px)', border: '1px solid #333', borderRadius: '12px', padding: '12px', marginBottom: '16px', boxShadow: '0 -10px 40px rgba(0,0,0,0.8)' }}>
-                        <div style={{ fontSize: '11px', color: '#00e5ff', textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: '800', padding: '4px 12px 12px 12px', borderBottom: '1px solid #222', marginBottom: '8px' }}>Disambiguation Required — Did you mean:</div>
+                      <div style={{ position: 'absolute', bottom: '100%', left: '32px', right: '32px', background: 'rgba(10,10,12,0.95)', backdropFilter: 'blur(16px)', border: '1px solid #333', borderRadius: '12px', padding: '12px', marginBottom: '16px', boxShadow: '0 -10px 40px rgba(0,0,0,0.8)' }}>
+                        <div style={{ fontSize: '11px', color: '#3ca096', textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: '800', padding: '4px 12px 12px 12px', borderBottom: '1px solid #222', marginBottom: '8px' }}>Disambiguation Required — Did you mean:</div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '200px', overflowY: 'auto' }}>
-                           {ambiguousCandidates.map((cand, idx) => (
+                            {ambiguousCandidates.map((cand, idx) => (
                               <div key={idx} onClick={() => handleCandidateClick(cand)} style={{ padding: '12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '16px', cursor: 'pointer', transition: 'all 0.2s', border: '1px solid transparent' }} onMouseEnter={(e)=>{e.currentTarget.style.background='#121214'; e.currentTarget.style.border='1px solid #333';}} onMouseLeave={(e)=>{e.currentTarget.style.background='transparent'; e.currentTarget.style.border='1px solid transparent';}}>
-                                 <div style={{ width: '32px', height: '32px', background: 'rgba(0,229,255,0.1)', border: '1px solid rgba(0,229,255,0.3)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00e5ff' }}>
-                                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                                 </div>
-                                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                   <span style={{ color: '#fff', fontSize: '14px', fontWeight: '600' }}>{cand.name}</span>
-                                   <span style={{ color: '#888', fontSize: '12px', marginTop: '2px' }}>{cand.context} • {cand.location_type}</span>
-                                 </div>
+                                  <div style={{ width: '32px', height: '32px', background: 'rgba(60,160,150,0.1)', border: '1px solid rgba(60,160,150,0.3)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3ca096' }}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                                  </div>
+                                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    <span style={{ color: '#fff', fontSize: '14px', fontWeight: '600' }}>{cand.name}</span>
+                                    <span style={{ color: '#888', fontSize: '12px', marginTop: '2px' }}>{cand.context} • {cand.location_type}</span>
+                                  </div>
                               </div>
-                           ))}
+                            ))}
                         </div>
-                     </div>
+                      </div>
                   )}
 
-                  {/* Clean Input Box with Inline Disambiguation (First Gate) */}
-                  <div style={{ padding: '2px', background: blueShadesGradient, borderRadius: '32px', boxShadow: '0 8px 30px rgba(0, 119, 255, 0.15)' }}>
+                  <div style={{ padding: '2px', background: 'linear-gradient(90deg, #28648c, #3ca096)', borderRadius: '32px', boxShadow: '0 8px 30px rgba(60, 160, 150, 0.15)' }}>
                     <form onSubmit={handlePromptSubmit} style={{ position: 'relative', display: 'flex', alignItems: 'center', background: '#050505', borderRadius: '30px' }}>
-                      
-                      {/* Intelligent Input Wrapper */}
                       <div style={{ position: 'relative', width: '100%' }}>
-                        {/* Live Inline Disambiguation Dropdown */}
                         {liveSuggestions.length > 0 && (
                           <div style={{ position: 'absolute', bottom: '100%', left: '16px', right: '16px', background: '#121214', border: '1px solid #333', borderRadius: '12px', marginBottom: '16px', overflow: 'hidden', zIndex: 100, boxShadow: '0 -10px 40px rgba(0,0,0,0.8)' }}>
                             <div style={{ padding: '8px 16px', fontSize: '10px', color: '#666', textTransform: 'uppercase', letterSpacing: '1px', borderBottom: '1px solid #222' }}>Detected Locations</div>
                             {liveSuggestions.filter(sug => sug.location_type !== "WORD").slice(0, 3).map((sug) => (
-                              <div
-                                key={sug.candidate_id}
-                                onClick={() => {
-                                   setInputValue(sug.name);
-                                   setLiveSuggestions([]);
-                                   executeIntelligenceScan(sug.name, sug);
-                                }}
-                                style={{ padding: '12px 16px', borderBottom: '1px solid #222', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-                                onMouseEnter={(e)=>e.currentTarget.style.background='rgba(255,255,255,0.03)'}
-                                onMouseLeave={(e)=>e.currentTarget.style.background='transparent'}
-                              >
+                              <div key={sug.candidate_id} onClick={() => { setInputValue(sug.name); setLiveSuggestions([]); executeIntelligenceScan(sug.name, sug); }} style={{ padding: '12px 16px', borderBottom: '1px solid #222', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }} onMouseEnter={(e)=>e.currentTarget.style.background='rgba(255,255,255,0.03)'} onMouseLeave={(e)=>e.currentTarget.style.background='transparent'}>
                                 <div>
                                   <span style={{ color: '#fff', fontSize: '14px', fontWeight: '600' }}>{sug.name}</span>
                                   <span style={{ color: '#888', marginLeft: '8px', fontSize: '12px' }}>{sug.context}</span>
                                 </div>
-                                <span style={{ fontSize: '10px', color: '#00e5ff', background: 'rgba(0, 229, 255, 0.1)', padding: '4px 8px', borderRadius: '4px' }}>{sug.location_type}</span>
+                                <span style={{ fontSize: '10px', color: '#3ca096', background: 'rgba(60, 160, 150, 0.1)', padding: '4px 8px', borderRadius: '4px' }}>{sug.location_type}</span>
                               </div>
                             ))}
                           </div>
                         )}
-
-                        <input 
-                          type="text" 
-                          value={inputValue}
-                          onChange={(e) => setInputValue(e.target.value)}
-                          placeholder="Ask Street AI..." 
-                          disabled={isSearching}
-                          style={{ width: '100%', background: 'transparent', border: 'none', padding: '12px 48px 12px 20px', color: '#fff', fontSize: '13px', fontWeight: '500', outline: 'none', fontFamily: sans }}
-                        />
+                        <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="Ask Street AI..." disabled={isSearching} style={{ width: '100%', background: 'transparent', border: 'none', padding: '12px 48px 12px 20px', color: '#fff', fontSize: '13px', fontWeight: '500', outline: 'none', fontFamily: sans }} />
                       </div>
-                      
-                      <button type="submit" disabled={isSearching || !inputValue.trim()} style={{ position: 'absolute', right: '6px', background: (isSearching || !inputValue.trim()) ? '#1a1a1c' : '#00e5ff', border: 'none', width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: (isSearching || !inputValue.trim()) ? 'default' : 'pointer', transition: 'all 0.2s' }}>
+                      <button type="submit" disabled={isSearching || !inputValue.trim()} style={{ position: 'absolute', right: '6px', background: (isSearching || !inputValue.trim()) ? '#1a1a1c' : '#3ca096', border: 'none', width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: (isSearching || !inputValue.trim()) ? 'default' : 'pointer', transition: 'all 0.2s' }}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={(isSearching || !inputValue.trim()) ? '#666' : '#000'} strokeWidth="3"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
                       </button>
                     </form>
                   </div>
                 </div>
               </div>
-
             </div>
+
           ) : (
+            /* ========================================= */
+            /* D. OVERVIEW DATA TAB                      */
+            /* ========================================= */
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-              {/* DATA HEADER ROW */}
               <div style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', borderBottom: '1px solid #1a1a1a', height: '40px', minHeight: '40px', flexShrink: 0 }}>
                 <button onClick={() => { setCommandTab('chat'); setCanvasMode('map'); }} style={{ background: 'transparent', border: '1px solid #333', padding: '4px 10px', borderRadius: '12px', color: '#ededef', fontSize: '9px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6" /></svg> Back to AI Chat
@@ -993,81 +863,54 @@ const handleCandidateClick = (candidate) => {
               </div>
 
               <div style={{ flex: 1, overflowY: 'auto', padding: '32px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-
-                {/* DYNAMIC TOUR INJECTION (Micro-Scale & Color Synced) */}
                 {activeTourNode ? (
-                  <div style={{ 
-                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(0, 0, 0, 0) 100%)', 
-                    border: `1px solid ${activeTourNode.color}50`, 
-                    borderRadius: '8px', 
-                    padding: '12px 14px', 
-                    animation: 'fadeIn 0.4s ease-out',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    marginBottom: '16px'
-                  }}>
-                     {/* Glowing edge effect matching the node color */}
+                  <div style={{ background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(0, 0, 0, 0) 100%)', border: `1px solid ${activeTourNode.color}50`, borderRadius: '8px', padding: '12px 14px', animation: 'fadeIn 0.4s ease-out', position: 'relative', overflow: 'hidden', marginBottom: '16px' }}>
                      <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '3px', background: activeTourNode.color, boxShadow: `0 0 10px ${activeTourNode.color}` }} />
-                     
                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: activeTourNode.color, animation: 'pulse 1s infinite' }} />
-                       <div style={{ fontSize: '9px', color: activeTourNode.color, fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', fontFamily: mono }}>
-                         Isolated View: {activeTourNode.type}
-                       </div>
+                       <div style={{ fontSize: '9px', color: activeTourNode.color, fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', fontFamily: mono }}>Isolated View: {activeTourNode.type}</div>
                      </div>
-                     
                      <div style={{ fontSize: '14px', color: '#fff', fontWeight: '800', letterSpacing: '-0.2px' }}>{activeTourNode.name}</div>
                      <div style={{ fontSize: '9px', color: '#aaa', marginTop: '4px', lineHeight: '1.4' }}>All dashboard metrics below are now filtering exclusively for data originating within this localized geofence.</div>
-                     
                      <div style={{ display: 'flex', gap: '10px', marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '10px' }}>
-                         <div style={{ flex: 1 }}>
-                             <div style={{ fontSize: '8px', color: '#888', textTransform: 'uppercase', fontFamily: mono }}>Volume Concentration</div>
-                             <div style={{ fontSize: '12px', color: '#fff', fontWeight: '700', marginTop: '4px' }}>{(activeTourNode.volMultiplier * 100).toFixed(0)}% of Grid</div>
-                         </div>
-                         <div style={{ flex: 1 }}>
-                             <div style={{ fontSize: '8px', color: '#888', textTransform: 'uppercase', fontFamily: mono }}>Transaction Friction</div>
-                             <div style={{ fontSize: '12px', color: '#fff', fontWeight: '700', marginTop: '4px' }}>{(activeTourNode.txMultiplier * 100).toFixed(0)}% Baseline</div>
-                         </div>
+                         <div style={{ flex: 1 }}><div style={{ fontSize: '8px', color: '#888', textTransform: 'uppercase', fontFamily: mono }}>Volume Concentration</div><div style={{ fontSize: '12px', color: '#fff', fontWeight: '700', marginTop: '4px' }}>{(activeTourNode.volMultiplier * 100).toFixed(0)}% of Grid</div></div>
+                         <div style={{ flex: 1 }}><div style={{ fontSize: '8px', color: '#888', textTransform: 'uppercase', fontFamily: mono }}>Transaction Friction</div><div style={{ fontSize: '12px', color: '#fff', fontWeight: '700', marginTop: '4px' }}>{(activeTourNode.txMultiplier * 100).toFixed(0)}% Baseline</div></div>
                      </div>
                   </div>
                 ) : null}
 
-                {/* DYNAMIC COMMODITY ALERT (Shows only if a specific good like 'rubber' was queried) */}
                 {commodityData && (
-                  <div style={{ background: 'rgba(0, 229, 255, 0.08)', border: '1px solid rgba(0, 229, 255, 0.3)', borderRadius: '14px', padding: '18px 20px', animation: 'fadeIn 0.3s ease-out', marginBottom: '24px' }}>
-                    <div style={{ fontSize: '11px', color: '#00e5ff', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase' }}>TARGET COMMODITY INTEL</div>
+                  <div style={{ background: 'rgba(60, 160, 150, 0.08)', border: '1px solid rgba(60, 160, 150, 0.3)', borderRadius: '14px', padding: '18px 20px', animation: 'fadeIn 0.3s ease-out', marginBottom: '24px' }}>
+                    <div style={{ fontSize: '11px', color: '#3ca096', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase' }}>TARGET COMMODITY INTEL</div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '6px' }}>
                       <span style={{ fontSize: '20px', fontWeight: '700', color: '#fff', textTransform: 'capitalize' }}>{commodityData.commodity}</span>
-                      <span style={{ fontSize: '18px', fontWeight: '800', color: '#00e5ff' }}>{formatCurrency(commodityData.live_street_price)} / {commodityData.unit}</span>
+                      <span style={{ fontSize: '18px', fontWeight: '800', color: '#3ca096' }}>{formatCurrency(commodityData.live_street_price)} / {commodityData.unit}</span>
                     </div>
-                    <div style={{ fontSize: '12px', color: '#888', marginTop: '6px' }}>Origin: {commodityData.import_origin} • Spread: <span style={{ color: '#3fb950' }}>{commodityData.formal_spread}</span> vs formal retail</div>
+                    <div style={{ fontSize: '12px', color: '#888', marginTop: '6px' }}>Origin: {commodityData.import_origin} • Spread: <span style={{ color: '#74c365' }}>{commodityData.formal_spread}</span> vs formal retail</div>
                   </div>
                 )}
 
-                {/* EXECUTIVE NARRATIVE CALLOUT PILL */}
                 {scanData?.executive_summary?.overview_pill && (
-                  <div style={{ background: 'linear-gradient(90deg, rgba(0, 229, 255, 0.08) 0%, rgba(0, 119, 255, 0.03) 100%)', borderLeft: '4px solid #00e5ff', borderTop: '1px solid rgba(0, 229, 255, 0.2)', borderRight: '1px solid rgba(255, 255, 255, 0.05)', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: '0 12px 12px 0', padding: '16px 20px', marginBottom: '24px', animation: 'fadeIn 0.4s ease-out' }}>
-                    <div style={{ fontSize: '10px', color: '#00e5ff', fontFamily: mono, fontWeight: '800', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: '6px' }}>Executive Intelligence Brief</div>
+                  <div style={{ background: 'linear-gradient(90deg, rgba(60, 160, 150, 0.08) 0%, rgba(40, 100, 140, 0.03) 100%)', borderLeft: '4px solid #3ca096', borderTop: '1px solid rgba(60, 160, 150, 0.2)', borderRight: '1px solid rgba(255, 255, 255, 0.05)', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: '0 12px 12px 0', padding: '16px 20px', marginBottom: '24px', animation: 'fadeIn 0.4s ease-out' }}>
+                    <div style={{ fontSize: '10px', color: '#3ca096', fontFamily: mono, fontWeight: '800', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: '6px' }}>Executive Intelligence Brief</div>
                     <div style={{ fontSize: '13px', color: '#ddd', lineHeight: '1.6', fontWeight: '500' }}>{scanData.executive_summary.overview_pill}</div>
                   </div>
                 )}
 
-                {/* SECTION 1: Generative Financial KPI Card */}
                 <div style={{ background: '#0a0a0c', borderRadius: '10px', padding: '14px', border: '1px solid #222', position: 'relative', opacity: activeTourNode ? 0.4 : 1, transition: 'opacity 0.3s' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
                         <div style={{ fontSize: '11px', fontWeight: '700', color: '#fff' }}>{scanData?.ui_labels?.card_1_title || 'Cash Volume & Velocity'}</div>
                         <div style={{ fontSize: '8px', color: '#888', marginTop: '4px', maxWidth: '300px', lineHeight: '1.4' }}>{scanData?.ui_labels?.card_1_subtitle || `Daily unbanked cash volume generated from ${contextHub}`}</div>
                     </div>
-                    {/* Modern Interactive Timeframe Pill */}
                     <div style={{ position: 'relative' }}>
-                      <button onClick={() => setTimeframeDropdown(!timeframeDropdown)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ededef', padding: '4px 8px', borderRadius: '12px', fontSize: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', backdropFilter: 'blur(10px)', transition: 'background 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.background='rgba(255,255,255,0.1)'} onMouseLeave={(e)=>e.currentTarget.style.background='rgba(255,255,255,0.05)'}>
+                      <button onClick={() => setTimeframeDropdown(!timeframeDropdown)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#ededef', padding: '4px 8px', borderRadius: '12px', fontSize: '8px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', backdropFilter: 'blur(10px)', transition: 'background 0.2s' }}>
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> {scanData?.financial_metrics?.time_horizon || timeframe} <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
                       </button>
                       {timeframeDropdown && (
                          <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: '#121214', border: '1px solid #333', borderRadius: '8px', padding: '4px', zIndex: 100, width: '120px', boxShadow: '0 10px 40px rgba(0,0,0,0.8)' }}>
                            {['Live (1hr)', 'Last 12hrs', 'Last 24hrs', 'Trailing 7 Days'].map(t => (
-                             <div key={t} onClick={() => { setTimeframe(t); setTimeframeDropdown(false); }} style={{ padding: '6px 8px', fontSize: '9px', fontWeight: '500', color: timeframe === t ? '#3ca096' : '#aaa', cursor: 'pointer', borderRadius: '4px', background: timeframe === t ? 'rgba(60,160,150,0.1)' : 'transparent', transition: 'background 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.background= timeframe === t ? 'rgba(60,160,150,0.1)' : 'rgba(255,255,255,0.05)'} onMouseLeave={(e)=>e.currentTarget.style.background= timeframe === t ? 'rgba(60,160,150,0.1)' : 'transparent'}>{t}</div>
+                             <div key={t} onClick={() => { setTimeframe(t); setTimeframeDropdown(false); }} style={{ padding: '6px 8px', fontSize: '9px', fontWeight: '500', color: timeframe === t ? '#3ca096' : '#aaa', cursor: 'pointer', borderRadius: '4px', background: timeframe === t ? 'rgba(60,160,150,0.1)' : 'transparent', transition: 'background 0.2s' }}>{t}</div>
                            ))}
                          </div>
                       )}
@@ -1075,26 +918,18 @@ const handleCandidateClick = (candidate) => {
                   </div>
                   
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginTop: '14px' }}>
-                    <div style={{ fontSize: '20px', fontWeight: '800', color: '#fff', letterSpacing: '-0.5px' }}>
-                    {formatCurrency(displayVolume)}
-                    </div>
-                    <span style={{fontSize:'8px', color:'#3ca096', background:'rgba(60,160,150,0.15)', padding:'2px 6px', borderRadius:'4px', fontWeight:'700'}}>
-                      {digitalPercentage}% digital
-                    </span>
+                    <div style={{ fontSize: '20px', fontWeight: '800', color: '#fff', letterSpacing: '-0.5px' }}>{formatCurrency(displayVolume)}</div>
+                    <span style={{fontSize:'8px', color:'#3ca096', background:'rgba(60,160,150,0.15)', padding:'2px 6px', borderRadius:'4px', fontWeight:'700'}}>{digitalPercentage}% digital</span>
                   </div>
 
                   <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
-                    <div style={{ flex: 1, background: '#121214', padding: '10px', borderRadius: '8px', border: '1px solid #1a1a1a', transition: 'border 0.2s', cursor: 'default' }} onMouseEnter={(e)=>e.currentTarget.style.border='1px solid #333'} onMouseLeave={(e)=>e.currentTarget.style.border='1px solid #1a1a1a'}>
+                    <div style={{ flex: 1, background: '#121214', padding: '10px', borderRadius: '8px', border: '1px solid #1a1a1a', transition: 'border 0.2s', cursor: 'default' }}>
                         <div style={{ fontSize: '9px', color: '#888', fontWeight: '600' }}>{scanData?.ui_labels?.metric_1_label || 'Street vs Formal Gap'}</div>
-                        <div style={{ fontSize: '15px', color: '#fff', fontWeight: '700', marginTop: '4px' }}>
-                          +{priceMarkup}% <span style={{fontSize:'8px', color:'#74c365', fontWeight:'600'}}>spread</span>
-                        </div>
+                        <div style={{ fontSize: '15px', color: '#fff', fontWeight: '700', marginTop: '4px' }}>+{priceMarkup}% <span style={{fontSize:'8px', color:'#74c365', fontWeight:'600'}}>spread</span></div>
                     </div>
-                    <div style={{ flex: 1, background: '#121214', padding: '10px', borderRadius: '8px', border: '1px solid #1a1a1a', transition: 'border 0.2s', cursor: 'default' }} onMouseEnter={(e)=>e.currentTarget.style.border='1px solid #333'} onMouseLeave={(e)=>e.currentTarget.style.border='1px solid #1a1a1a'}>
+                    <div style={{ flex: 1, background: '#121214', padding: '10px', borderRadius: '8px', border: '1px solid #1a1a1a', transition: 'border 0.2s', cursor: 'default' }}>
                         <div style={{ fontSize: '9px', color: '#888', fontWeight: '600' }}>{scanData?.ui_labels?.metric_2_label || 'Transaction Velocity'}</div>
-                        <div style={{ fontSize: '15px', color: '#fff', fontWeight: '700', marginTop: '4px' }}>
-                        {displayVelocity.toLocaleString()} <span style={{fontSize:'8px', color:'#d4d95c', fontWeight:'600'}}>tx/period</span>
-                        </div>
+                        <div style={{ fontSize: '15px', color: '#fff', fontWeight: '700', marginTop: '4px' }}>{displayVelocity.toLocaleString()} <span style={{fontSize:'8px', color:'#d4d95c', fontWeight:'600'}}>tx/period</span></div>
                     </div>
                   </div>
 
@@ -1111,12 +946,11 @@ const handleCandidateClick = (candidate) => {
                       </div>
                     </div>
                   )}
-                  <button onClick={() => setExpandedSections({...expandedSections, vol: !expandedSections.vol})} style={{ width: '100%', marginTop: '14px', background: 'transparent', border: 'none', color: '#3ca096', fontSize: '9px', fontWeight: '600', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px', opacity: 0.8, transition: 'opacity 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.opacity=1} onMouseLeave={(e)=>e.currentTarget.style.opacity=0.8}>
+                  <button onClick={() => setExpandedSections({...expandedSections, vol: !expandedSections.vol})} style={{ width: '100%', marginTop: '14px', background: 'transparent', border: 'none', color: '#3ca096', fontSize: '9px', fontWeight: '600', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px', opacity: 0.8, transition: 'opacity 0.2s' }}>
                     {expandedSections.vol ? 'Collapse metrics ↑' : 'See advanced metrics ↓'}
                   </button>
-                </div>                                                                                                                                                                
+                </div>                                                                                                                                                                              
                 
-                {/* SECTION 2: Generative Ranking & Distribution Card */}
                 <div style={{ background: '#0a0a0c', borderRadius: '10px', padding: '14px', border: '1px solid #222', opacity: activeTourNode ? 0.4 : 1, transition: 'opacity 0.3s' }}>
                   <div style={{ fontSize: '11px', fontWeight: '700', color: '#fff' }}>{scanData?.breakdown_meta?.card_2_title || 'Active Vendor Network'}</div>
                   <div style={{ fontSize: '8px', color: '#888', marginTop: '4px', maxWidth: '300px', lineHeight: '1.4' }}>{scanData?.breakdown_meta?.card_2_subtitle || `Active distribution profiles across ${contextHub}`}</div>
@@ -1135,7 +969,7 @@ const handleCandidateClick = (candidate) => {
                           const fallbackColors = ['#3ca096', '#74c365', '#d4d95c', '#28648c', '#1a3668'];
                           const c = x.color || fallbackColors[idx % fallbackColors.length];
                           return (
-                            <div key={x.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#aaa', fontWeight: '500', padding: '4px 8px', borderRadius: '4px', transition: 'background 0.2s', cursor: 'pointer' }} onMouseEnter={(e)=>e.currentTarget.style.background='#121214'} onMouseLeave={(e)=>e.currentTarget.style.background='transparent'}>
+                            <div key={x.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#aaa', fontWeight: '500', padding: '4px 8px', borderRadius: '4px', transition: 'background 0.2s', cursor: 'pointer' }}>
                                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{width:'6px', height:'6px', borderRadius:'50%', background: c, boxShadow: `0 0 6px ${c}`}}/> {x.label}</span>
                                 <span style={{ color: '#fff', fontWeight: '700' }}>{(x.value * 100).toFixed(0)}%</span>
                             </div>
@@ -1153,26 +987,25 @@ const handleCandidateClick = (candidate) => {
                       </div>
                     </div>
                   )}
-                  <button onClick={() => setExpandedSections({...expandedSections, demo: !expandedSections.demo})} style={{ width: '100%', marginTop: '14px', background: 'transparent', border: 'none', color: '#3ca096', fontSize: '9px', fontWeight: '600', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px', opacity: 0.8, transition: 'opacity 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.opacity=1} onMouseLeave={(e)=>e.currentTarget.style.opacity=0.8}>
+                  <button onClick={() => setExpandedSections({...expandedSections, demo: !expandedSections.demo})} style={{ width: '100%', marginTop: '14px', background: 'transparent', border: 'none', color: '#3ca096', fontSize: '9px', fontWeight: '600', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px', opacity: 0.8, transition: 'opacity 0.2s' }}>
                     {expandedSections.demo ? 'Collapse breakdown ↑' : 'See advanced breakdown ↓'}
                   </button>
                 </div>                                                                                                                                                                              
                 
-                {/* SECTION 3: Dynamic Market Friction & Flow */}
                 <div style={{ background: '#0a0a0c', borderRadius: '10px', padding: '14px', border: '1px solid #222', opacity: activeTourNode ? 0.4 : 1, transition: 'opacity 0.3s' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <div style={{ fontSize: '11px', fontWeight: '700', color: '#fff' }}>{scanData?.ui_labels?.card_3_title || 'Market Friction & Flow'}</div>
                       <div style={{ fontSize: '8px', color: '#888', marginTop: '4px' }}>{scanData?.ui_labels?.card_3_subtitle || `Real-time activity and friction flags in ${contextHub}`}</div>
                     </div>
-                    <button style={{ background: '#121214', border: '1px solid #333', borderRadius: '4px', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', cursor: 'pointer', transition: 'color 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.color='#fff'} onMouseLeave={(e)=>e.currentTarget.style.color='#aaa'}>
+                    <button style={{ background: '#121214', border: '1px solid #333', borderRadius: '4px', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', cursor: 'pointer', transition: 'color 0.2s' }}>
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
                     </button>
                   </div>
 
                   <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
                       {[{title: 'Inflow Peak', val: '12.1k', c: '#3ca096'}, {title: 'Outflow Dip', val: '8.4k', c: '#28648c'}, {title: 'Friction Events', val: '142', c: '#d4d95c'}].map((x, idx) => (
-                        <div key={x.title} style={{ flex: 1, background: '#121214', border: '1px solid #1a1a1a', borderRadius: '8px', padding: '10px', transition: 'border 0.2s, transform 0.2s', cursor: 'pointer' }} onMouseEnter={(e)=>{e.currentTarget.style.border='1px solid #333'; e.currentTarget.style.transform='translateY(-2px)'}} onMouseLeave={(e)=>{e.currentTarget.style.border='1px solid #1a1a1a'; e.currentTarget.style.transform='translateY(0)'}}>
+                        <div key={x.title} style={{ flex: 1, background: '#121214', border: '1px solid #1a1a1a', borderRadius: '8px', padding: '10px', transition: 'border 0.2s, transform 0.2s', cursor: 'pointer' }}>
                             <div style={{ fontSize: '8px', color: '#888', fontWeight: '600' }}>{x.title}</div>
                             <div style={{ fontSize: '14px', color: '#fff', fontWeight: '800', marginTop: '6px' }}>{x.val}</div>
                             <div style={{ display: 'flex', alignItems: 'flex-end', gap: '2px', height: '16px', marginTop: '10px' }}>
@@ -1198,16 +1031,14 @@ const handleCandidateClick = (candidate) => {
                       </div>
                     </div>
                   )}
-                  <button onClick={() => setExpandedSections({...expandedSections, flow: !expandedSections.flow})} style={{ width: '100%', marginTop: '14px', background: 'transparent', border: 'none', color: '#3ca096', fontSize: '9px', fontWeight: '600', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px', opacity: 0.8, transition: 'opacity 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.opacity=1} onMouseLeave={(e)=>e.currentTarget.style.opacity=0.8}>
+                  <button onClick={() => setExpandedSections({...expandedSections, flow: !expandedSections.flow})} style={{ width: '100%', marginTop: '14px', background: 'transparent', border: 'none', color: '#3ca096', fontSize: '9px', fontWeight: '600', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px', opacity: 0.8, transition: 'opacity 0.2s' }}>
                     {expandedSections.flow ? 'Collapse event logs ↑' : 'See live event logs ↓'}
                   </button>
                 </div>
 
-                {/* TRUTH & PROVENANCE ENGINE */}
                 <div style={{ marginTop: '12px', padding: '20px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
                    <div style={{ fontSize: '11px', color: '#888', fontWeight: '700', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3fb950" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                      Data Provenance & Confidence
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3fb950" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Data Provenance & Confidence
                    </div>
                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                       <div>
@@ -1217,7 +1048,7 @@ const handleCandidateClick = (candidate) => {
                       </div>
                       <div>
                         <div style={{ fontSize: '12px', color: '#ccc', marginBottom: '4px' }}>Node Integrity</div>
-                        <div style={{ fontSize: '11px', color: '#666' }}>S2 Spatial Cell: <span style={{ color: '#fff', fontFamily: 'monospace' }}>{resolvedLocation?.s2_cell_id || 'Awaiting Lock'}</span></div>
+                        <div style={{ fontSize: '11px', color: '#666' }}>S2 Spatial Cell: <span style={{ color: '#fff', fontFamily: mono }}>{resolvedLocation?.s2_cell_id || 'Awaiting Lock'}</span></div>
                         <div style={{ fontSize: '11px', color: '#666' }}>Engine Confidence: <span style={{ color: '#3fb950', fontWeight: '700' }}>{scanData?.data_provenance?.engine_confidence || 94.2}%</span></div>
                       </div>
                    </div>
@@ -1225,7 +1056,7 @@ const handleCandidateClick = (candidate) => {
 
               </div>
             </div>
-          )
+          )}
         </div>
       </div>
 
