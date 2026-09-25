@@ -332,7 +332,7 @@ const handleCandidateClick = (candidate) => {
       {/* ========================================= */}
       {/* 1. SECTION ONE: NAVIGATION (7-Icon Layout) */}
       {/* ========================================= */}
-      <div style={{ width: navExpanded ? '140px' : '32px', background: '#0a0a0c', borderRight: '1px solid #1a1a1a', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column', padding: '12px 0', zIndex: 40 }}>
+      <div style={{ width: navExpanded ? '140px' : '44px', background: '#0a0a0c', borderRight: '1px solid #1a1a1a', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column', padding: '12px 0', zIndex: 40 }}>
         
         {/* Toggle Button */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: navExpanded ? 'space-between' : 'center', padding: navExpanded ? '0 16px' : '0', marginBottom: '24px' }}>
@@ -705,10 +705,10 @@ const handleCandidateClick = (candidate) => {
                 )}
               </div>
 
-              {/* 2. REMODERNIZED AI-PLATFORM HISTORY PANEL (ChatGPT / Groq Tier) */}
+              {/* 2. REMODERNIZED AI-PLATFORM HISTORY PANEL */}
               <div style={{ 
                 position: 'absolute', 
-                top: '64px', 
+                top: '40px', /* Pushed up to sit flush with the chat header */
                 left: isHistoryOpen ? 0 : '-100%', 
                 bottom: 0, 
                 width: '100%', 
@@ -717,15 +717,15 @@ const handleCandidateClick = (candidate) => {
                 zIndex: 40, 
                 transition: 'left 0.35s cubic-bezier(0.16, 1, 0.3, 1)', 
                 borderRight: '1px solid rgba(255,255,255,0.08)', 
-                padding: '24px', 
+                padding: '16px 20px', /* Tighter internal padding */
                 display: 'flex', 
                 flexDirection: 'column' 
               }}>
                 {/* Header & Quick Action Row */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#00e5ff', boxShadow: '0 0 8px #00e5ff' }} />
-                    <span style={{ fontSize: '11px', color: '#aaa', fontFamily: mono, fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase' }}>Intelligence Archive</span>
+                    <span style={{ fontSize: '9px', color: '#aaa', fontFamily: mono, fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase' }}>Query Ledger</span>
                   </div>
                   <button 
                     onClick={() => setIsHistoryOpen(false)}
@@ -733,7 +733,7 @@ const handleCandidateClick = (candidate) => {
                     onMouseEnter={(e)=>e.currentTarget.style.color='#fff'}
                     onMouseLeave={(e)=>e.currentTarget.style.color='#666'}
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                   </button>
                 </div>
 
@@ -744,22 +744,22 @@ const handleCandidateClick = (candidate) => {
                     display: 'flex', 
                     alignItems: 'center', 
                     justifyContent: 'space-between', 
-                    padding: '12px 16px', 
+                    padding: '10px 14px', 
                     background: 'linear-gradient(90deg, rgba(0,229,255,0.12) 0%, rgba(0,119,255,0.05) 100%)', 
                     border: '1px solid rgba(0,229,255,0.25)', 
-                    borderRadius: '10px', 
+                    borderRadius: '8px', 
                     cursor: 'pointer', 
-                    marginBottom: '20px',
+                    marginBottom: '16px',
                     transition: 'all 0.2s'
                   }}
                   onMouseEnter={(e)=>e.currentTarget.style.border='1px solid #00e5ff'}
                   onMouseLeave={(e)=>e.currentTarget.style.border='1px solid rgba(0,229,255,0.25)'}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                    <span style={{ fontSize: '13px', color: '#fff', fontWeight: '600' }}>New Intelligence Scan</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    <span style={{ fontSize: '11px', color: '#fff', fontWeight: '600' }}>Run Market Inference</span>
                   </div>
-                  <span style={{ fontSize: '10px', color: '#666', fontFamily: mono, background: '#121214', padding: '2px 6px', borderRadius: '4px', border: '1px solid #222' }}>Alt+N</span>
+                  <span style={{ fontSize: '9px', color: '#666', fontFamily: mono, background: '#121214', padding: '2px 4px', borderRadius: '4px', border: '1px solid #222' }}>Alt+N</span>
                 </div>
 
                 {/* Section Header */}
