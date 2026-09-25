@@ -7,3 +7,4 @@ groq
 requests
 pydantic
 supabase
+fake-useragent
