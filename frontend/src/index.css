@@ -1,13 +1,12 @@
 :root {
   font-family: system-ui, -apple-system, sans-serif;
-  font-size: 13px;
 }
 
 html, body {
   margin: 0;
   padding: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   background-color: #050505;
   overflow: hidden;
 }
@@ -17,12 +16,7 @@ html, body {
 }
 
 #root {
-  /* Mathematically compensate for the 75% scale (100 / 0.75 = 133.333) */
-  width: 133.333vw;
-  height: 133.333vh;
+  width: 100%;
+  height: 100%;
   display: flex;
-  
-  /* Forces the crisp micro-UI density */
-  transform: scale(0.75);
-  transform-origin: top left;
 }

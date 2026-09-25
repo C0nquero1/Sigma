@@ -814,7 +814,7 @@ const handleCandidateClick = (candidate) => {
                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '400px', background: 'linear-gradient(180deg, rgba(0, 119, 255, 0.15) 0%, rgba(0, 119, 255, 0.02) 60%, transparent 100%)', pointerEvents: 'none', zIndex: 0 }} />
                 
                 {/* Chat Feed (Scrollable Middle Section) */}
-                <div style={{ flex: 1, overflowY: 'auto', padding: '0 24px', display: 'flex', flexDirection: 'column', gap: '24px', zIndex: 10 }}>
+                <div style={{ flex: 1, overflowY: 'auto', padding: '32px 24px 24px 24px', display: 'flex', flexDirection: 'column', gap: '16px', zIndex: 10 }}>
                   
                   {/* Modern Chat Greeting & Prompt Suggestions */}
                   {chatHistory.length === 0 && !isSearching && (
@@ -849,9 +849,9 @@ const handleCandidateClick = (candidate) => {
 
                   {/* User Prompt Bubble (Distinct Blue-Tinted Shade) */}
                   {(isSearching || isDataGenerated) && (
-                    <div style={{ display: 'flex', gap: '16px', flexDirection: 'row-reverse', animation: 'fadeIn 0.3s ease-out' }}>
+                    <div style={{ display: 'flex', gap: '12px', flexDirection: 'row-reverse', animation: 'fadeIn 0.3s ease-out' }}>
                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                        <div style={{ fontSize: '15px', color: '#fff', background: 'rgba(0, 119, 255, 0.15)', padding: '16px 20px', borderRadius: '20px 2px 20px 20px', border: '1px solid rgba(0, 119, 255, 0.3)', maxWidth: '85%', fontWeight: '500', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
+                        <div style={{ fontSize: '11px', color: '#e0e0e0', background: 'rgba(0, 60, 140, 0.15)', padding: '8px 14px', borderRadius: '14px 2px 14px 14px', border: '1px solid rgba(0, 119, 255, 0.15)', maxWidth: '85%', fontWeight: '500', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
                           {searchQuery}
                         </div>
                       </div>
@@ -860,25 +860,25 @@ const handleCandidateClick = (candidate) => {
 
                   {/* AI Response Block */}
                   {isSearching ? (
-                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" strokeWidth="2" className="animate-spin"><circle cx="12" cy="12" r="10"/></svg>
-                      <div style={{ fontSize: '14px', color: '#00e5ff', fontStyle: 'italic', fontFamily: mono, opacity: 0.8 }}>Analyzing live nodes and generating spatial matrix...</div>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" strokeWidth="2" className="animate-spin"><circle cx="12" cy="12" r="10"/></svg>
+                      <div style={{ fontSize: '10px', color: '#00e5ff', fontStyle: 'italic', fontFamily: mono, opacity: 0.8 }}>Analyzing live nodes...</div>
                     </div>
                   ) : isDataGenerated ? (
-                    <div style={{ display: 'flex', gap: '16px', animation: 'fadeIn 0.3s ease-out' }}>
+                    <div style={{ display: 'flex', gap: '12px', animation: 'fadeIn 0.3s ease-out' }}>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '15px', lineHeight: '1.7', color: '#ccc', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', padding: '16px 20px', borderRadius: '2px 20px 20px 20px', fontWeight: '500' }}>
-                          I have compiled the velocity estimates for {contextHub}. The spatial topology and kinetic liquidity models have been generated.
+                        <div style={{ fontSize: '11px', lineHeight: '1.5', color: '#ccc', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', padding: '10px 14px', borderRadius: '2px 14px 14px 14px', fontWeight: '500' }}>
+                          I have compiled the velocity estimates for {contextHub}. The spatial topology models have been generated.
                           
-                          <div onClick={() => { setCommandTab('data'); setCanvasMode('analysis'); }} style={{ marginTop: '20px', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', maxWidth: '380px', transition: 'border 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.border='1px solid #00e5ff'} onMouseLeave={(e)=>e.currentTarget.style.border='1px solid rgba(255,255,255,0.1)'}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                              <div style={{ width: '36px', height: '36px', background: 'rgba(0,229,255,0.1)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00e5ff' }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></div>
+                          <div onClick={() => { setCommandTab('data'); setCanvasMode('analysis'); }} style={{ marginTop: '12px', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', maxWidth: '240px', transition: 'border 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.border='1px solid #00e5ff'} onMouseLeave={(e)=>e.currentTarget.style.border='1px solid rgba(255,255,255,0.08)'}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div style={{ width: '24px', height: '24px', background: 'rgba(0,229,255,0.1)', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00e5ff' }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></div>
                               <div>
-                                <div style={{ color: '#fff', fontSize: '14px', fontWeight: '700' }}>Deep Analysis Ready</div>
-                                <div style={{ color: '#888', fontSize: '12px', marginTop: '2px' }}>Click to view Overview Data</div>
+                                <div style={{ color: '#fff', fontSize: '10px', fontWeight: '700' }}>Deep Analysis Ready</div>
+                                <div style={{ color: '#888', fontSize: '8px', marginTop: '1px' }}>Click to view Overview Data</div>
                               </div>
                             </div>
-                            <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#1a1a1c', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
+                            <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#1a1a1c', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
                           </div>
                         </div>
                       </div>
