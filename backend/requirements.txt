@@ -8,3 +8,4 @@ requests
 pydantic
 supabase
 fake-useragent
+duckdb
