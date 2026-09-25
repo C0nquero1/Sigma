@@ -379,75 +379,51 @@ export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated
     return { type: 'FeatureCollection', features };
   }, [centerLng, centerLat]);
   
-  // REACTIVE MAPBOX LAYER INJECTION
+  // BULLETPROOF REACTIVE MAPBOX INJECTION
   useEffect(() => {
-    if (!mapRef.current || !isDataGenerated) return;
-
     const map = mapRef.current;
+    if (!map || !isDataGenerated) return;
 
     const injectSigmaLayers = () => {
-      // If the grid doesn't exist yet, build the layers
-      if (!map.getSource('grid-source')) {
-        // 1. POLYGON BOUNDARY
+      // 1. POLYGON BOUNDARY
+      if (!map.getSource('polygon-source')) {
         map.addSource('polygon-source', { type: 'geojson', data: polygonData });
-        map.addLayer({
-          id: 'polygon-line',
-          type: 'line',
-          source: 'polygon-source',
-          paint: { 'line-color': '#ffffff', 'line-width': 2, 'line-opacity': 0.8 }
-        });
+        map.addLayer({ id: 'polygon-line', type: 'line', source: 'polygon-source', paint: { 'line-color': '#ffffff', 'line-width': 2, 'line-opacity': 0.8 } });
+      } else {
+        map.getSource('polygon-source').setData(polygonData);
+      }
 
-        // 2. DISCRETE S2 GRID
+      // 2. DISCRETE S2 GRID
+      if (!map.getSource('grid-source')) {
         map.addSource('grid-source', { type: 'geojson', data: gridData });
-        map.addLayer({
-          id: 'grid-fill',
-          type: 'fill',
-          source: 'grid-source',
-          paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.85 }
-        });
-        map.addLayer({
-          id: 'grid-borders',
-          type: 'line',
-          source: 'grid-source',
-          paint: { 'line-color': 'rgba(255,255,255,0.1)', 'line-width': 1 }
-        });
+        map.addLayer({ id: 'grid-fill', type: 'fill', source: 'grid-source', paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.85 } });
+        map.addLayer({ id: 'grid-borders', type: 'line', source: 'grid-source', paint: { 'line-color': 'rgba(255,255,255,0.1)', 'line-width': 1 } });
+      } else {
+        map.getSource('grid-source').setData(gridData);
+      }
 
-        // 3. DYNAMIC FLOW ARROWS
+      // 3. DYNAMIC FLOW ARROWS (Only appears at Zoom > 12.5)
+      if (!map.getSource('flow-source')) {
         map.addSource('flow-source', { type: 'geojson', data: flowData });
-        map.addLayer({
-          id: 'flow-lines',
-          type: 'line',
-          source: 'flow-source',
-          minzoom: 12.5,
-          paint: { 'line-color': ['get', 'color'], 'line-width': 2, 'line-opacity': 0.6 }
-        });
+        map.addLayer({ id: 'flow-lines', type: 'line', source: 'flow-source', minzoom: 12.5, paint: { 'line-color': ['get', 'color'], 'line-width': 2, 'line-opacity': 0.6 } });
         map.addLayer({
           id: 'flow-arrows',
           type: 'symbol',
           source: 'flow-source',
           minzoom: 12.5,
-          layout: {
-            'symbol-placement': 'line',
-            'symbol-spacing': 40,
-            'text-field': '➤',
-            'text-size': 18,
-            'text-keep-upright': false
-          },
+          layout: { 'symbol-placement': 'line', 'symbol-spacing': 40, 'text-field': '➤', 'text-size': 18, 'text-keep-upright': false },
           paint: { 'text-color': ['get', 'color'] }
         });
       } else {
-        // If layers exist, just update the data dynamically for new coordinates
-        map.getSource('polygon-source').setData(polygonData);
-        map.getSource('grid-source').setData(gridData);
         map.getSource('flow-source').setData(flowData);
       }
     };
 
-    // Ensure the map style is fully loaded before injecting custom layers
-    if (map.isStyleLoaded()) {
+    // Guarantee the map is fully loaded before drawing
+    if (map.loaded()) {
       injectSigmaLayers();
     } else {
-      map.once('styledata', injectSigmaLayers);
+      map.once('load', injectSigmaLayers);
     }
   }, [isDataGenerated, gridData, polygonData, flowData]);
 
