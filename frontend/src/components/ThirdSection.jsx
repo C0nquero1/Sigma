@@ -378,7 +378,78 @@ export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated
     }
     return { type: 'FeatureCollection', features };
   }, [centerLng, centerLat]);
+  
+  // REACTIVE MAPBOX LAYER INJECTION
+  useEffect(() => {
+    if (!mapRef.current || !isDataGenerated) return;
 
+    const map = mapRef.current;
+
+    const injectSigmaLayers = () => {
+      // If the grid doesn't exist yet, build the layers
+      if (!map.getSource('grid-source')) {
+        // 1. POLYGON BOUNDARY
+        map.addSource('polygon-source', { type: 'geojson', data: polygonData });
+        map.addLayer({
+          id: 'polygon-line',
+          type: 'line',
+          source: 'polygon-source',
+          paint: { 'line-color': '#ffffff', 'line-width': 2, 'line-opacity': 0.8 }
+        });
+
+        // 2. DISCRETE S2 GRID
+        map.addSource('grid-source', { type: 'geojson', data: gridData });
+        map.addLayer({
+          id: 'grid-fill',
+          type: 'fill',
+          source: 'grid-source',
+          paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.85 }
+        });
+        map.addLayer({
+          id: 'grid-borders',
+          type: 'line',
+          source: 'grid-source',
+          paint: { 'line-color': 'rgba(255,255,255,0.1)', 'line-width': 1 }
+        });
+
+        // 3. DYNAMIC FLOW ARROWS
+        map.addSource('flow-source', { type: 'geojson', data: flowData });
+        map.addLayer({
+          id: 'flow-lines',
+          type: 'line',
+          source: 'flow-source',
+          minzoom: 12.5,
+          paint: { 'line-color': ['get', 'color'], 'line-width': 2, 'line-opacity': 0.6 }
+        });
+        map.addLayer({
+          id: 'flow-arrows',
+          type: 'symbol',
+          source: 'flow-source',
+          minzoom: 12.5,
+          layout: {
+            'symbol-placement': 'line',
+            'symbol-spacing': 40,
+            'text-field': '➤',
+            'text-size': 18,
+            'text-keep-upright': false
+          },
+          paint: { 'text-color': ['get', 'color'] }
+        });
+      } else {
+        // If layers exist, just update the data dynamically for new coordinates
+        map.getSource('polygon-source').setData(polygonData);
+        map.getSource('grid-source').setData(gridData);
+        map.getSource('flow-source').setData(flowData);
+      }
+    };
+
+    // Ensure the map style is fully loaded before injecting custom layers
+    if (map.isStyleLoaded()) {
+      injectSigmaLayers();
+    } else {
+      map.once('styledata', injectSigmaLayers);
+    }
+  }, [isDataGenerated, gridData, polygonData, flowData]);
 
   // Cinematic Tour Engine
   useEffect(() => {
