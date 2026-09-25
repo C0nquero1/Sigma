@@ -439,22 +439,22 @@ export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated
                </div>
             )}
   
-            {/* Valgo Legend (Micro-UI Scale) */}
-          <div style={{ position: 'absolute', bottom: '24px', left: '24px', width: '200px', background: 'rgba(5, 5, 7, 0.95)', backdropFilter: 'blur(16px)', border: '1px solid #1a1a1a', borderRadius: '6px', padding: '12px', zIndex: 40, boxShadow: '0 20px 40px rgba(0,0,0,0.8)' }}>
-             <div style={{ color: '#888', fontSize: '8px', textTransform: 'uppercase', fontFamily: mono, fontWeight: '700', letterSpacing: '0.5px', marginBottom: '10px' }}>Per-Cell Calibrated Volume (NGN)</div>
-             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '9px', fontFamily: mono, color: '#ccc', fontWeight: '600' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '8px', height: '8px', background: '#0c1938', borderRadius: '2px' }}/> 0 - 25,000</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '8px', height: '8px', background: '#1a3668', borderRadius: '2px' }}/> 25,001 - 60,000</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '8px', height: '8px', background: '#28648c', borderRadius: '2px' }}/> 60,001 - 130,000</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '8px', height: '8px', background: '#3ca096', borderRadius: '2px' }}/> 130,001 - 350,000</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '8px', height: '8px', background: '#74c365', borderRadius: '2px' }}/> 350,001 - 660,000</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '8px', height: '8px', background: '#d4d95c', borderRadius: '2px' }}/> 660,000+ NGN</div>
+            {/* Valgo Legend (Ultra-Micro Scale) */}
+          <div style={{ position: 'absolute', bottom: '36px', left: '24px', background: 'rgba(5, 5, 7, 0.75)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '6px', padding: '10px 14px', zIndex: 40, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+             <div style={{ color: '#888', fontSize: '7px', textTransform: 'uppercase', fontFamily: mono, fontWeight: '700', letterSpacing: '0.5px' }}>Per-Cell Vol (NGN)</div>
+             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '8px', fontFamily: mono, color: '#ccc', fontWeight: '500' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '6px', height: '6px', background: '#0c1938', borderRadius: '1px' }}/> 0 - 25k</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '6px', height: '6px', background: '#1a3668', borderRadius: '1px' }}/> 25k - 60k</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '6px', height: '6px', background: '#28648c', borderRadius: '1px' }}/> 60k - 130k</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '6px', height: '6px', background: '#3ca096', borderRadius: '1px' }}/> 130k - 350k</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '6px', height: '6px', background: '#74c365', borderRadius: '1px' }}/> 350k - 660k</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '6px', height: '6px', background: '#d4d95c', borderRadius: '1px' }}/> 660k+</div>
              </div>
           </div>
   
             {/* BOTTOM CENTER: Apple Cinematic Play Button */}
             {isDataGenerated && (
-              <div style={{ position: 'absolute', bottom: '40px', left: '50%', transform: 'translateX(-50%)', zIndex: 50 }}>
+              <div style={{ position: 'absolute', bottom: '36px', left: '50%', transform: 'translateX(-50%)', zIndex: 50 }}>
                   <div style={{ 
                       background: 'rgba(10, 10, 12, 0.85)', backdropFilter: 'blur(20px)',
                       borderRadius: '30px', border: '1px solid rgba(255,255,255,0.1)',
@@ -463,21 +463,21 @@ export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated
                       width: isPlaying ? '280px' : '36px', height: '36px',
                       transition: 'all 0.5s cubic-bezier(0.25, 1, 0.5, 1)', overflow: 'hidden'
                   }}>
-                      <button onClick={() => setIsPlaying(!isPlaying)} style={{ width: '48px', height: '48px', borderRadius: '50%', background: isPlaying ? '#ff007f' : '#00e5ff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'background 0.3s' }}>
+                      <button onClick={() => setIsPlaying(!isPlaying)} style={{ width: '26px', height: '26px', borderRadius: '50%', background: isPlaying ? '#ff007f' : '#00e5ff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'background 0.3s' }}>
                           {isPlaying ? (
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                              <svg width="8" height="8" viewBox="0 0 24 24" fill="#fff"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
                           ) : (
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="#000" style={{ transform: 'translateX(1px)' }}><polygon points="5 3 19 12 5 21"/></svg>
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="#000" style={{ transform: 'translateX(1px)' }}><polygon points="5 3 19 12 5 21"/></svg>
                           )}
                       </button>
-                      <div style={{ display: 'flex', flexDirection: 'column', opacity: isPlaying ? 1 : 0, transition: 'opacity 0.3s 0.2s', overflow: 'hidden', whiteSpace: 'nowrap', marginLeft: '16px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <div style={{ width: '6px', height: '6px', background: tourStep >= 0 ? cinematicNodes[tourStep].color : '#fff', borderRadius: '50%', boxShadow: `0 0 10px ${tourStep >= 0 ? cinematicNodes[tourStep].color : '#fff'}`, animation: 'pulse 1.5s infinite' }} />
-                              <span style={{ fontSize: '10px', color: tourStep >= 0 ? cinematicNodes[tourStep].color : '#fff', fontFamily: mono, fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', opacity: isPlaying ? 1 : 0, transition: 'opacity 0.3s 0.2s', overflow: 'hidden', whiteSpace: 'nowrap', marginLeft: '12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <div style={{ width: '4px', height: '4px', background: tourStep >= 0 ? cinematicNodes[tourStep].color : '#fff', borderRadius: '50%', boxShadow: `0 0 8px ${tourStep >= 0 ? cinematicNodes[tourStep].color : '#fff'}`, animation: 'pulse 1.5s infinite' }} />
+                              <span style={{ fontSize: '8px', color: tourStep >= 0 ? cinematicNodes[tourStep].color : '#fff', fontFamily: mono, fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase' }}>
                                 TOUR GUIDE ACTIVE • {tourStep >= 0 ? cinematicNodes[tourStep].type : 'INITIATING'}
                               </span>
                           </div>
-                          <span style={{ fontSize: '13px', color: '#fff', fontWeight: '600', marginTop: '4px' }}>
+                          <span style={{ fontSize: '10px', color: '#fff', fontWeight: '600', marginTop: '2px' }}>
                             Analyzing informal cash velocity at {tourStep >= 0 ? cinematicNodes[tourStep].name : '...'}
                           </span>
                       </div>

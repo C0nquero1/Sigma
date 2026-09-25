@@ -683,26 +683,6 @@ const handleCandidateClick = (candidate) => {
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                   History
                 </button>
-
-                {isDataGenerated && (
-                  <button 
-                    onClick={() => { 
-                      setCommandTab('data'); 
-                      setCanvasMode('map'); 
-                    }} 
-                    style={{ 
-                      background: 'rgba(0, 229, 255, 0.1)', border: '1px solid rgba(0, 229, 255, 0.3)', 
-                      color: '#00e5ff', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: '700', 
-                      cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' 
-                    }}
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                      <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                    </svg>
-                    Overview data ready, click to view
-                  </button>
-                )}
               </div>
 
               {/* 2. REMODERNIZED AI-PLATFORM HISTORY PANEL */}
@@ -870,11 +850,11 @@ const handleCandidateClick = (candidate) => {
                         <div style={{ fontSize: '11px', lineHeight: '1.5', color: '#ccc', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', padding: '10px 14px', borderRadius: '2px 14px 14px 14px', fontWeight: '500' }}>
                           I have compiled the velocity estimates for {contextHub}. The spatial topology models have been generated.
                           
-                          <div onClick={() => { setCommandTab('data'); setCanvasMode('analysis'); }} style={{ marginTop: '12px', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', maxWidth: '240px', transition: 'border 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.border='1px solid #00e5ff'} onMouseLeave={(e)=>e.currentTarget.style.border='1px solid rgba(255,255,255,0.08)'}>
+                          <div onClick={() => { setCommandTab('data'); }} style={{ marginTop: '12px', background: '#0a0a0c', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', maxWidth: '240px', transition: 'border 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.border='1px solid #00e5ff'} onMouseLeave={(e)=>e.currentTarget.style.border='1px solid rgba(255,255,255,0.08)'}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                               <div style={{ width: '24px', height: '24px', background: 'rgba(0,229,255,0.1)', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00e5ff' }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></div>
                               <div>
-                                <div style={{ color: '#fff', fontSize: '10px', fontWeight: '700' }}>Deep Analysis Ready</div>
+                                <div style={{ color: '#fff', fontSize: '10px', fontWeight: '700' }}>Overview Data Ready</div>
                                 <div style={{ color: '#888', fontSize: '8px', marginTop: '1px' }}>Click to view Overview Data</div>
                               </div>
                             </div>
