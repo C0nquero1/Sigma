@@ -1,4 +1,4 @@
 fastapi
 uvicorn
 ultralytics
-# If you use anything else like pydantic or python-multipart, add them here on new lines
+reverse_geocoder
