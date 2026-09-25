@@ -184,7 +184,7 @@ export default function KineticDashboard() {
         target_id: candidateToForce ? String(candidateToForce.candidate_id || candidateToForce.id || "node") : null
       };
 
-      const response = await fetch('http://127.0.0.1:8000/api/v1/intelligence/scan', {
+      const response = await fetch('http://68.210.185.20:8000/api/v1/intelligence/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
