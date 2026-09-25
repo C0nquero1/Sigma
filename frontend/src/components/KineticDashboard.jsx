@@ -184,7 +184,7 @@ export default function KineticDashboard() {
         target_id: candidateToForce ? String(candidateToForce.candidate_id || candidateToForce.id || "node") : null
       };
 
-      const response = await fetch('http://68.210.185.20:8000/api/v1/intelligence/scan', {
+      const response = await fetch('https://a1b2c3d4.ngrok-free.app/api/v1/intelligence/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
