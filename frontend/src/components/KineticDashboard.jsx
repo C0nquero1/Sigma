@@ -459,49 +459,87 @@ const handleCandidateClick = (candidate) => {
 
         <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', opacity: deckExpanded ? 1 : 0 }}>
           
-          {/* DEEP ANALYSIS FILTER OVERRIDE */}
-          {canvasMode === 'analysis' ? (
-            <div style={{ flex: 1, padding: '32px', display: 'flex', flexDirection: 'column', animation: 'fadeIn 0.3s ease-out', overflowY: 'auto' }}>
-              <div style={{ color: '#00e5ff', fontSize: '11px', fontFamily: mono, fontWeight: '700', letterSpacing: '1px' }}>PARAMETRIC DECK</div>
-              <div style={{ color: '#fff', fontSize: '20px', fontWeight: '600', marginBottom: '6px' }}>Deep Analysis Filters</div>
-              <div style={{ fontSize: '12px', color: '#888', marginBottom: '24px' }}>Isolate vectors for advanced econometric modeling.</div>
+        {canvasMode === 'analysis' ? (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', background: '#0a0a0c', animation: 'fadeIn 0.3s ease-out', borderRight: '1px solid #1a1a1a' }}>
+              {/* ========================================= */}
+              {/* DEEP ANALYSIS: LEFT FILTER TAB            */}
+              {/* ========================================= */}
               
-              {/* SPATIAL RESOLUTION FILTER */}
-              <div style={{ marginBottom: '24px', background: '#0a0a0c', border: '1px solid #1a1a1a', borderRadius: '12px', padding: '16px' }}>
-                <div style={{ fontSize: '11px', fontWeight: '700', color: '#aaa', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '16px' }}>Spatial Resolution</div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  {['Macro (City)', 'Meso (District)', 'Micro (Cell)'].map(res => (
-                    <button key={res} style={{ flex: 1, background: res === 'Macro (City)' ? 'rgba(0, 229, 255, 0.1)' : 'rgba(255,255,255,0.03)', border: res === 'Macro (City)' ? '1px solid #00e5ff' : '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', padding: '10px 0', color: res === 'Macro (City)' ? '#fff' : '#ccc', fontSize: '11px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' }}>
-                      {res}
-                    </button>
-                  ))}
+              {/* Header */}
+              <div style={{ padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1a1a1a', height: '50px', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" strokeWidth="2.5"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                  <span style={{ fontSize: '12px', color: '#fff', fontWeight: '800', letterSpacing: '1px' }}>DEEP FILTERS</span>
                 </div>
+                <button style={{ background: 'transparent', border: 'none', color: '#888', fontSize: '10px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', transition: 'color 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.color='#fff'} onMouseLeave={(e)=>e.currentTarget.style.color='#888'}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg> Reset
+                </button>
               </div>
+              
+              <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '28px' }}>
+                 
+                 {/* Data Source Configuration */}
+                 <div>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#888', textTransform: 'uppercase', fontWeight: '700', marginBottom: '12px', letterSpacing: '0.5px' }}>
+                     <span>Data Domain</span><span>−</span>
+                   </div>
+                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                     <button style={{ background: 'rgba(60,160,150,0.1)', border: '1px solid #3ca096', color: '#3ca096', padding: '10px', borderRadius: '6px', fontSize: '10px', fontWeight: '700', cursor: 'pointer' }}>Verified Nodes</button>
+                     <button style={{ background: '#121214', border: '1px solid #222', color: '#888', padding: '10px', borderRadius: '6px', fontSize: '10px', fontWeight: '600', cursor: 'pointer' }}>Dark Liquidity</button>
+                     <button style={{ background: '#121214', border: '1px solid #222', color: '#888', padding: '10px', borderRadius: '6px', fontSize: '10px', fontWeight: '600', cursor: 'pointer' }}>High Friction</button>
+                     <button style={{ background: '#121214', border: '1px solid #222', color: '#888', padding: '10px', borderRadius: '6px', fontSize: '10px', fontWeight: '600', cursor: 'pointer' }}>Anomalies</button>
+                   </div>
+                 </div>
 
-              {/* REALITY ENGINE PILLARS */}
-              <div style={{ marginBottom: '24px', background: '#0a0a0c', border: '1px solid #1a1a1a', borderRadius: '12px', padding: '16px' }}>
-                <div style={{ fontSize: '11px', fontWeight: '700', color: '#aaa', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '16px' }}>Reality Stack Execution</div>
-                {[
-                  { id: 'p21', label: 'Import Manifests (Pillar 21)', active: true },
-                  { id: 'p19', label: 'Acoustic Friction (Pillar 19)', active: true },
-                  { id: 'p12', label: 'Grid Load Shedding (Pillar 12)', active: false }
-                ].map(toggle => (
-                  <div key={toggle.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: toggle.id === 'p12' ? 'none' : '1px solid #1a1a1a' }}>
-                    <div style={{ fontSize: '13px', color: toggle.active ? '#fff' : '#666', fontWeight: '500' }}>{toggle.label}</div>
-                    <div style={{ width: '36px', height: '20px', background: toggle.active ? '#00e5ff' : '#222', borderRadius: '20px', position: 'relative', cursor: 'pointer', transition: 'background 0.3s' }}>
-                       <div style={{ width: '16px', height: '16px', background: '#fff', borderRadius: '50%', position: 'absolute', top: '2px', left: toggle.active ? '18px' : '2px', transition: 'left 0.3s', boxShadow: '0 2px 4px rgba(0,0,0,0.4)' }} />
-                    </div>
-                  </div>
-                ))}
+                 {/* Value/Price Slider (Dual Range Mock) */}
+                 <div style={{ borderTop: '1px solid #1a1a1a', paddingTop: '20px' }}>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#888', textTransform: 'uppercase', fontWeight: '700', marginBottom: '16px', letterSpacing: '0.5px' }}>
+                     <span>Capital Velocity Range</span><span>−</span>
+                   </div>
+                   <div style={{ padding: '0 8px' }}>
+                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#fff', marginBottom: '10px', fontWeight: '600' }}>
+                       <span style={{ background: '#121214', padding: '4px 8px', borderRadius: '4px', border: '1px solid #222' }}>₦10,000</span>
+                       <span style={{ background: '#121214', padding: '4px 8px', borderRadius: '4px', border: '1px solid #222' }}>₦2,500,000+</span>
+                     </div>
+                     <div style={{ height: '4px', background: '#222', borderRadius: '2px', position: 'relative', marginTop: '16px' }}>
+                       <div style={{ position: 'absolute', left: '15%', right: '25%', height: '100%', background: '#3ca096', borderRadius: '2px' }} />
+                       <div style={{ position: 'absolute', left: '15%', top: '50%', transform: 'translate(-50%, -50%)', width: '14px', height: '14px', background: '#fff', border: '2px solid #3ca096', borderRadius: '50%', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.5)' }} />
+                       <div style={{ position: 'absolute', right: '25%', top: '50%', transform: 'translate(50%, -50%)', width: '14px', height: '14px', background: '#fff', border: '2px solid #3ca096', borderRadius: '50%', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.5)' }} />
+                     </div>
+                   </div>
+                 </div>
+
+                 {/* Sub-sectors Checkboxes */}
+                 <div style={{ borderTop: '1px solid #1a1a1a', paddingTop: '20px' }}>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#888', textTransform: 'uppercase', fontWeight: '700', marginBottom: '16px', letterSpacing: '0.5px' }}>
+                     <span>Node Sub-sectors</span><span>−</span>
+                   </div>
+                   <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                     {[
+                       { label: 'Commodity Trading', count: 142 },
+                       { label: 'Mobile Money Agents', count: 89 },
+                       { label: 'Informal Logistics', count: 54 },
+                       { label: 'Wholesale Hubs', count: 12 }
+                     ].map((s, i) => (
+                       <label key={s.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
+                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                           <input type="checkbox" defaultChecked={i < 2} style={{ accentColor: '#3ca096', width: '16px', height: '16px', cursor: 'pointer' }} />
+                           <span style={{ fontSize: '11px', color: i < 2 ? '#fff' : '#888', fontWeight: '500' }}>{s.label}</span>
+                         </div>
+                         <span style={{ fontSize: '9px', color: '#555', fontFamily: 'monospace' }}>{s.count}</span>
+                       </label>
+                     ))}
+                   </div>
+                 </div>
+                 
+                 <button style={{ marginTop: 'auto', background: '#3ca096', color: '#000', border: 'none', padding: '14px', borderRadius: '8px', fontSize: '12px', fontWeight: '800', cursor: 'pointer', transition: 'background 0.2s', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }} onMouseEnter={(e)=>e.currentTarget.style.background='#45b5aa'} onMouseLeave={(e)=>e.currentTarget.style.background='#3ca096'}>
+                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="5 12 10 17 19 8"></polyline></svg>
+                   Apply Parameters
+                 </button>
               </div>
-
-              {/* EXECUTE BUTTON */}
-              <button style={{ marginTop: 'auto', background: '#00e5ff', color: '#000', width: '100%', padding: '14px', borderRadius: '8px', fontSize: '13px', fontWeight: '800', cursor: 'pointer', border: 'none', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', transition: 'transform 0.1s' }} onMouseDown={(e)=>e.currentTarget.style.transform='scale(0.98)'} onMouseUp={(e)=>e.currentTarget.style.transform='scale(1)'}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                Re-Compile Deep Analysis
-              </button>
             </div>
-          ) : activePage !== 'Command' ? (
+          ) : commandTab === 'chat' ? (
+              
             <div style={{ flex: 1, padding: '32px', color: '#fff', overflowY: 'auto' }}>
               
               {/* Back to Scan Header */}

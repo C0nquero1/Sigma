@@ -495,25 +495,131 @@ export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated
         {/* ========================================== */}
         {/* LAYER 2: DEEP ANALYSIS CANVAS (OVERLAY)    */}
         {/* ========================================== */}
-        <div style={{ position: 'absolute', inset: 0, opacity: canvasMode === 'analysis' ? 1 : 0, pointerEvents: canvasMode === 'analysis' ? 'auto' : 'none', background: '#050507', padding: '100px 40px 60px 40px', overflowY: 'auto', zIndex: 100, transition: 'opacity 0.3s ease-in-out' }}>
-            <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-                <div style={{ marginBottom: '40px', borderBottom: '1px solid #1a1a1c', paddingBottom: '32px' }}>
-                    <div style={{ color: '#fff', fontSize: '32px', fontWeight: '800', marginBottom: '16px' }}>Intelligence Report: {searchQuery}</div>
-                    
-                    {/* TEXT SUMMARY REPORT SECTION */}
-                    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid #222', borderRadius: '12px', padding: '24px', marginBottom: '24px' }}>
-                       <div style={{ color: '#00e5ff', fontSize: '12px', fontFamily: mono, fontWeight: '700', marginBottom: '12px' }}>EXECUTIVE SUMMARY</div>
-                       <div style={{ color: '#ddd', fontSize: '15px', lineHeight: '1.8' }}>
-                           The spatial analysis indicates a highly concentrated liquidity vortex within the primary aggregator hub. 
-                           Unrecorded cash velocity is currently outperforming formal sector baselines by a factor of 3.2x in this specific geolocation. 
-                           Friction variables remain stable, though logistical bottlenecks at wholesale checkpoints show a 12% increase in delay-related capital depreciation over the trailing 72 hours.
+        <div style={{ position: 'absolute', inset: 0, opacity: canvasMode === 'analysis' ? 1 : 0, pointerEvents: canvasMode === 'analysis' ? 'auto' : 'none', background: 'rgba(5, 5, 7, 0.98)', backdropFilter: 'blur(20px)', padding: '70px 40px 40px 40px', overflowY: 'auto', zIndex: 100, transition: 'opacity 0.3s ease-in-out' }}>
+           <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              
+              {/* Dashboard Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '24px' }}>
+                 <div>
+                   <div style={{ fontSize: '28px', color: '#fff', fontWeight: '800', letterSpacing: '-1px' }}>Deep Spatial Analysis</div>
+                   <div style={{ fontSize: '13px', color: '#888', marginTop: '6px' }}>Extended intelligence & flow topology filtered via parameters.</div>
+                 </div>
+                 <div style={{ display: 'flex', gap: '12px' }}>
+                   <button style={{ padding: '10px 16px', background: '#121214', border: '1px solid #333', borderRadius: '8px', color: '#ccc', fontSize: '11px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'background 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.background='#1a1a1c'} onMouseLeave={(e)=>e.currentTarget.style.background='#121214'}>
+                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export CSV
+                   </button>
+                   <button style={{ padding: '10px 16px', background: '#3ca096', border: 'none', borderRadius: '8px', color: '#000', fontSize: '11px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'background 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.background='#45b5aa'} onMouseLeave={(e)=>e.currentTarget.style.background='#3ca096'}>
+                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> Generate Report
+                   </button>
+                 </div>
+              </div>
+
+              {/* Top KPI Row */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
+                 {[
+                   { label: 'Total Verified Volume', val: '$4,218,500', trend: '▲ 23%', c: '#74c365' },
+                   { label: 'Network Velocity Index', val: '84.2', trend: '▲ 17%', c: '#74c365' },
+                   { label: 'Friction Incidents', val: '142', trend: '▼ 5%', c: '#ff7b72' },
+                   { label: 'Active Routing Nodes', val: '4,218', trend: '▲ 12%', c: '#74c365' }
+                 ].map(kpi => (
+                   <div key={kpi.label} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '20px' }}>
+                      <div style={{ fontSize: '11px', color: '#888', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{kpi.label}</div>
+                      <div style={{ fontSize: '28px', color: '#fff', fontWeight: '800', marginTop: '10px', letterSpacing: '-0.5px' }}>{kpi.val}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '12px' }}>
+                        <span style={{ fontSize: '11px', color: kpi.c, fontWeight: '800' }}>{kpi.trend}</span>
+                        <span style={{ fontSize: '10px', color: '#666' }}>YoY growth</span>
+                      </div>
+                   </div>
+                 ))}
+              </div>
+
+              {/* Main Complex Charts Row */}
+              <div style={{ display: 'grid', gridTemplateColumns: '2.5fr 1fr 1fr', gap: '20px' }}>
+                 
+                 {/* 1. Extended Velocity Trend (Area Chart) */}
+                 <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '24px', minHeight: '300px', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <div style={{ fontSize: '14px', color: '#fff', fontWeight: '700' }}>Extended Velocity Trend</div>
+                      <div style={{ display: 'flex', gap: '12px', fontSize: '10px', fontWeight: '600' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#aaa' }}><div style={{width:'8px',height:'8px',borderRadius:'50%',background:'#3ca096'}}/> Transaction Amount</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#aaa' }}><div style={{width:'8px',height:'8px',borderRadius:'50%',background:'#d4d95c'}}/> Revenue</span>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#888', marginBottom: '32px' }}>Trailing 12-month capital flow across targeted hex cells.</div>
+                    <div style={{ flex: 1, position: 'relative', width: '100%' }}>
+                      <svg viewBox="0 0 600 150" style={{ width: '100%', height: '100%', overflow: 'visible' }} preserveAspectRatio="none">
+                        <defs>
+                          <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                             <stop offset="0%" stopColor="#3ca096" stopOpacity="0.4" />
+                             <stop offset="100%" stopColor="#3ca096" stopOpacity="0.0" />
+                          </linearGradient>
+                        </defs>
+                        {/* Grid Lines */}
+                        <line x1="0" y1="37" x2="600" y2="37" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+                        <line x1="0" y1="75" x2="600" y2="75" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+                        <line x1="0" y1="112" x2="600" y2="112" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+                        <line x1="0" y1="150" x2="600" y2="150" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+                        {/* Primary Line Path (Transaction) */}
+                        <path d="M0,130 L60,100 L120,110 L180,40 L240,60 L300,20 L360,80 L420,40 L480,100 L540,50 L600,10 L600,150 L0,150 Z" fill="url(#areaGrad)" />
+                        <path d="M0,130 L60,100 L120,110 L180,40 L240,60 L300,20 L360,80 L420,40 L480,100 L540,50 L600,10" fill="none" stroke="#3ca096" strokeWidth="3" vectorEffect="non-scaling-stroke" />
+                        {/* Secondary Line Path (Revenue) */}
+                        <path d="M0,50 L60,70 L120,60 L180,110 L240,90 L300,130 L360,90 L420,110 L480,50 L540,90 L600,70" fill="none" stroke="#d4d95c" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeDasharray="5,5" />
+                      </svg>
+                    </div>
+                 </div>
+
+                 {/* 2. Resilience Radar Chart */}
+                 <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div style={{ fontSize: '14px', color: '#fff', fontWeight: '700', alignSelf: 'flex-start', marginBottom: '4px' }}>Market Resilience</div>
+                    <div style={{ fontSize: '11px', color: '#888', alignSelf: 'flex-start', marginBottom: '32px' }}>Multivariate friction analysis.</div>
+                    <svg viewBox="0 0 100 100" style={{ width: '160px', height: '160px', overflow: 'visible' }}>
+                       {/* Base Radar Web */}
+                       <polygon points="50,5 95,27.5 95,72.5 50,95 5,72.5 5,27.5" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
+                       <polygon points="50,25 75,38.5 75,61.5 50,75 25,61.5 25,38.5" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
+                       {/* Target Profile */}
+                       <polygon points="50,15 85,45 70,80 30,70 20,35" fill="rgba(116, 195, 101, 0.2)" stroke="#74c365" strokeWidth="2" />
+                       {/* Benchmark Profile */}
+                       <polygon points="50,30 75,35 60,60 40,85 15,50" fill="rgba(60, 160, 150, 0.2)" stroke="#3ca096" strokeWidth="2" />
+                    </svg>
+                    <div style={{ display: 'flex', gap: '16px', marginTop: 'auto', fontSize: '10px', fontWeight: '600', color: '#aaa', paddingTop: '20px' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{width:'8px',height:'8px',borderRadius:'50%',background:'#74c365'}}/> Target Node</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{width:'8px',height:'8px',borderRadius:'50%',background:'#3ca096'}}/> Baseline Avg</span>
+                    </div>
+                 </div>
+
+                 {/* 3. Demographic Donut & Sub-Categories */}
+                 <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ fontSize: '14px', color: '#fff', fontWeight: '700', marginBottom: '4px' }}>Demographic Split</div>
+                    <div style={{ fontSize: '11px', color: '#888', marginBottom: '24px' }}>Account engagement ratios.</div>
+                    <div style={{ display: 'flex', justifyContent: 'center', position: 'relative', marginBottom: '24px' }}>
+                       <svg width="120" height="120" viewBox="0 0 100 100">
+                         <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="16" />
+                         <circle cx="50" cy="50" r="40" fill="none" stroke="#3ca096" strokeWidth="16" strokeDasharray="251" strokeDashoffset="50" />
+                         <circle cx="50" cy="50" r="40" fill="none" stroke="#d4d95c" strokeWidth="16" strokeDasharray="251" strokeDashoffset="180" />
+                         <circle cx="50" cy="50" r="40" fill="none" stroke="#74c365" strokeWidth="16" strokeDasharray="251" strokeDashoffset="220" />
+                       </svg>
+                       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                         <span style={{ fontSize: '20px', fontWeight: '800', color: '#fff' }}>129</span>
+                         <span style={{ fontSize: '9px', color: '#888', textTransform: 'uppercase' }}>Total</span>
                        </div>
                     </div>
-                </div>
-                {/* Visual Analysis Graphing components go here */}
-            </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: 'auto' }}>
+                      {[
+                        { name: 'Direct Consumers', c: '#3ca096' },
+                        { name: 'Wholesale Buyers', c: '#d4d95c' },
+                        { name: 'Logistics Proxies', c: '#74c365' }
+                      ].map(t => (
+                        <div key={t.name} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: '#ccc', fontWeight: '600' }}>
+                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: t.c }} /> {t.name}
+                        </div>
+                      ))}
+                    </div>
+                 </div>
+
+              </div>
+           </div>
         </div>
-  
+
       </div>
     );
   }
