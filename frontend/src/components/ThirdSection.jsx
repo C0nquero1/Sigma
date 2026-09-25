@@ -11,7 +11,7 @@ export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated
   // Interactive States
   const [activeTool, setActiveTool] = useState(null); // 'rect' or 'poly'
   const [styleMenuOpen, setStyleMenuOpen] = useState(false);
-  const [currentZoom, setCurrentZoom] = useState(11.5);
+  const [currentZoom, setCurrentZoom] = useState(10.0);
   const [dimLevel, setDimLevel] = useState(56);
   
   // Dynamic Geolocation State (Takes you to the prompted location)
@@ -432,8 +432,8 @@ export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated
   
             {/* DYNAMIC DESCRIPTION BOX (Updates based on Cinematic Zoom) */}
             {isDataGenerated && (
-               <div style={{ position: 'absolute', top: '130px', right: '24px', width: '320px', background: 'rgba(5, 5, 7, 0.9)', backdropFilter: 'blur(16px)', border: '1px solid #222', borderRadius: '8px', padding: '16px', zIndex: 40, boxShadow: '0 20px 40px rgba(0,0,0,0.8)', transition: 'all 0.3s' }}>
-                  <div style={{ fontSize: '13px', color: '#fff', lineHeight: '1.6', fontWeight: '500' }}>
+               <div style={{ position: 'absolute', top: '70px', right: '16px', width: '220px', background: 'rgba(5, 5, 7, 0.9)', backdropFilter: 'blur(16px)', border: '1px solid #222', borderRadius: '6px', padding: '10px', zIndex: 40, boxShadow: '0 20px 40px rgba(0,0,0,0.8)', transition: 'all 0.3s' }}>
+               <div style={{ fontSize: '9px', color: '#fff', lineHeight: '1.5', fontWeight: '500' }}>
                      <strong style={{color: '#00e5ff'}}>Description:</strong> {currentDescription}
                   </div>
                </div>
@@ -457,10 +457,10 @@ export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated
               <div style={{ position: 'absolute', bottom: '40px', left: '50%', transform: 'translateX(-50%)', zIndex: 50 }}>
                   <div style={{ 
                       background: 'rgba(10, 10, 12, 0.85)', backdropFilter: 'blur(20px)',
-                      borderRadius: '40px', border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '30px', border: '1px solid rgba(255,255,255,0.1)',
                       boxShadow: '0 20px 40px rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', 
-                      padding: isPlaying ? '8px 24px 8px 8px' : '8px',
-                      width: isPlaying ? '460px' : '64px', height: '64px',
+                      padding: isPlaying ? '4px 16px 4px 4px' : '4px',
+                      width: isPlaying ? '280px' : '36px', height: '36px',
                       transition: 'all 0.5s cubic-bezier(0.25, 1, 0.5, 1)', overflow: 'hidden'
                   }}>
                       <button onClick={() => setIsPlaying(!isPlaying)} style={{ width: '48px', height: '48px', borderRadius: '50%', background: isPlaying ? '#ff007f' : '#00e5ff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'background 0.3s' }}>
@@ -486,7 +486,7 @@ export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated
             )}
   
             {/* Telemetry Footer */}
-            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '32px', background: '#050505', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 24px', fontSize: '10px', color: '#666', fontFamily: mono, borderTop: '1px solid #1a1a1a', zIndex: 60 }}>
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '24px', background: '#050505', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 16px', fontSize: '8px', color: '#666', fontFamily: mono, borderTop: '1px solid #1a1a1a', zIndex: 60 }}>
                 <div>Target: {searchQuery}, NG <span style={{margin:'0 8px', color:'#333'}}>|</span> S2 Hex Level 11 <span style={{margin:'0 8px', color:'#333'}}>|</span> <span style={{ color: '#fff' }}>4,218</span> active vendor nodes / 5,000 cells</div>
                 <div>MapLibre | © OpenStreetMap | CARTO | Maxar</div>
             </div>

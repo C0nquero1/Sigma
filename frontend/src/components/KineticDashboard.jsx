@@ -332,7 +332,7 @@ const handleCandidateClick = (candidate) => {
       {/* ========================================= */}
       {/* 1. SECTION ONE: NAVIGATION (7-Icon Layout) */}
       {/* ========================================= */}
-      <div style={{ width: navExpanded ? '195px' : '48px', background: '#0a0a0c', borderRight: '1px solid #1a1a1a', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column', padding: '16px 0', zIndex: 40 }}>
+      <div style={{ width: navExpanded ? '140px' : '32px', background: '#0a0a0c', borderRight: '1px solid #1a1a1a', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column', padding: '12px 0', zIndex: 40 }}>
         
         {/* Toggle Button */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: navExpanded ? 'space-between' : 'center', padding: navExpanded ? '0 16px' : '0', marginBottom: '24px' }}>
@@ -677,11 +677,10 @@ const handleCandidateClick = (candidate) => {
           ) : commandTab === 'chat' ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
               
-              {/* 1. CHAT HEADER ROW */}
-              <div style={{ padding: '12px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }}>
-                {/* MODERNIZED HISTORY BUTTON (Micro-UI Scale) */}
-                <button onClick={() => setIsHistoryOpen(!isHistoryOpen)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', padding: '6px 12px', borderRadius: '16px', color: '#ededef', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: '600', transition: 'background 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.background='rgba(255,255,255,0.03)'} onMouseLeave={(e)=>e.currentTarget.style.background='transparent'}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              {/* CHAT HEADER ROW */}
+              <div style={{ padding: '8px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 10, height: '40px', minHeight: '40px' }}>
+                <button onClick={() => setIsHistoryOpen(!isHistoryOpen)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', padding: '4px 10px', borderRadius: '12px', color: '#ededef', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '9px', fontWeight: '600' }}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                   History
                 </button>
 
@@ -963,9 +962,10 @@ const handleCandidateClick = (candidate) => {
             </div>
           ) : (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-              <div style={{ padding: '24px 32px', display: 'flex', alignItems: 'center', borderBottom: '1px solid #1a1a1a', height: '80px', minHeight: '80px', flexShrink: 0 }}>
-              <button onClick={() => { setCommandTab('chat'); setCanvasMode('map'); }} style={{ background: 'transparent', border: '1px solid #333', padding: '8px 16px', borderRadius: '20px', color: '#ededef', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: 'background 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.background='#1a1a1c'} onMouseLeave={(e)=>e.currentTarget.style.background='transparent'}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6" /></svg> Back to AI Chat
+              {/* DATA HEADER ROW */}
+              <div style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', borderBottom: '1px solid #1a1a1a', height: '40px', minHeight: '40px', flexShrink: 0 }}>
+                <button onClick={() => { setCommandTab('chat'); setCanvasMode('map'); }} style={{ background: 'transparent', border: '1px solid #333', padding: '4px 10px', borderRadius: '12px', color: '#ededef', fontSize: '9px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6" /></svg> Back to AI Chat
                 </button>
               </div>
 
