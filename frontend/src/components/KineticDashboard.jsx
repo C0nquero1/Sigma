@@ -184,7 +184,7 @@ export default function KineticDashboard() {
         target_id: candidateToForce ? String(candidateToForce.candidate_id || candidateToForce.id || "node") : null
       };
 
-      const response = await fetch('https://discriminately-arundinaceous-gordon.ngrok-free.dev/api/v1/intelligence/scan', {
+      const response = await fetch('https://edmonton-ppm-honor-mysterious.trycloudflare.com/api/v1/intelligence/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
