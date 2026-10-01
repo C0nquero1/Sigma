@@ -1,5 +1,13 @@
+import logging
 from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional
+
+try:
+    from .covariance_discovery import CovarianceDiscoveryEngine
+except ImportError:
+    CovarianceDiscoveryEngine = None
+
+logger = logging.getLogger("StreetAI.Ontology")
 
 # --- STRICT GRAPH NODES ---
 
@@ -11,7 +19,7 @@ class CommodityNode(BaseModel):
     import_dependency: float = 0.5
 
 class MerchantClusterNode(BaseModel):
-    s2_cell_token: str
+    s2_cell_token: str  # Note: Now receives an H3 hex index despite legacy naming
     country_code: str
     foot_traffic_baseline: int
     median_dwell_mins: int
@@ -21,9 +29,11 @@ class MerchantClusterNode(BaseModel):
 # --- DETERMINISTIC ACTION EXECUTOR ---
 
 class StreetAIOntology:
-    """Executes rigid financial math based on empirical sensor inputs."""
+    """Executes rigid financial math based on empirical sensor inputs, modulated by autonomous AI proxies."""
     
-    def __init__(self):
+    def __init__(self, covariance_engine: Optional['CovarianceDiscoveryEngine'] = None):
+        self.covariance_engine = covariance_engine
+        
         # Global baseline conversion rates
         self.BASE_CONVERSION_RATE = 0.38
         self.IMPULSE_BUY_MULTIPLIER = 0.02  # +2% conversion per 10 mins of dwell over 20 mins
@@ -47,8 +57,20 @@ class StreetAIOntology:
         acoustic_markup = 1.0 + (max(0, cluster.acoustic_friction_db - 60) / 200.0)
         final_basket_usd = commodity.base_usd_price * acoustic_markup * commodity.volatility_index
 
-        # 3. Final Daily Gross Liquidty
+        # 3. Theoretical Daily Gross Liquidity
         daily_gross_usd = active_buyers * final_basket_usd * grid_multiplier
+
+        # 4. THE AUTONOMOUS PROXY INTEGRATION
+        # If the Covariance engine has discovered statistical rules for this H3 cell, apply them dynamically
+        if self.covariance_engine:
+            modified_gross_usd = self.covariance_engine.apply_active_proxies(
+                h3_cell=cluster.s2_cell_token, 
+                sector=commodity.name,
+                base_volume=daily_gross_usd
+            )
+            if modified_gross_usd != daily_gross_usd:
+                logger.info(f"Covariance Engine altered theoretical volume: ${daily_gross_usd:,.2f} -> ${modified_gross_usd:,.2f}")
+            daily_gross_usd = modified_gross_usd
 
         return {
             "daily_gross_usd": round(daily_gross_usd, 2),

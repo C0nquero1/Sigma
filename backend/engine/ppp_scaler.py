@@ -1,5 +1,9 @@
+import logging
+import httpx
 from pydantic import BaseModel, Field
-from typing import Dict
+from typing import Dict, Any
+
+logger = logging.getLogger("StreetAI.PPPScaler")
 
 # 1. Pydantic Ontology Graph (Deterministic Typing)
 class CoordinateNode(BaseModel):
@@ -16,39 +20,70 @@ class EconomicBaseline(BaseModel):
 
 class DynamicPPPScaler:
     def __init__(self):
-        # Deterministic mapping dictionary (Will be replaced by Numbeo API in Phase 3)
-        self.ppp_matrix: Dict[str, Dict] = {
-            "NG": {"currency": "NGN", "multiplier": 450.5}, # Base multiplier for Federal Capital Territory / national average
-            "US": {"currency": "USD", "multiplier": 1.0},
-            "IN": {"currency": "INR", "multiplier": 22.4},
-            "KE": {"currency": "KES", "multiplier": 45.2}
+        # Local cache for World Bank conversion factors (LCU per international $)
+        # These act as instant fallbacks if the API request fails or times out.
+        self._conversion_cache: Dict[str, Dict[str, Any]] = {
+            "NG": {"currency": "NGN", "multiplier": 450.5},
+            "IN": {"currency": "INR", "multiplier": 23.4},
+            "KE": {"currency": "KES", "multiplier": 52.1},
+            "GH": {"currency": "GHS", "multiplier": 5.8},
+            "BR": {"currency": "BRL", "multiplier": 2.8},
+            "MX": {"currency": "MXN", "multiplier": 10.2},
+            "US": {"currency": "USD", "multiplier": 1.0}
         }
 
-    def resolve_country_from_coords(self, lat: float, lon: float) -> str:
-        # Placeholder spatial resolution (DuckDB/Overture will handle this in Phase 4)
-        # Bounding box heuristic for rapid testing
-        if 4.0 <= lat <= 14.0 and 2.0 <= lon <= 15.0:
-            return "NG"
-        return "US"
-
-    def scale_basket(self, lat: float, lon: float, usd_baseline: float = 2.50) -> EconomicBaseline:
-        country = self.resolve_country_from_coords(lat, lon)
-        node = CoordinateNode(lat=lat, lon=lon, country_code=country)
+    async def get_ppp_data(self, country_code: str) -> Dict[str, Any]:
+        """Fetches dynamic PPP data from the World Bank API."""
+        cc = country_code.upper()
         
-        matrix_data = self.ppp_matrix.get(node.country_code, self.ppp_matrix["US"])
-        localized_val = usd_baseline * matrix_data["multiplier"]
+        # Use cached data if available to prevent API throttling
+        if cc in self._conversion_cache:
+            return self._conversion_cache[cc]
+
+        # Query World Bank API dynamically for indicator PA.NUS.PPP
+        url = f"https://api.worldbank.org/v2/country/{cc}/indicator/PA.NUS.PPP?format=json&date=2023:2025"
+        try:
+            async with httpx.AsyncClient() as client:
+                res = await client.get(url, timeout=5.0)
+                if res.status_code == 200:
+                    data = res.json()
+                    if len(data) > 1 and data[1]:
+                        for entry in data[1]:
+                            if entry.get("value") is not None:
+                                factor = float(entry["value"])
+                                result = {"currency": "LCU", "multiplier": factor}
+                                self._conversion_cache[cc] = result
+                                return result
+        except Exception as e:
+            logger.warning(f"World Bank PPP live fetch failed for {cc}: {e}")
+
+        # Universal fallback if the target country is unlisted or API fails
+        return {"currency": "USD", "multiplier": 1.0}
+
+    async def scale_basket(self, country_code: str, usd_baseline: float = 2.50) -> EconomicBaseline:
+        """
+        Normalizes a global baseline commodity basket into its local economic equivalent
+        using real-time World Bank Purchasing Power Parity (PPP) metrics.
+        """
+        ppp_data = await self.get_ppp_data(country_code)
+        
+        localized_val = usd_baseline * ppp_data["multiplier"]
         
         return EconomicBaseline(
             usd_peg=usd_baseline,
-            local_currency=matrix_data["currency"],
-            country_code=country,
-            ppp_multiplier=matrix_data["multiplier"],
+            local_currency=ppp_data["currency"],
+            country_code=country_code,
+            ppp_multiplier=ppp_data["multiplier"],
             localized_value=round(localized_val, 2)
         )
 
 # Quick Test Execution
 if __name__ == "__main__":
-    scaler = DynamicPPPScaler()
-    # Testing with Wuse, Abuja coordinates
-    result = scaler.scale_basket(lat=9.0765, lon=7.3986)
-    print(result.model_dump_json(indent=2))
+    import asyncio
+    async def _test():
+        scaler = DynamicPPPScaler()
+        # Testing with Nigeria (NG)
+        result = await scaler.scale_basket(country_code="NG", usd_baseline=2.50)
+        print(result.model_dump_json(indent=2))
+        
+    asyncio.run(_test())

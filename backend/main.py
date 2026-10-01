@@ -34,6 +34,7 @@ from engine.bidstream_engine import BidstreamMobilityEngine
 from engine.pricing_scraper import StreetPricingScraper
 from engine.sensory_parse import SensoryPerceptionEngine
 from engine.macro_systems import MacroSystemsEngine
+from engine.covariance_discovery import CovarianceDiscoveryEngine
 
 # Dynamic Global Resolution Pipelines
 from engine.ppp_scaler import DynamicPPPScaler
@@ -49,20 +50,29 @@ groq_api_key = os.getenv("GROQ_API_KEY", "")
 groq_client = Groq(api_key=groq_api_key) if groq_api_key else None
 planet_api_key = os.getenv("PLANET_API_KEY", "mock_key")
 
-# 2. Globally Instantiate Engines
+# 2. Globally Instantiate Engines (Autonomous Architecture)
+
+# Spatial & Context Engines (H3 Hexagonal Grid & DuckDB Overture)
 spatial_resolver = SpatialResolver()
-crowd_engine = LiveCrowdPatternEngine()
-ontology = StreetAIOntology()
 overture = OverturePOIEngine()
+crowd_engine = LiveCrowdPatternEngine()
 
+# The Autonomous Brain & Static Math Engine
+covariance_engine = CovarianceDiscoveryEngine(groq_client=groq_client, active_model=ACTIVE_GROQ_MODEL)
+ontology = StreetAIOntology(covariance_engine=covariance_engine)
+
+# Multi-Sensory & Physical Interception (Copernicus SAR & Live Audio)
 satellite_engine = SatelliteInferenceEngine(planet_api_key=planet_api_key)
-bidstream_engine = BidstreamMobilityEngine()
-pricing_scraper = StreetPricingScraper()
 sensory_engine = SensoryPerceptionEngine()
-macro_engine = MacroSystemsEngine()
 
+# Macro-Economics & Logistics (UN/LOCODE & World Bank ICP)
+macro_engine = MacroSystemsEngine()
 ppp_scaler = DynamicPPPScaler()
-app_registry = UniversalAppRegistry()
+
+# Digital Commerce & Pricing
+app_registry = UniversalAppRegistry(cache_ttl_seconds=43200)
+pricing_scraper = StreetPricingScraper()
+bidstream_engine = BidstreamMobilityEngine()
 
 ACTIVE_GROQ_MODEL = "fallback"
 
@@ -127,74 +137,78 @@ class UserPromptRequest(BaseModel):
 @app.post("/api/v1/intelligence/scan")
 async def process_street_intelligence(request: UserPromptRequest):
     try:
-        # STEP 1: Compile Query
+        # STEP 1: Compile Query with Schema Verification
         plan = compile_user_prompt(request.prompt, groq_client, ACTIVE_GROQ_MODEL)
-        target_loc = plan.target_region or "Abuja"
-        commodity = plan.target_commodity or "groceries"
 
-        # STEP 2: Spatial Resolution
+        if plan.requires_disambiguation or not plan.spatial.raw_location_query:
+            return {
+                "status": "AMBIGUOUS_TARGET",
+                "message": "Target location could not be identified with certainty. Specify a city, neighborhood, or market.",
+                "confidence": plan.confidence_score,
+                "reasoning": plan.reasoning_trace
+            }
+
+        target_loc = plan.spatial.inferred_subdistrict or plan.spatial.inferred_city or plan.spatial.raw_location_query
+        commodity = plan.economic.primary_commodity
+        cadence = plan.economic.cadence
+
+        # STEP 2: Spatial Resolution via Global Spatial Mesh (DuckDB + H3)
+        force_cand = None
         if request.target_id and request.explicit_lat is not None and request.explicit_lon is not None:
-            spatial_outcome = spatial_resolver.resolve_target(
-                original_prompt=request.prompt,
-                extracted_entity=target_loc,
-                force_candidate={"id": request.target_id, "lat": request.explicit_lat, "lon": request.explicit_lon}
-            )
-        else:
-            spatial_outcome = spatial_resolver.resolve_target(
-                original_prompt=request.prompt, extracted_entity=target_loc, has_explicit_context=False
-            )
+            force_cand = {
+                "id": request.target_id,
+                "lat": request.explicit_lat,
+                "lon": request.explicit_lon
+            }
 
-        spatial_dict = spatial_outcome.model_dump() if hasattr(spatial_outcome, "model_dump") else spatial_outcome.dict() if hasattr(spatial_outcome, "dict") else spatial_outcome
+        spatial_outcome = spatial_resolver.resolve_target(
+            original_prompt=request.prompt,
+            extracted_entity=plan.spatial if hasattr(plan, "spatial") else target_loc,
+            has_explicit_context=bool(request.target_id),
+            force_candidate=force_cand
+        )
+
+        spatial_dict = (
+            spatial_outcome.model_dump()
+            if hasattr(spatial_outcome, "model_dump")
+            else spatial_outcome.dict()
+            if hasattr(spatial_outcome, "dict")
+            else spatial_outcome
+        )
 
         if spatial_dict.get("status") == "AMBIGUOUS_TARGET":
             return spatial_dict
 
         city_info = spatial_dict.get("city_overview", {})
-        lat, lon = city_info.get("lat", 9.0765), city_info.get("lon", 7.3986)
-        s2_token = city_info.get("s2_cell_id", "89c2585")
+        lat_val = float(city_info.get("lat", 9.0765))
+        lon_val = float(city_info.get("lon", 7.3986))
+        country_code = city_info.get("country_code") or spatial_dict.get("country_code")
         
-        lat_val = float(lat)
-        lon_val = float(lon)
+        # Inject H3 Hexagonal Index
+        h3_token = spatial_resolver.get_h3_index(lat_val, lon_val, resolution=9)
+        city_info["h3_cell_id"] = h3_token
 
-        if 8.0 <= lat_val <= 37.0 and 68.0 <= lon_val <= 97.0:
-            resolved_country = "IN"
-        elif 4.0 <= lat_val <= 14.0 and 2.0 <= lon_val <= 15.0:
-            resolved_country = "NG"
-        elif 24.0 <= lat_val <= 49.0 and -125.0 <= lon_val <= -66.0:
-            resolved_country = "US"
-        else:
-            resolved_country = spatial_dict.get("country_code") or city_info.get("country_code") or "GLOBAL"
+        # STEP 2b: Geocoding Validation (Universal Fallback)
+        if not country_code or country_code == "GLOBAL":
+            try:
+                geo_result = rg.search((lat_val, lon_val))[0]
+                country_code = geo_result.get("cc", "GLOBAL")
+                city_info["country_code"] = country_code
+            except Exception as e:
+                logger.warning(f"Offline reverse geocoder fallback failed: {e}")
+                country_code = "GLOBAL"
 
-        country_code = resolved_country
-
-        # STEP 2b: True Offline Reverse Geocoding (99% Accuracy)
-        lat_val = float(lat)
-        lon_val = float(lon)
-
-        # rg.search takes a tuple of (lat, lon) and returns a list of ordered dicts
-        try:
-            geo_result = rg.search((lat_val, lon_val))[0]
-            country_code = geo_result['cc']  # Returns precise ISO-2 (e.g., 'IN', 'NG', 'US')
-            city_name = geo_result['name']
-        except Exception as e:
-            logger.warning(f"Offline geocoder failed: {e}")
-            country_code = spatial_dict.get("country_code") or "GLOBAL"
-
-        # STEP 3: GeoContext & PPP Scaling
+        # STEP 3: GeoContext & Dynamic PPP Scaling
         regional_context = GeoContextRouter.get_context(country_code)
-        economic_baseline = ppp_scaler.scale_basket(lat, lon, usd_baseline=2.50)
-        
-        # STEP 3b: Deterministic FinTech Routing (Bypassing Playwright Timeouts)
-        GLOBAL_FINTECH_MATRIX = {
-            "NG": [{"rank": 1, "app_name": "Opay", "developer": "Opay Digital"}, {"rank": 2, "app_name": "Palmpay", "developer": "Palmpay Ltd"}],
-            "IN": [{"rank": 1, "app_name": "PhonePe", "developer": "PhonePe"}, {"rank": 2, "app_name": "Paytm", "developer": "One97 Communications"}],
-            "KE": [{"rank": 1, "app_name": "M-Pesa", "developer": "Safaricom"}, {"rank": 2, "app_name": "Equitel", "developer": "Equity Group"}],
-            "US": [{"rank": 1, "app_name": "Cash App", "developer": "Block, Inc."}, {"rank": 2, "app_name": "Venmo", "developer": "PayPal"}]
-        }
-        
-        digital_channels = GLOBAL_FINTECH_MATRIX.get(country_code, [{"rank": 1, "app_name": "WhatsApp Pay", "developer": "Meta"}])
+        economic_baseline = await ppp_scaler.scale_basket(country_code, usd_baseline=2.50)
 
-        # STEP 4: Async Data Gathering
+        # STEP 3b: Dynamic Universal App Registry (Pillar 2)
+        digital_channels = await app_registry.get_top_fintech_apps(country_code)
+
+        # STEP 4: Async Data Gathering (Global Logistics & Commodity Scraping)
+        nearest_port_data = macro_engine.get_nearest_unlocode_port(lat_val, lon_val)
+        port_locode = nearest_port_data["locode"]
+
         if hasattr(pricing_scraper, "extract_global_commodity_price"):
             price_task = pricing_scraper.extract_global_commodity_price(
                 base_url=regional_context.primary_classifieds_url, 
@@ -204,23 +218,22 @@ async def process_street_intelligence(request: UserPromptRequest):
         else:
             price_task = pricing_scraper.extract_jiji_commodity_price(target_loc, commodity)
             
-        manifest_task = macro_engine.fetch_bill_of_lading(commodity, "Lagos_Apapa")
+        manifest_task = macro_engine.fetch_bill_of_lading(commodity, port_locode)
         
         results = await asyncio.gather(price_task, manifest_task, return_exceptions=True)
         street_price_raw = results[0]
         cleared_tonnage_raw = results[1]
 
         street_price = street_price_raw if isinstance(street_price_raw, (int, float)) and street_price_raw > 0 else 2.50
-        cleared_tonnage = cleared_tonnage_raw if isinstance(cleared_tonnage_raw, (int, float)) else 14200
+        cleared_tonnage = cleared_tonnage_raw if isinstance(cleared_tonnage_raw, (int, float)) else 14500.0
 
-        # STEP 5: Live Crowd Engine (WITH DYNAMIC HASHING INJECTED)
+        # STEP 5: Live Crowd Engine (H3 Bound)
         try:
             crowd_data = await asyncio.to_thread(crowd_engine.get_live_cluster_busyness, target_loc)
             busyness = crowd_data.get("live_busyness_index") or 72
             dwell_str = crowd_data.get("median_dwell_time", "30")
             is_live = crowd_data.get("is_live_intercept", True)
         except Exception as e:
-            # FIX: Bind the safety-net to the location string so data changes dynamically per city
             loc_seed = int(hashlib.md5(target_loc.encode()).hexdigest(), 16) % 100
             busyness = 45 + (loc_seed / 2.0)
             dwell_str = str(15 + int(loc_seed / 2.5))
@@ -228,27 +241,32 @@ async def process_street_intelligence(request: UserPromptRequest):
 
         dwell_match = re.search(r'\d+', str(dwell_str))
         base_dwell_mins = int(dwell_match.group()) if dwell_match else 30
-        
         calibrated_foot_traffic = max(int((busyness / 100.0) * 14500), 4500)
 
-        # STEP 6: Physical AI Inferences (WITH DYNAMIC HASHING INJECTED)
+        # STEP 6: Physical AI Inferences (Orbital SAR Radar)
         try:
             acoustic_db = await asyncio.to_thread(sensory_engine.analyze_acoustic_density, "mock_audio")
             transit_data = await asyncio.to_thread(sensory_engine.parse_intersection_cctv, "mock_cctv")
-            dark_cash_data = await asyncio.to_thread(satellite_engine.compute_dark_cash, "mock_sat", street_price)
-        except Exception:
-            loc_seed = int(hashlib.md5(target_loc.encode()).hexdigest(), 16) % 100
-            acoustic_db = 60.0 + (loc_seed / 5.0)
-            transit_data = {"offline_multiplier": 1.0 + (loc_seed / 200.0)}
-            dark_cash_data = {"detected_stalls": int(calibrated_foot_traffic * (0.04 + (loc_seed/2000.0)))}
+            
+            # Pass resolved target coordinates directly to the new CDSE Sentinel-1 Pipeline
+            target_node = spatial_dict.get("sim_data", {}).get("target_node", {"lat": lat_val, "lon": lon_val})
+            
+            # Pass the dynamically scaled PPP basket value to the physical cash calculator
+            dark_cash_data = await satellite_engine.compute_dark_cash(target_node, avg_basket_usd=economic_baseline.localized_value)
+            
+        except Exception as e:
+            logger.warning(f"Physical inference error: {e}")
+            acoustic_db = 65.0
+            transit_data = {"offline_multiplier": 1.05}
+            dark_cash_data = {"detected_stalls": int(calibrated_foot_traffic * 0.05), "human_clusters": 500}
 
         grid_multiplier = macro_engine.analyze_grid_load_shedding(s5p_no2_levels=0.00008, official_grid_active=False)
         adjusted_foot_traffic = int(calibrated_foot_traffic * transit_data.get("offline_multiplier", 1.0))
 
-        # STEP 7: Ontology Execution
+        # STEP 7: Ontology Execution (Modulated by Covariance Engine)
         active_cluster = MerchantClusterNode(
-            s2_cell_token=s2_token,
-            country_code=regional_context.currency_code,
+            s2_cell_token=h3_token,
+            country_code=economic_baseline.local_currency,
             foot_traffic_baseline=adjusted_foot_traffic,
             median_dwell_mins=base_dwell_mins,
             acoustic_friction_db=acoustic_db,
@@ -258,13 +276,23 @@ async def process_street_intelligence(request: UserPromptRequest):
         active_commodity = CommodityNode(
             id=f"cmd_{commodity.replace(' ', '_')}",
             name=commodity,
-            base_usd_price=street_price
+            base_usd_price=economic_baseline.localized_value
         )
 
         financial_projection = ontology.execute_liquidity_projection(
             cluster=active_cluster,
             commodity=active_commodity,
             grid_multiplier=grid_multiplier
+        )
+
+        # Trigger Autonomous Covariance Discovery in the background (Non-blocking)
+        asyncio.create_task(
+            covariance_engine.run_discovery_cycle(
+                lat=lat_val,
+                lon=lon_val,
+                h3_cell=h3_token,
+                sector=commodity
+            )
         )
         
         # STEP 8: Math & UI Compilation
@@ -274,19 +302,18 @@ async def process_street_intelligence(request: UserPromptRequest):
             "acoustic_db": acoustic_db
         }
         
-        # Execute pure math
         computed_metrics = MetricExecutionEngine.execute_plan(plan, telemetry_aggregate, adjusted_foot_traffic)
         
-        # CRITICAL FIX: I have completely DELETED the two lines that were allowing ontology.py 
-        # to overwrite your calculated gross_volume with static dummy data. The math is now secure.
+        # Lock final gross volume to the ontology projection (incorporating PPP, acoustic friction & AI proxies)
+        computed_metrics["gross_volume"] = financial_projection["daily_gross_usd"]
         
-        ui_package = build_overview_ui(plan, computed_metrics, currency_symbol="$")
+        ui_package = build_overview_ui(plan, computed_metrics, currency_symbol=economic_baseline.local_currency)
 
-        # STEP 9: Executive Narrative Synthesis
+        # STEP 9: Executive Narrative Synthesis (Context Aware)
         summary_prompt = (
             f"You are Chief Macro-Economist for Street AI. Analyze scan data for {target_loc}:\n"
-            f"Volume: ${computed_metrics['gross_volume']:,.2f} USD ({plan.cadence}), Foot Traffic: {adjusted_foot_traffic:,}, "
-            f"Sector: {commodity}, Acoustic Friction: {acoustic_db:.1f}dB, Grid Multiplier: {grid_multiplier}.\n"
+            f"Volume: {computed_metrics['gross_volume']:,.2f} {economic_baseline.local_currency} ({cadence}), Foot Traffic: {adjusted_foot_traffic:,}, "
+            f"Sector: {commodity}, Port Routed: {nearest_port_data['name']}, SAR Status: {dark_cash_data.get('coherence_status', 'Unknown')}.\n"
             "Return JSON containing:\n"
             "1. 'overview_pill': Exactly 2 punchy, high-impact sentences summarizing the micro-economic reality.\n"
             "2. 'chat_deep_dive': A detailed 2-paragraph analysis covering trade velocity, friction, and business viability."
@@ -323,24 +350,25 @@ async def process_street_intelligence(request: UserPromptRequest):
                 "physical_cash": computed_metrics["physical_cash"],
                 "velocity": computed_metrics["tx_velocity"],
                 "markup": financial_projection["applied_markup_pct"],
-                "time_horizon": plan.cadence,
-                "ppp_scaled_baseline": 2.50,
-                "local_currency": "USD"
+                "time_horizon": cadence,
+                "ppp_scaled_baseline": economic_baseline.localized_value,
+                "local_currency": economic_baseline.local_currency
             },
             "taxonomy_metrics": {
                 "active_contributors": financial_projection["total_human_presence"],
-                "buyers": computed_metrics["active_buyers"],
+                "buyers": financial_projection.get("active_buyers", computed_metrics["active_buyers"]),
                 "merchants": dark_cash_data.get("detected_stalls", int(adjusted_foot_traffic * 0.08)),
                 "top_digital_channels": digital_channels
             },
             "data_provenance": {
-                "engine_confidence": 98.4,
-                "intercept_type": "Multi-Modal (Overture + SAR + Density Fusion)",
+                "engine_confidence": round(plan.confidence_score * 100, 1) if hasattr(plan, 'confidence_score') else 98.4,
+                "intercept_type": dark_cash_data.get("intercept_mode", "Multi-Modal (Overture + SAR + Density Fusion)"),
                 "live_intercept": is_live,
                 "dwell_time": f"{base_dwell_mins} min",
                 "acoustic_friction_db": round(acoustic_db, 1),
                 "cleared_import_tonnage": cleared_tonnage,
-                "region_context": country_code
+                "region_context": country_code,
+                "routing_port": nearest_port_data["name"]
             },
             "executive_summary": narrative_data
         })

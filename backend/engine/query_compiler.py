@@ -1,101 +1,94 @@
 import json
 import logging
-from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field
+from typing import Optional, List, Literal
+from pydantic import BaseModel, Field, ValidationError
+from groq import Groq
 
 logger = logging.getLogger("StreetAI.QueryCompiler")
 
-class QueryExecutionPlan(BaseModel):
-    target_region: str = Field(..., description="Specific market, corridor, or city extracted from prompt")
-    target_commodity: Optional[str] = Field("General Merchandise", description="Target product or sector")
-    query_objective: str = Field(
-        ..., 
-        description="Intent type: ARBITRAGE_PRICE | VENDOR_DENSITY | CASH_VELOCITY | SUPPLY_FRICTION | MACRO_VOLUME"
-    )
-    cadence: str = Field("DAILY", description="Timeframe: HOURLY | DAILY | WEEKLY | ANNUALLY")
-    focal_question: str = Field(..., description="Single sentence defining exactly what decision the user is making")
-    sub_clusters: List[str] = Field(default_factory=list, description="Specific sub-zones, gates, or roads mentioned")
-    risk_vectors: List[str] = Field(default_factory=list, description="Implicit risks: currency, logistics, police, weather")
+# --- Structured Output Schema ---
 
-SYSTEM_DECOMPILER_PROMPT = """
-You are the Lead Telemetry Query Decompiler for Street AI.
-Analyze the user's prompt and extract structured operational intent into a JSON object adhering to this schema:
-{
-  "target_region": "Name of city, market, or informal settlement",
-  "target_commodity": "Specific sector, good, or currency rail",
-  "query_objective": "ARBITRAGE_PRICE | VENDOR_DENSITY | CASH_VELOCITY | SUPPLY_FRICTION | MACRO_VOLUME",
-  "cadence": "HOURLY | DAILY | WEEKLY | ANNUALLY",
-  "focal_question": "Direct summary of the core operational question",
-  "sub_clusters": ["Sub-district 1", "Gate/Terminal 2"],
-  "risk_vectors": ["Identified operational risk 1", "Risk 2"]
-}
+class SpatialEntity(BaseModel):
+    raw_location_query: str = Field(..., description="Exact location text extracted from prompt")
+    inferred_city: Optional[str] = Field(None, description="Standardized city name if recognizable")
+    inferred_subdistrict: Optional[str] = Field(None, description="Market, street, neighborhood, or node name")
+    country_hint_iso2: Optional[str] = Field(None, description="ISO-2 country code if explicit or heavily implied")
+    spatial_granularity: Literal["street_node", "neighborhood_cluster", "city_macro", "cross_border"] = "neighborhood_cluster"
+
+class EconomicEntity(BaseModel):
+    primary_commodity: str = Field(..., description="Normalized sector/commodity (e.g., electronics, perishables, textiles, fuel)")
+    raw_items_mentioned: List[str] = Field(default_factory=list, description="Specific trade items mentioned in prompt")
+    cadence: Literal["hourly_surge", "daily_velocity", "weekly_aggregate", "annual_tam"] = "daily_velocity"
+    intent_type: Literal["market_sizing", "logistics_friction", "underwriting_risk", "footfall_tracking"] = "market_sizing"
+
+class CompiledExecutionPlan(BaseModel):
+    spatial: SpatialEntity
+    economic: EconomicEntity
+    reasoning_trace: str = Field(..., description="CoT extraction logic explaining ambiguous or slang terms")
+    confidence_score: float = Field(..., ge=0.0, le=1.0)
+    requires_disambiguation: bool = Field(False, description="True if location is completely absent or irrecoverably ambiguous")
+
+# --- Prompt & Compiler Core ---
+
+SYSTEM_INTENT_PROMPT = """
+You are the Cognitive Parsing Core for Street AI (Sigma), a spatial intelligence engine for the global informal economy.
+Your objective: Parse natural language queries into exact structural entities without hallucination.
+
 Rules:
-- Infer implicit regions: 'Wuse' -> target_region: 'Wuse Market, Abuja'. 'Dharavi' -> target_region: 'Dharavi, Mumbai'.
-- Standardize commodities: 'tyres' -> 'Rubber & Automotive'. 'foodstuff' -> 'Staple Groceries'.
-- Never hallucinate regions outside the prompt's intent. Output pure JSON only.
+1. Recognize informal trading nodes, street markets, local slang, and transport hubs worldwide (e.g., Computer Village, Gikomba, Oshodi, Tepito, Dharavi, Khan el-Khalili, Chatuchak).
+2. If no location is specified or detectable, set requires_disambiguation to true and provide an empty string for raw_location_query. Do NOT default to any placeholder city.
+3. Normalize informal items into standardized economic sectors (e.g., 'okrika' -> textiles; 'suya' -> informal food stalls; 'kabu-kabu' -> unregulated transport).
+4. Output valid JSON matching the schema strictly.
 """
 
-def compile_user_prompt(prompt: str, groq_client, active_model: str) -> QueryExecutionPlan:
-    if not groq_client or active_model == "fallback":
-        return _heuristic_decompiler(prompt)
+def compile_user_prompt(prompt: str, client: Optional[Groq], model: str) -> CompiledExecutionPlan:
+    """
+    Compiles an unstructured natural language user query into a deterministic execution plan.
+    """
+    if not prompt or not prompt.strip():
+        return CompiledExecutionPlan(
+            spatial=SpatialEntity(raw_location_query="", requires_disambiguation=True),
+            economic=EconomicEntity(primary_commodity="general_merchandise"),
+            reasoning_trace="Empty prompt supplied.",
+            confidence_score=0.0,
+            requires_disambiguation=True
+        )
+
+    if not client or model == "fallback":
+        # Safe heuristic parser when Groq client is offline
+        clean = prompt.strip()
+        return CompiledExecutionPlan(
+            spatial=SpatialEntity(raw_location_query=clean, spatial_granularity="city_macro"),
+            economic=EconomicEntity(primary_commodity="general_merchandise"),
+            reasoning_trace="Executed local heuristic parser (Groq unavailable).",
+            confidence_score=0.4,
+            requires_disambiguation=False
+        )
 
     try:
-        response = groq_client.chat.completions.create(
-            model=active_model,
+        response = client.chat.completions.create(
+            model=model,
             messages=[
-                {"role": "system", "content": "You are a JSON parsing engine. You output valid JSON only."},
-                {"role": "user", "content": f"{SYSTEM_DECOMPILER_PROMPT}\n\nUser Prompt: \"{prompt}\""}
+                {"role": "system", "content": SYSTEM_INTENT_PROMPT},
+                {"role": "user", "content": f"Parse query: \"{prompt}\""}
             ],
             response_format={"type": "json_object"},
-            temperature=0.1
+            temperature=0.0
         )
-        parsed = json.loads(response.choices[0].message.content)
-        return QueryExecutionPlan(**parsed)
+
+        content = response.choices[0].message.content
+        parsed_json = json.loads(content)
+        return CompiledExecutionPlan.model_validate(parsed_json)
+
+    except (ValidationError, json.JSONDecodeError) as e:
+        logger.error(f"Structured decoding failed: {e}. Falling back to safe extraction.")
+        return CompiledExecutionPlan(
+            spatial=SpatialEntity(raw_location_query=prompt.strip()[:60]),
+            economic=EconomicEntity(primary_commodity="general_merchandise"),
+            reasoning_trace=f"Validation failed: {str(e)}",
+            confidence_score=0.3,
+            requires_disambiguation=True
+        )
     except Exception as e:
-        logger.warning(f"Structured compilation failed: {e}. Falling back to heuristic parsing.")
-        return _heuristic_decompiler(prompt)
-
-def _heuristic_decompiler(prompt: str) -> QueryExecutionPlan:
-    p = prompt.lower()
-    
-    # Extract objective
-    if any(k in p for k in ["price", "cost", "cheap", "expensive", "spread"]):
-        obj = "ARBITRAGE_PRICE"
-    elif any(k in p for k in ["density", "crowd", "people", "stalls", "vendors", "busy"]):
-        obj = "VENDOR_DENSITY"
-    elif any(k in p for k in ["traffic", "port", "shipment", "customs", "delay", "friction"]):
-        obj = "SUPPLY_FRICTION"
-    elif any(k in p for k in ["cash", "ussd", "mobile money", "digital", "velocity"]):
-        obj = "CASH_VELOCITY"
-    else:
-        obj = "MACRO_VOLUME"
-
-    # Extract cadence
-    cadence = "DAILY"
-    if "hour" in p or "live" in p: cadence = "HOURLY"
-    elif "week" in p: cadence = "WEEKLY"
-    elif "year" in p or "annual" in p: cadence = "ANNUALLY"
-
-    # Identify commodity
-    comm = "General Merchandise"
-    for candidate in ["rubber", "electronics", "groceries", "textiles", "sugar", "fuel", "produce"]:
-        if candidate in p:
-            comm = candidate.capitalize()
-            break
-
-    # Identify primary locality token
-    region = "Target Node"
-    for token in ["wuse", "dharavi", "balogun", "makoko", "kejetia", "alaba", "las vegas"]:
-        if token in p:
-            region = token.title()
-            break
-
-    return QueryExecutionPlan(
-        target_region=region,
-        target_commodity=comm,
-        query_objective=obj,
-        cadence=cadence,
-        focal_question=f"Evaluating informal {comm.lower()} flow across {region}",
-        sub_clusters=["Central Transit Hub", "Secondary Retail Lane", "Wholesale Loading Depot"],
-        risk_vectors=["Settlement Currency Devaluation", "Physical Route Congestion"]
-    )
+        logger.error(f"Groq execution failure: {e}")
+        raise RuntimeError(f"Query compilation halted: {e}")
