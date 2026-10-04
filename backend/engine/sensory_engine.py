@@ -31,7 +31,11 @@ class SensoryPerceptionEngine:
             ]
             
             # Run silently
-            subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+            subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15)
+
+            # ADD THIS SAFETY CHECK: Verify yt-dlp actually downloaded a valid audio file
+            if not os.path.exists(output_file) or os.path.getsize(output_file) < 100:
+                raise ValueError("Audio intercept failed or returned empty payload.")
 
             # 2. Parse the waveform using standard libraries (avoiding heavy ML imports)
             import wave

@@ -1,0 +1,117 @@
+{
+    "8958f468b03ffff": [
+        {
+            "multiplier": -0.8,
+            "rationale": "Heavy precipitation deters foot traffic and poses operational challenges for informal food stalls, leading to a substantial decline in stall volume.",
+            "confidence": 0.9,
+            "trigger_variable": "heavy_precipitation",
+            "sector_impacted": "informal_food_stalls"
+        },
+        {
+            "multiplier": 0.14,
+            "rationale": "Heavy precipitation strongly deters foot traffic and operational feasibility for informal food stalls, leading to an estimated 86% reduction in stall volume.",
+            "confidence": 0.92,
+            "trigger_variable": "precipitation",
+            "sector_impacted": "informal_food_stalls"
+        },
+        {
+            "multiplier": 1.0,
+            "rationale": "All LLM APIs offline. Passing neutral modifier.",
+            "confidence": 0.0,
+            "trigger_variable": "Network Collapse",
+            "sector_impacted": "all"
+        },
+        {
+            "multiplier": 1.0,
+            "rationale": "All LLM APIs offline. Passing neutral modifier.",
+            "confidence": 0.0,
+            "trigger_variable": "Network Collapse",
+            "sector_impacted": "all"
+        }
+    ],
+    "894995b86abffff": [
+        {
+            "multiplier": -0.76,
+            "rationale": "Heavy precipitation deters foot traffic and damages stall infrastructure, leading to a substantial decline in informal food stall volume.",
+            "confidence": 0.85,
+            "trigger_variable": "heavy_precipitation",
+            "sector_impacted": "informal_food_stalls"
+        },
+        {
+            "multiplier": -0.78,
+            "rationale": "Heavy precipitation deters foot traffic and forces stall closures, leading to a substantial drop in informal food stall volume.",
+            "confidence": 0.85,
+            "trigger_variable": "heavy_precipitation",
+            "sector_impacted": "informal_food_stalls"
+        },
+        {
+            "multiplier": 1.0,
+            "rationale": "All LLM APIs offline. Passing neutral modifier.",
+            "confidence": 0.0,
+            "trigger_variable": "Network Collapse",
+            "sector_impacted": "all"
+        },
+        {
+            "multiplier": 1.0,
+            "rationale": "All LLM APIs offline. Passing neutral modifier.",
+            "confidence": 0.0,
+            "trigger_variable": "Network Collapse",
+            "sector_impacted": "all"
+        }
+    ],
+    "89694ec04cbffff": [
+        {
+            "multiplier": -0.75,
+            "rationale": "Heavy precipitation reduces the volume of informal food stalls due to decreased foot traffic, accessibility challenges, and safety concerns for vendors and customers.",
+            "confidence": 0.9,
+            "trigger_variable": "heavy_precipitation",
+            "sector_impacted": "informal_food_stalls"
+        },
+        {
+            "multiplier": 0.2,
+            "rationale": "Heavy precipitation strongly deters foot traffic and operational feasibility for informal food stalls, leading to a substantial drop in stall volume.",
+            "confidence": 0.9,
+            "trigger_variable": "heavy_precipitation",
+            "sector_impacted": "informal_food_stalls"
+        },
+        {
+            "multiplier": 1.0,
+            "rationale": "All LLM APIs offline. Passing neutral modifier.",
+            "confidence": 0.0,
+            "trigger_variable": "Network Collapse",
+            "sector_impacted": "all"
+        },
+        {
+            "multiplier": 1.0,
+            "rationale": "All LLM APIs offline. Passing neutral modifier.",
+            "confidence": 0.0,
+            "trigger_variable": "Network Collapse",
+            "sector_impacted": "all"
+        }
+    ],
+    "89bcc352d57ffff": [
+        {
+            "multiplier": 0.28,
+            "rationale": "Heavy precipitation reduces accessibility and safety for informal food stalls, leading to a substantial drop in stall volume.",
+            "confidence": 0.85,
+            "trigger_variable": "heavy_precipitation",
+            "sector_impacted": "informal_food_stalls"
+        }
+    ],
+    "8958f4691b7ffff": [
+        {
+            "multiplier": -0.78,
+            "rationale": "A strong negative correlation (r = -0.78) indicates that heavy precipitation significantly reduces the volume of informal food stalls in the specified spatial cell.",
+            "confidence": 0.9,
+            "trigger_variable": "heavy_precipitation",
+            "sector_impacted": "informal_food_stalls"
+        },
+        {
+            "multiplier": 1.0,
+            "rationale": "All LLM APIs offline. Passing neutral modifier.",
+            "confidence": 0.0,
+            "trigger_variable": "Network Collapse",
+            "sector_impacted": "all"
+        }
+    ]
+}
