@@ -22,3 +22,50 @@ print(f"Physical Dark Cash:  {metrics.currency} {metrics.physical_cash_volume:,.
 print(f"Digital / USSD Flow: {metrics.currency} {metrics.digital_ussd_volume:,.2f} ({metrics.digital_penetration_rate}%)")
 print(f"Transaction Speed:   {metrics.velocity_tx_per_hour} tx/hr")
 print(f"Street Price Markup: +{metrics.price_friction_markup}% vs formal retail\n")
+
+
+
+const executeIntelligenceScan = async (promptText, candidateToForce = null) => {
+    setIsSearching(true);
+    setIsDataGenerated(false);
+    setContextHub(promptText);
+    setSearchQuery(promptText); // Sync query to the map
+
+    try {
+      const payload = { 
+        prompt: promptText,
+        explicit_lat: candidateToForce ? candidateToForce.latitude : null,
+        explicit_lon: candidateToForce ? candidateToForce.longitude : null,
+        target_id: candidateToForce ? String(candidateToForce.candidate_id) : null
+      };
+
+      const response = await fetch('http://127.0.0.1:8000/api/v1/intelligence/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      
+      const data = await response.json();
+      setScanData(data);
+
+      if (data.status === "TARGET_LOCKED") {
+        if (data.city_overview) {
+          setResolvedLocation({
+            lat: data.city_overview.lat,
+            lng: data.city_overview.lon,
+            name: data.city_overview.city_name
+          });
+          setContextHub(data.city_overview.city_name || promptText);
+        }
+        setIsDataGenerated(true);
+      }
+    } catch (err) {
+      console.error("Backend scan failed:", err);
+      // Optional: Add a visual error state here if you want, or just let the console catch it
+      alert("Connection to Street AI Backend failed. Make sure your FastAPI server is running.");
+    } finally {
+      setIsSearching(false);
+    }
+  };

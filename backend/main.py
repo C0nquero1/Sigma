@@ -39,6 +39,7 @@ from engine.street_forex import LiveStreetForex
 from engine.ground_truth import GroundTruthCalibrator
 from engine.optical_flow import LiveOpticalFlowEngine
 from engine.temporal_engine import TemporalVelocityEngine
+from engine.deep_synthesizer import DeepAnalysisSynthesizer
 
 # Multi-Sensory & Physical Interception Stack
 from engine.planet_yolo_engine import SatelliteInferenceEngine
@@ -398,8 +399,28 @@ async def process_street_intelligence(request: UserPromptRequest):
         # Ensure spatial variables exist for the final payload
         location_name = plan.spatial.inferred_subdistrict or plan.spatial.inferred_city or plan.spatial.raw_location_query or "Unknown Location"
         country_code = plan.spatial.country_hint_iso2 or "Unknown"
+
+        # Initialize Macro Engine and resolve the deterministic port via Haversine distance
+        macro_engine = MacroSystemsEngine()
+        port_data = macro_engine.get_nearest_unlocode_port(lat, lon)
+        routing_port = f"{port_data['locode']} ({port_data['name']})"
+
+        # --- GENERATE PECULIAR DEEP ANALYSIS ---
+        logger.info(f"Synthesizing deep peculiar intelligence for {commodity} in {location_name}...")
+        deep_analysis_data = await DeepAnalysisSynthesizer.generate_peculiar_insights(
+            commodity=commodity,
+            location=location_name,
+            client=groq_client,
+            model=active_model
+        )
         
-        # STEP 9: Standardized Output Payload for Validation Harness
+        # Calculate extended economic projections for the frontend UI dashboard
+        live_1hr = hourly_cash_velocity
+        projected_12hr = live_1hr * 9.5
+        projected_24hr = live_1hr * 14.2
+        projected_7day = projected_24hr * 6.8
+
+        # STEP 9: Standardized Output Payload for Validation Harness & Frontend UI
         return {
             "status": "TARGET_LOCKED",
             "execution_time_seconds": round(elapsed_time, 2),
@@ -407,7 +428,12 @@ async def process_street_intelligence(request: UserPromptRequest):
                 "location_name": location_name,
                 "country_code": country_code,
                 "h3_index": h3_token,
-                "port_corridor": transit_data.get("port_name", "Nearest Regional Port") if 'transit_data' in locals() else "Unknown"
+                "port_corridor": routing_port
+            },
+            "deep_analysis": deep_analysis_data,
+            "temporal": {
+                "local_time": time_context["local_timestamp"],
+                "market_cycle": time_context["market_status"]
             },
             "temporal": {
                 "local_time": time_context["local_timestamp"],
@@ -429,9 +455,11 @@ async def process_street_intelligence(request: UserPromptRequest):
                 "fx_reference_rate": f"1 USD = {live_usd_rate:,.2f} {base_currency}"
             },
             "cash_velocity": {
-                "live_1hr_velocity": f"{hourly_cash_velocity:,.2f} {base_currency}",
-                "projected_24hr_volume": f"{daily_projected_cash:,.2f} {base_currency}",
-                "covariance_factor": f"{covariance_rule.trigger_variable} ({covariance_rule.multiplier}x)"
+                "covariance_factor": f"{covariance_rule.trigger_variable} ({covariance_rule.multiplier}x)",
+                "live_1hr_velocity": f"{live_1hr:,.2f} {base_currency}",
+                "projected_12hr_volume": f"{projected_12hr:,.2f} {base_currency}",
+                "projected_24hr_volume": f"{projected_24hr:,.2f} {base_currency}",
+                "projected_7day_volume": f"{projected_7day:,.2f} {base_currency}"
             }
         }
         

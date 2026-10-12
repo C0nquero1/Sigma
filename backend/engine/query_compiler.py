@@ -125,6 +125,12 @@ Rules:
     "confidence_score": 0.95,
     "requires_disambiguation": false
 }
+6. OUT OF SCOPE: If the user asks a conversational question, asks for code, asks for a poem, or asks something completely unrelated to spatial economics or market sizing, DO NOT attempt to parse it. 
+Instead, return this exact JSON:
+{
+    "requires_disambiguation": true,
+    "reasoning_trace": "Query is out of scope for the Spatial Intelligence Engine."
+}
 """
 
 def compile_user_prompt(prompt: str, client: Optional[Groq], model: str) -> CompiledExecutionPlan:

@@ -268,7 +268,7 @@ export default function ThirdSection({ searchQuery = "Broadway", isDataGenerated
       if (mapRef.current) {
         mapRef.current.flyTo({
           center: [resolvedLocation.lng, resolvedLocation.lat],
-          zoom: 14.5,
+          zoom: 8.5,
           speed: 1.5,
           essential: true
         });

@@ -96,6 +96,13 @@
             "confidence": 0.85,
             "trigger_variable": "heavy_precipitation",
             "sector_impacted": "informal_food_stalls"
+        },
+        {
+            "multiplier": 1.0,
+            "rationale": "All LLM APIs offline. Passing neutral modifier.",
+            "confidence": 0.0,
+            "trigger_variable": "Network Collapse",
+            "sector_impacted": "all"
         }
     ],
     "8958f4691b7ffff": [
@@ -105,6 +112,13 @@
             "confidence": 0.9,
             "trigger_variable": "heavy_precipitation",
             "sector_impacted": "informal_food_stalls"
+        },
+        {
+            "multiplier": 1.0,
+            "rationale": "All LLM APIs offline. Passing neutral modifier.",
+            "confidence": 0.0,
+            "trigger_variable": "Network Collapse",
+            "sector_impacted": "all"
         },
         {
             "multiplier": 1.0,
