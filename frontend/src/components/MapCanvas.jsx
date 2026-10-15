@@ -127,11 +127,11 @@ export default function MapCanvas({
   };
 
   // ==========================================
-  // BASEMAP STYLES (Streets & Names Fully Visible)
+  // BASEMAP STYLES (Secured & Rebranded)
   // ==========================================
   const cartoDarkStyle = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
   
-  // Esri World Imagery: Enterprise-grade satellite, no Google watermarks, compliant for raw tile usage
+  // Esri World Imagery + Labels & Streets (Full Hybrid Experience, No Google Watermarks)
   const maxarSatelliteStyle = {
     version: 8,
     sources: { 
@@ -139,15 +139,41 @@ export default function MapCanvas({
         type: 'raster', 
         tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], 
         tileSize: 256 
-      } 
+      },
+      'esri-streets': {
+        type: 'raster',
+        tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}'],
+        tileSize: 256
+      },
+      'esri-labels': {
+        type: 'raster',
+        tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'],
+        tileSize: 256
+      }
     },
-    layers: [{ 
-      id: 'esri-satellite-layer', 
-      type: 'raster', 
-      source: 'esri-satellite', 
-      minzoom: 0, 
-      maxzoom: 22 
-    }]
+    layers: [
+      { 
+        id: 'esri-satellite-layer', 
+        type: 'raster', 
+        source: 'esri-satellite', 
+        minzoom: 0, 
+        maxzoom: 22 
+      },
+      { 
+        id: 'esri-streets-layer', 
+        type: 'raster', 
+        source: 'esri-streets', 
+        minzoom: 0, 
+        maxzoom: 22 
+      },
+      { 
+        id: 'esri-labels-layer', 
+        type: 'raster', 
+        source: 'esri-labels', 
+        minzoom: 0, 
+        maxzoom: 22 
+      }
+    ]
   };
 
   // ==========================================
