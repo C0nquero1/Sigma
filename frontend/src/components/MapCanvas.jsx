@@ -276,15 +276,19 @@ export default function MapCanvas({
        
        mapRef.current.once('style.load', () => {
           addCustomLayers(mapRef.current);
-          // CRITICAL FIX: Broadcast an event when the new style finishes building
-          // so the opacity controller knows to wake up and restore visibility.
           window.dispatchEvent(new Event('styleRebuilt'));
        });
     }
   }, [mapStyle]);
 
   // ==========================================
-  // 2. LAYER OPACITY CONTROLLER 
+  // 2. DEFINE STATES FIRST (Fixes ReferenceError)
+  // ==========================================
+  const isTouring = tourStep >= 0;
+  const isZoomedIn = currentZoom >= 11.0 || isPlaying || activeTool !== null;
+
+  // ==========================================
+  // 3. LAYER OPACITY CONTROLLER 
   // ==========================================
   useEffect(() => {
     const updateOpacities = () => {
@@ -316,24 +320,11 @@ export default function MapCanvas({
       }
     };
 
-    // Apply opacities normally when data or zoom changes
     updateOpacities();
 
-    // Re-apply instantly when the map finishes switching styles (e.g., Satellite)
     window.addEventListener('styleRebuilt', updateOpacities);
     return () => window.removeEventListener('styleRebuilt', updateOpacities);
     
-  }, [isDataGenerated, isZoomedIn]);
-
-  const isTouring = tourStep >= 0;
-  
-  // Logic to show Flowmap (when zoomed in)
-  const isZoomedIn = currentZoom >= 11.0 || isPlaying || activeTool !== null;
-  
-  useEffect(() => {
-    if (mapRef.current && mapRef.current.getLayer('valgo-grid-layer')) {
-      mapRef.current.setPaintProperty('valgo-grid-layer', 'fill-opacity', isDataGenerated ? (isZoomedIn ? 0.15 : 0.85) : 0.0);
-    }
   }, [isDataGenerated, isZoomedIn]);
 
   // ==========================================
