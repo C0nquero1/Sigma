@@ -58,19 +58,24 @@ export default function CommandPanel({
     { id: 4, query: "Top seller in Balogun?", time: "Oct 2" }
   ];
 
+  // Dynamic Background Logic: Returns to pure black (#050505) once the user prompts
+  const hasPrompted = chatHistory.length > 0 || isSearching || isDataGenerated;
+  const currentBgColor = hasPrompted ? '#050505' : '#040a08';
+
   return (
     <div style={{ 
       display: 'flex', 
       flexDirection: 'column', 
       height: '100%', 
-      background: '#040a08', 
+      background: currentBgColor, 
       fontFamily: sans, 
       position: 'relative', 
-      overflow: 'hidden' 
+      overflow: 'hidden',
+      transition: 'background 0.5s ease-in-out' // Smooth transition to black
     }}>
       
-      {/* UPDATED: Extremely subtle, ultra-dark gradient (Opacity dropped to 0.015) */}
-      {commandTab === 'chat' && (
+      {/* Show the subtle green gradient ONLY when idle (no prompt yet) */}
+      {!hasPrompted && commandTab === 'chat' && (
         <div style={{ 
           position: 'absolute', 
           top: 0, left: 0, right: 0, height: '60%', 
@@ -236,7 +241,7 @@ export default function CommandPanel({
       )}
 
       {commandTab === 'chat' && (
-        <div style={{ padding: '0 24px 24px 24px', background: 'linear-gradient(to top, #040a08 80%, transparent)', zIndex: 10 }}>
+        <div style={{ padding: '0 24px 24px 24px', background: `linear-gradient(to top, ${currentBgColor} 80%, transparent)`, zIndex: 10, transition: 'background 0.5s ease-in-out' }}>
           <form onSubmit={handlePromptSubmit} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
             <input
               type="text"
