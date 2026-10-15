@@ -263,59 +263,69 @@ export default function MapCanvas({
   }, []);
 
   // ==========================================
-  // PERFECTED STYLE SWITCHER & LAYER RESTORER
+  // PERFECTED STYLE SWITCHER & LAYER RESTORER (CLOSURE-PROOF)
   // ==========================================
 
-  // 1. Master Layer Controller: Guarantees layers survive style swaps with fresh state
+  // 1. Live State Ref: Guarantees MapLibre NEVER reads stale memory during asynchronous style swaps
+  const liveStateRef = useRef({ isDataGenerated, isZoomedIn, targetCoords, searchQuery });
   useEffect(() => {
-    const applyLayersAndOpacities = () => {
+    liveStateRef.current = { isDataGenerated, isZoomedIn, targetCoords, searchQuery };
+  });
+
+  // 2. The Master Layer Controller
+  useEffect(() => {
+    const enforceLayers = () => {
       if (!mapRef.current || !mapRef.current.isStyleLoaded()) return;
       const map = mapRef.current;
+      
+      // Extract the absolute freshest data directly from the Ref
+      const { isDataGenerated: dataGen, isZoomedIn: zoomed, targetCoords: coords, searchQuery: query } = liveStateRef.current;
 
-      // Ensure Sources Exist (MapLibre wipes these on style change)
-      if (!map.getSource('geofence')) map.addSource('geofence', { type: 'geojson', data: generateGeofence() });
-      if (!map.getSource('valgo-grid')) map.addSource('valgo-grid', { type: 'geojson', data: generateValgoGrid() });
+      // Ensure Sources Exist using live coordinates
+      if (!map.getSource('geofence')) {
+        map.addSource('geofence', { type: 'geojson', data: generateGeofence(coords.lng, coords.lat) });
+      }
+      if (!map.getSource('valgo-grid')) {
+        map.addSource('valgo-grid', { type: 'geojson', data: generateValgoGrid(coords.lng, coords.lat, query) });
+      }
 
-      // Ensure Layers Exist & Update Opacities
+      // Geofence Fill
       if (!map.getLayer('geofence-fill')) {
-        map.addLayer({ id: 'geofence-fill', type: 'fill', source: 'geofence', paint: { 'fill-color': '#00e676', 'fill-opacity': isDataGenerated ? 0.15 : 0 } });
+        map.addLayer({ id: 'geofence-fill', type: 'fill', source: 'geofence', paint: { 'fill-color': '#00e676', 'fill-opacity': dataGen ? 0.15 : 0 } });
       } else {
-        map.setPaintProperty('geofence-fill', 'fill-opacity', isDataGenerated ? 0.15 : 0);
+        map.setPaintProperty('geofence-fill', 'fill-opacity', dataGen ? 0.15 : 0);
       }
 
+      // Geofence Line (Solid, sleek line)
       if (!map.getLayer('geofence-line')) {
-        map.addLayer({ id: 'geofence-line', type: 'line', source: 'geofence', paint: { 'line-color': '#00e676', 'line-width': 3, 'line-opacity': isDataGenerated ? 1.0 : 0 } });
+        map.addLayer({ id: 'geofence-line', type: 'line', source: 'geofence', paint: { 'line-color': '#00e676', 'line-width': 3, 'line-opacity': dataGen ? 1.0 : 0 } });
       } else {
-        map.setPaintProperty('geofence-line', 'line-opacity', isDataGenerated ? 1.0 : 0);
+        map.setPaintProperty('geofence-line', 'line-opacity', dataGen ? 1.0 : 0);
       }
 
+      // Valgo Hex Grid Heatmap
       if (!map.getLayer('valgo-grid-layer')) {
-        map.addLayer({ id: 'valgo-grid-layer', type: 'fill', source: 'valgo-grid', paint: { 'fill-color': ['get', 'color'], 'fill-opacity': isDataGenerated ? (isZoomedIn ? 0.15 : 0.85) : 0.0, 'fill-outline-color': 'rgba(0,0,0,0)' } });
+        map.addLayer({ id: 'valgo-grid-layer', type: 'fill', source: 'valgo-grid', paint: { 'fill-color': ['get', 'color'], 'fill-opacity': dataGen ? (zoomed ? 0.15 : 0.85) : 0.0, 'fill-outline-color': 'rgba(0,0,0,0)' } });
       } else {
-        map.setPaintProperty('valgo-grid-layer', 'fill-opacity', isDataGenerated ? (isZoomedIn ? 0.15 : 0.85) : 0.0);
+        map.setPaintProperty('valgo-grid-layer', 'fill-opacity', dataGen ? (zoomed ? 0.15 : 0.85) : 0.0);
       }
     };
 
-    // Apply immediately for standard interactions (e.g., Data Gen, Zooming, Play Button)
-    applyLayersAndOpacities();
+    // Apply instantly on any standard interaction
+    enforceLayers();
 
-    // CRITICAL FIX: Use 'styledata' which fires continuously during and after a style swap
-    const handleStyleData = () => {
-      if (mapRef.current && mapRef.current.isStyleLoaded()) {
-        applyLayersAndOpacities();
-      }
-    };
-    
+    // Attach to 'styledata' which pulses continuously as the new map builds.
+    // The millisecond isStyleLoaded() returns true, it rebuilds the heatmap!
     if (mapRef.current) {
-      mapRef.current.on('styledata', handleStyleData);
+      mapRef.current.on('styledata', enforceLayers);
     }
 
     return () => {
-      if (mapRef.current) mapRef.current.off('styledata', handleStyleData);
+      if (mapRef.current) mapRef.current.off('styledata', enforceLayers);
     };
   }, [mapStyle, isDataGenerated, isZoomedIn, targetCoords, searchQuery]);
 
-  // 2. Trigger the map style swap securely
+  // 3. Trigger Style Swap Securely
   useEffect(() => {
     if (mapRef.current) {
        mapRef.current.setStyle(mapStyle === 'Satellite' ? maxarSatelliteStyle : cartoDarkStyle);
