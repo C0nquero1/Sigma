@@ -263,23 +263,59 @@ export default function MapCanvas({
   }, []);
 
   // ==========================================
-  // MAP STYLE SWITCHER & OPACITY CONTROLLER
+  // PERFECTED STYLE SWITCHER & LAYER RESTORER
   // ==========================================
-  
-  // 1. Handle Style Switches (Instantly forces redraw using the master function)
+
+  // 1. Trigger the style swap
   useEffect(() => {
     if (mapRef.current) {
        mapRef.current.setStyle(mapStyle === 'Satellite' ? maxarSatelliteStyle : cartoDarkStyle);
-       mapRef.current.once('style.load', () => {
-          enforceMapLayers(mapRef.current);
-       });
     }
   }, [mapStyle]);
 
-  // 2. Continually sync opacities when zooming or prompting
+  // 2. The Master Layer Controller
   useEffect(() => {
-    enforceMapLayers(mapRef.current);
-  }, [isDataGenerated, isZoomedIn]);
+    const applyLayersAndOpacities = () => {
+      if (!mapRef.current || !mapRef.current.isStyleLoaded()) return;
+
+      // Re-add Sources if MapLibre wiped them during the style swap
+      if (!mapRef.current.getSource('geofence')) {
+        mapRef.current.addSource('geofence', { type: 'geojson', data: generateGeofence() });
+      }
+      if (!mapRef.current.getSource('valgo-grid')) {
+        mapRef.current.addSource('valgo-grid', { type: 'geojson', data: generateValgoGrid() });
+      }
+
+      // Re-add Layers & Enforce Live Opacities
+      if (!mapRef.current.getLayer('geofence-fill')) {
+        mapRef.current.addLayer({ id: 'geofence-fill', type: 'fill', source: 'geofence', paint: { 'fill-color': '#00e676', 'fill-opacity': isDataGenerated ? 0.15 : 0 } });
+      } else {
+        mapRef.current.setPaintProperty('geofence-fill', 'fill-opacity', isDataGenerated ? 0.15 : 0);
+      }
+
+      if (!mapRef.current.getLayer('geofence-line')) {
+        mapRef.current.addLayer({ id: 'geofence-line', type: 'line', source: 'geofence', paint: { 'line-color': '#00e676', 'line-width': 3, 'line-opacity': isDataGenerated ? 1.0 : 0 } });
+      } else {
+        mapRef.current.setPaintProperty('geofence-line', 'line-opacity', isDataGenerated ? 1.0 : 0);
+      }
+
+      if (!mapRef.current.getLayer('valgo-grid-layer')) {
+        mapRef.current.addLayer({ id: 'valgo-grid-layer', type: 'fill', source: 'valgo-grid', paint: { 'fill-color': ['get', 'color'], 'fill-opacity': isDataGenerated ? (isZoomedIn ? 0.15 : 0.85) : 0.0, 'fill-outline-color': 'rgba(0,0,0,0)' } });
+      } else {
+        mapRef.current.setPaintProperty('valgo-grid-layer', 'fill-opacity', isDataGenerated ? (isZoomedIn ? 0.15 : 0.85) : 0.0);
+      }
+    };
+
+    if (mapRef.current) {
+      applyLayersAndOpacities(); // Apply instantly for standard state changes
+      
+      // CRITICAL FIX: 'styledata' is the exact event that fires when a new map style finishes rendering
+      mapRef.current.on('styledata', applyLayersAndOpacities);
+      return () => {
+        mapRef.current.off('styledata', applyLayersAndOpacities);
+      };
+    }
+  }, [mapStyle, isDataGenerated, isZoomedIn, targetCoords, searchQuery]);
 
   // Handle Interactive Polygon Tool Zooming
   useEffect(() => {
@@ -442,19 +478,21 @@ export default function MapCanvas({
          </div>
       )}
 
-      {/* FURTHER REDUCED LEGEND CARD */}
+      {/* ========================================== */}
+      {/* PERFECTED, READABLE LEGEND CARD            */}
+      {/* ========================================== */}
       <div style={{ 
         position: 'absolute', bottom: '48px', left: '16px', 
         background: 'rgba(15, 15, 18, 0.85)', backdropFilter: 'blur(12px)',
         border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', 
-        padding: '8px', width: '180px', zIndex: 40, // Shrunk Width & Padding
+        padding: '12px', width: '240px', zIndex: 40, // Increased width & padding to fit larger text
         opacity: isDataGenerated ? 1 : 0, transition: 'opacity 0.4s ease'
       }}>
-         <div style={{ color: '#a1a1aa', fontSize: '6px', textTransform: 'uppercase', fontFamily: mono, fontWeight: '700', letterSpacing: '0.5px', marginBottom: '6px' }}>
+         <div style={{ color: '#a1a1aa', fontSize: '9px', textTransform: 'uppercase', fontFamily: mono, fontWeight: '800', letterSpacing: '0.5px', marginBottom: '8px' }}>
             PER-CELL CALIBRATED VOLUME (NGN)
          </div>
-         <div style={{ width: '100%', height: '4px', borderRadius: '2px', background: 'linear-gradient(90deg, #3b0764 0%, #1e3a8a 25%, #0d9488 50%, #00e676 75%, #facc15 100%)', marginBottom: '6px' }} />
-         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '7px', color: '#d4d4d8', fontWeight: '600', fontFamily: mono }}>
+         <div style={{ width: '100%', height: '6px', borderRadius: '3px', background: 'linear-gradient(90deg, #3b0764 0%, #1e3a8a 25%, #0d9488 50%, #00e676 75%, #facc15 100%)', marginBottom: '8px' }} />
+         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#d4d4d8', fontWeight: '700', fontFamily: mono }}>
             <span>0</span><span>36.0k</span><span>72.0k+</span>
          </div>
       </div>
