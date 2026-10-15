@@ -59,23 +59,22 @@ export default function CommandPanel({
   ];
 
   return (
-    // Base Background: Deep Obsidian
     <div style={{ 
       display: 'flex', 
       flexDirection: 'column', 
       height: '100%', 
-      background: '#040a08', // Solid dark base
+      background: '#040a08', 
       fontFamily: sans, 
       position: 'relative', 
       overflow: 'hidden' 
     }}>
       
-      {/* Top-to-Center Green Fade Gradient (Slightly darker opacity at 0.045) */}
+      {/* UPDATED: Extremely subtle, ultra-dark gradient (Opacity dropped to 0.015) */}
       {commandTab === 'chat' && (
         <div style={{ 
           position: 'absolute', 
           top: 0, left: 0, right: 0, height: '60%', 
-          background: 'linear-gradient(180deg, rgba(0, 230, 118, 0.045) 0%, rgba(4, 10, 8, 1) 80%, rgba(4, 10, 8, 1) 100%)',
+          background: 'linear-gradient(180deg, rgba(0, 230, 118, 0.015) 0%, rgba(4, 10, 8, 1) 60%, rgba(4, 10, 8, 1) 100%)',
           pointerEvents: 'none',
           zIndex: 0
         }} />
@@ -83,25 +82,14 @@ export default function CommandPanel({
 
       {isHistoryOpen && <div onClick={() => setIsHistoryOpen(false)} style={{ position: 'absolute', inset: 0, zIndex: 40 }} />}
 
-      {/* ========================================== */}
-      {/* 1. RESTORED GLASSY HISTORY BAR             */}
-      {/* ========================================== */}
       <div style={{ padding: '24px 24px 0 24px', zIndex: 50, position: 'relative', display: 'flex', justifyContent: 'space-between' }}>
-        
         <div 
           onClick={() => setIsHistoryOpen(!isHistoryOpen)}
           style={{ 
-            display: 'inline-flex', 
-            alignItems: 'center', 
-            gap: '8px',
-            background: 'rgba(255,255,255,0.03)', 
-            border: '1px solid rgba(255,255,255,0.05)', 
-            borderRadius: '16px', 
-            padding: '10px 16px',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            color: isHistoryOpen ? '#00e676' : '#d4d4d8',
-            boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+            display: 'inline-flex', alignItems: 'center', gap: '8px',
+            background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', 
+            borderRadius: '16px', padding: '10px 16px', cursor: 'pointer', transition: 'all 0.2s',
+            color: isHistoryOpen ? '#00e676' : '#d4d4d8', boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
           }}
           onMouseEnter={(e)=> { if(!isHistoryOpen) { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#fff'; }}}
           onMouseLeave={(e)=> { if(!isHistoryOpen) { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.color = '#d4d4d8'; }}}
@@ -115,7 +103,6 @@ export default function CommandPanel({
           </svg>
         </div>
 
-        {/* Return to Chat Button (Only shows when in data mode) */}
         {commandTab === 'data' && (
           <div 
             onClick={() => setCommandTab('chat')}
@@ -128,7 +115,6 @@ export default function CommandPanel({
           </div>
         )}
 
-        {/* History Dropdown */}
         {isHistoryOpen && (
           <div style={{ position: 'absolute', top: '70px', left: '24px', width: '300px', background: 'rgba(6, 15, 12, 0.95)', backdropFilter: 'blur(30px)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '12px', zIndex: 100, boxShadow: '0 20px 40px rgba(0,0,0,0.8)', animation: 'fadeIn 0.2s ease-out', display: 'flex', flexDirection: 'column' }}>
              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.04)', marginBottom: '8px' }}>
@@ -150,17 +136,11 @@ export default function CommandPanel({
         )}
       </div>
 
-      {/* ========================================== */}
-      {/* 2. MAIN CONTENT AREA                       */}
-      {/* ========================================== */}
       {commandTab === 'data' && isDataGenerated ? (
         <DataOverviewTab setCommandTab={setCommandTab} setCanvasMode={setCanvasMode} activeTourNode={activeTourNode} scanData={scanData} contextHub={contextHub} />
       ) : (
         <div style={{ flex: 1, overflowY: 'auto', padding: '0 24px 20px 24px', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
           
-          {/* ========================================== */}
-          {/* 3. HERO SECTION (Green Text & Center Icon) */}
-          {/* ========================================== */}
           {chatHistory.length === 0 && !isSearching && (
             <div style={{ marginTop: 'auto', marginBottom: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: '20px' }}>
               
@@ -177,7 +157,6 @@ export default function CommandPanel({
                 What would you like to discover now?
               </p>
 
-              {/* Bento Grid */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', width: '100%', maxWidth: '440px' }}>
                 {presetPrompts.map((preset, idx) => (
                   <div 
@@ -193,13 +172,7 @@ export default function CommandPanel({
                       background: hoveredPill === idx ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.02)', 
                       border: '1px solid',
                       borderColor: hoveredPill === idx ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)',
-                      borderRadius: '16px', 
-                      padding: '16px', 
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '6px'
+                      borderRadius: '16px', padding: '16px', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: '6px'
                     }}
                   >
                     <div style={{ fontSize: '13px', color: hoveredPill === idx ? '#fff' : '#e4e4e7', fontWeight: '600', lineHeight: '1.4' }}>{preset.title}</div>
@@ -210,23 +183,13 @@ export default function CommandPanel({
             </div>
           )}
 
-          {/* ========================================== */}
-          {/* 4. CHAT FEED                               */}
-          {/* ========================================== */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', paddingTop: chatHistory.length > 0 ? '24px' : '0' }}>
             {chatHistory.map((msg, idx) => (
               <div key={idx} style={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '85%' }}>
                 {msg.role === 'user' ? (
                   <div style={{ 
-                    background: 'rgba(0, 230, 118, 0.08)', 
-                    border: '1px solid rgba(0, 230, 118, 0.15)', 
-                    backdropFilter: 'blur(10px)',
-                    padding: '12px 18px', 
-                    borderRadius: '16px 16px 4px 16px', 
-                    color: '#fff', 
-                    fontSize: '14px', 
-                    fontWeight: '500', 
-                    lineHeight: '1.5'
+                    background: 'rgba(0, 230, 118, 0.08)', border: '1px solid rgba(0, 230, 118, 0.15)', backdropFilter: 'blur(10px)',
+                    padding: '12px 18px', borderRadius: '16px 16px 4px 16px', color: '#fff', fontSize: '14px', fontWeight: '500', lineHeight: '1.5'
                   }}>
                     {msg.content}
                   </div>
@@ -272,9 +235,6 @@ export default function CommandPanel({
         </div>
       )}
 
-      {/* ========================================== */}
-      {/* 5. FLOATING CHAT INPUT                     */}
-      {/* ========================================== */}
       {commandTab === 'chat' && (
         <div style={{ padding: '0 24px 24px 24px', background: 'linear-gradient(to top, #040a08 80%, transparent)', zIndex: 10 }}>
           <form onSubmit={handlePromptSubmit} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -285,18 +245,8 @@ export default function CommandPanel({
               placeholder="Ask Street AI..."
               disabled={isSearching}
               style={{
-                width: '100%',
-                background: 'rgba(255,255,255,0.02)',
-                border: '1px solid #00e676',
-                boxShadow: '0 0 10px rgba(0, 230, 118, 0.1)',
-                borderRadius: '24px',
-                padding: '14px 48px 14px 20px',
-                color: '#fff',
-                fontSize: '14px',
-                fontWeight: '500',
-                outline: 'none',
-                fontFamily: sans,
-                transition: 'box-shadow 0.3s'
+                width: '100%', background: 'rgba(255,255,255,0.02)', border: '1px solid #00e676', boxShadow: '0 0 10px rgba(0, 230, 118, 0.1)',
+                borderRadius: '24px', padding: '14px 48px 14px 20px', color: '#fff', fontSize: '14px', fontWeight: '500', outline: 'none', fontFamily: sans, transition: 'box-shadow 0.3s'
               }}
               onFocus={(e) => e.target.style.boxShadow = '0 0 15px rgba(0, 230, 118, 0.2)'}
               onBlur={(e) => e.target.style.boxShadow = '0 0 10px rgba(0, 230, 118, 0.1)'}
@@ -305,18 +255,9 @@ export default function CommandPanel({
               type="submit"
               disabled={isSearching || !inputValue.trim()}
               style={{
-                position: 'absolute',
-                right: '8px',
-                width: '34px',
-                height: '34px',
-                background: inputValue.trim() ? '#18181b' : 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: inputValue.trim() ? 'pointer' : 'default',
-                transition: 'all 0.2s'
+                position: 'absolute', right: '8px', width: '34px', height: '34px',
+                background: inputValue.trim() ? '#18181b' : 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: inputValue.trim() ? 'pointer' : 'default', transition: 'all 0.2s'
               }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={inputValue.trim() ? '#fff' : '#52525b'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
@@ -328,7 +269,6 @@ export default function CommandPanel({
         </div>
       )}
 
-      {/* Embedded Animations */}
       <style>{`
         @keyframes spin { 100% { transform: rotate(360deg); } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
