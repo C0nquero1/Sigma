@@ -130,10 +130,24 @@ export default function MapCanvas({
   // BASEMAP STYLES (Streets & Names Fully Visible)
   // ==========================================
   const cartoDarkStyle = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+  
+  // Esri World Imagery: Enterprise-grade satellite, no Google watermarks, compliant for raw tile usage
   const maxarSatelliteStyle = {
     version: 8,
-    sources: { 'google-satellite': { type: 'raster', tiles: ['https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'], tileSize: 256 } },
-    layers: [{ id: 'google-satellite-layer', type: 'raster', source: 'google-satellite', minzoom: 0, maxzoom: 22 }]
+    sources: { 
+      'esri-satellite': { 
+        type: 'raster', 
+        tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], 
+        tileSize: 256 
+      } 
+    },
+    layers: [{ 
+      id: 'esri-satellite-layer', 
+      type: 'raster', 
+      source: 'esri-satellite', 
+      minzoom: 0, 
+      maxzoom: 22 
+    }]
   };
 
   // ==========================================
