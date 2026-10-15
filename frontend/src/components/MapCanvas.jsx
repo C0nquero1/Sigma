@@ -69,25 +69,17 @@ export default function MapCanvas({
   // ==========================================
   // MAP DATA GENERATORS (Geofence & Hex Grid)
   // ==========================================
+  // Geofence is strictly a polygon shape with lines, NO round dots.
   const generateGeofence = (lng = targetCoords.lng, lat = targetCoords.lat) => ({
     type: 'Feature',
     geometry: {
       type: 'Polygon',
       coordinates: [[
-        [lng - 0.04, lat - 0.03], [lng + 0.04, lat - 0.03], 
-        [lng + 0.05, lat + 0.02], [lng + 0.02, lat + 0.05], 
-        [lng - 0.03, lat + 0.04], [lng - 0.04, lat - 0.03]
+        [lng - 0.05, lat - 0.04], [lng + 0.05, lat - 0.04], 
+        [lng + 0.06, lat + 0.02], [lng + 0.02, lat + 0.06], 
+        [lng - 0.04, lat + 0.05], [lng - 0.05, lat - 0.04]
       ]]
     }
-  });
-
-  const generateGeofencePoints = (lng = targetCoords.lng, lat = targetCoords.lat) => ({
-    type: 'FeatureCollection',
-    features: [
-      [lng - 0.04, lat - 0.03], [lng + 0.04, lat - 0.03], 
-      [lng + 0.05, lat + 0.02], [lng + 0.02, lat + 0.05], 
-      [lng - 0.03, lat + 0.04]
-    ].map(coord => ({ type: 'Feature', geometry: { type: 'Point', coordinates: coord } }))
   });
 
   const generateValgoGrid = (centerLng = targetCoords.lng, centerLat = targetCoords.lat, query = searchQuery) => {
@@ -103,7 +95,6 @@ export default function MapCanvas({
       for (let y = -count; y <= count; y++) {
         const lng = centerLng + (x * spacing);
         const lat = centerLat + (y * spacing);
-        
         const dist = Math.sqrt(x*x + y*y);
         const organicNoise = Math.sin((x + seed) * 0.3) * Math.cos((y + seed) * 0.3) * 6;
         const structuralNoise = Math.sin((x + y) * 0.5) * 4;
@@ -136,43 +127,35 @@ export default function MapCanvas({
   };
 
   // ==========================================
-  // BASEMAP STYLES (Streets & Names Fully Visible)
+  // BASEMAP STYLES
   // ==========================================
   const cartoDarkStyle = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
-  
   const maxarSatelliteStyle = {
     version: 8,
     sources: { 'google-satellite': { type: 'raster', tiles: ['https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'], tileSize: 256 } },
     layers: [{ id: 'google-satellite-layer', type: 'raster', source: 'google-satellite', minzoom: 0, maxzoom: 22 }]
   };
 
-  // Robust function to explicitly inject our custom data layers after style swaps
+  // Robust function to instantly redraw our custom layers (Fixes Satellite dropout)
   const addCustomLayers = (map) => {
-    if (!map) return;
+    if (!map || !map.getStyle()) return;
+    
     if (!map.getSource('geofence')) {
       map.addSource('geofence', { type: 'geojson', data: generateGeofence() });
-      map.addSource('geofence-points', { type: 'geojson', data: generateGeofencePoints() });
-      
-      map.addLayer({
-        id: 'geofence-fill', type: 'fill', source: 'geofence',
-        paint: { 'fill-color': '#00e676', 'fill-opacity': isDataGenerated ? 0.15 : 0 }
-      });
-      map.addLayer({
-        id: 'geofence-line', type: 'line', source: 'geofence',
-        paint: { 'line-color': '#00e676', 'line-width': 3, 'line-dasharray': [4, 4], 'line-opacity': isDataGenerated ? 1.0 : 0 }
-      });
-      map.addLayer({
-        id: 'geofence-vertices', type: 'circle', source: 'geofence-points',
-        paint: { 'circle-radius': 4, 'circle-color': '#ffffff', 'circle-stroke-width': 2, 'circle-stroke-color': '#00e676', 'circle-opacity': isDataGenerated ? 1.0 : 0 }
-      });
+    }
+    if (!map.getLayer('geofence-fill')) {
+      map.addLayer({ id: 'geofence-fill', type: 'fill', source: 'geofence', paint: { 'fill-color': '#00e676', 'fill-opacity': isDataGenerated ? 0.1 : 0 } });
+    }
+    if (!map.getLayer('geofence-line')) {
+      // Bold polygon line, no dots
+      map.addLayer({ id: 'geofence-line', type: 'line', source: 'geofence', paint: { 'line-color': '#00e676', 'line-width': 4, 'line-dasharray': [2, 2], 'line-opacity': isDataGenerated ? 1.0 : 0 } });
     }
 
     if (!map.getSource('valgo-grid')) {
       map.addSource('valgo-grid', { type: 'geojson', data: generateValgoGrid() });
-      map.addLayer({
-        id: 'valgo-grid-layer', type: 'fill', source: 'valgo-grid',
-        paint: { 'fill-color': ['get', 'color'], 'fill-opacity': isDataGenerated ? 0.85 : 0.0, 'fill-outline-color': 'rgba(0,0,0,0)' }
-      });
+    }
+    if (!map.getLayer('valgo-grid-layer')) {
+      map.addLayer({ id: 'valgo-grid-layer', type: 'fill', source: 'valgo-grid', paint: { 'fill-color': ['get', 'color'], 'fill-opacity': isDataGenerated ? 0.85 : 0.0, 'fill-outline-color': 'rgba(0,0,0,0)' } });
     }
   };
 
@@ -195,8 +178,8 @@ export default function MapCanvas({
 
       mapRef.current = map;
       map.on('zoom', () => setCurrentZoom(map.getZoom()));
-
-      // Reliable style load injection
+      
+      // Ensure layers apply when style loads
       map.on('style.load', () => addCustomLayers(map));
 
       // Continuous SVG Projection Logic for Flowmap
@@ -220,15 +203,10 @@ export default function MapCanvas({
 
         const setCurvedEdge = (id, pStart, pEnd, curveOffset) => {
           const edge = document.getElementById(`edge-${id}`);
-          const track = document.getElementById(`edge-track-${id}`);
           if (!edge || !pStart || !pEnd || isNaN(pStart.x) || isNaN(pEnd.x)) return;
-          
           const cx = (pStart.x + pEnd.x) / 2 + curveOffset;
           const cy = (pStart.y + pEnd.y) / 2 + curveOffset;
-          const path = `M ${pStart.x},${pStart.y} Q ${cx},${cy} ${pEnd.x},${pEnd.y}`;
-          
-          edge.setAttribute('d', path);
-          if (track) track.setAttribute('d', path);
+          edge.setAttribute('d', `M ${pStart.x},${pStart.y} Q ${cx},${cy} ${pEnd.x},${pEnd.y}`);
         };
 
         setCurvedEdge('e1', p1, pHub, 40);
@@ -259,39 +237,36 @@ export default function MapCanvas({
     };
   }, []);
 
-  // Update map style dynamically and re-add layers to preserve Heatmap on Satellite
+  // Guarantee layers re-add on map style switch (Fixes Satellite missing heatmap)
   useEffect(() => {
-    if (mapRef.current && mapRef.current.isStyleLoaded()) {
+    if (mapRef.current) {
        mapRef.current.setStyle(mapStyle === 'Satellite' ? maxarSatelliteStyle : cartoDarkStyle);
-       mapRef.current.once('style.load', () => {
-          addCustomLayers(mapRef.current);
-       });
+       mapRef.current.once('style.load', () => addCustomLayers(mapRef.current));
     }
   }, [mapStyle]);
 
-  // Handle Interactive Polygon Tool Zooming
+  // Handle Interactive Polygon/Rectangle Tools (Zooms in when active)
   useEffect(() => {
      if ((activeTool === 'poly' || activeTool === 'rect') && isDataGenerated && mapRef.current) {
-         // Drawing active: Zoom in to reveal specifics!
          mapRef.current.flyTo({ zoom: 12.5, pitch: 45, speed: 1.2 });
      } else if (!activeTool && !isPlaying && isDataGenerated && mapRef.current) {
-         // Tool deactivated: Zoom out to macro view
          mapRef.current.flyTo({ zoom: 10.2, pitch: 45, speed: 1.2 });
      }
   }, [activeTool, isDataGenerated, isPlaying]);
 
   const isTouring = tourStep >= 0;
-  // Flowmap.blue appears when playing, using polygon tool, or manually zoomed in
-  const isZoomedIn = currentZoom >= 11.5 || isPlaying || activeTool !== null;
+  
+  // Logic to show Flowmap (when zoomed in)
+  const isZoomedIn = currentZoom >= 11.0 || isPlaying || activeTool !== null;
   
   useEffect(() => {
     if (mapRef.current && mapRef.current.getLayer('valgo-grid-layer')) {
-      mapRef.current.setPaintProperty('valgo-grid-layer', 'fill-opacity', isDataGenerated ? (isZoomedIn ? 0.2 : 0.85) : 0.0);
+      mapRef.current.setPaintProperty('valgo-grid-layer', 'fill-opacity', isDataGenerated ? (isZoomedIn ? 0.15 : 0.85) : 0.0);
     }
   }, [isDataGenerated, isZoomedIn]);
 
   // ==========================================
-  // PERFECTED AUTO-RESET & PAUSE CINEMATIC TOUR
+  // PERFECTED TRUE PAUSE & AUTO-RESET CINEMATIC TOUR
   // ==========================================
   useEffect(() => {
     let interval;
@@ -315,6 +290,7 @@ export default function MapCanvas({
           if (next >= cinematicNodes.length) {
             setIsPlaying(false);
             if(setActiveTourNode) setActiveTourNode(null);
+            // Fly back to Macro View ready to play again
             mapRef.current.flyTo({ center: [cinematicNodes[0].lng, cinematicNodes[0].lat], zoom: cinematicNodes[0].zoom, pitch: cinematicNodes[0].pitch, speed: 1.0, curve: 1.2 });
             return -1; 
           }
@@ -326,8 +302,9 @@ export default function MapCanvas({
       }, 7000);
       
     }
+    // Clicking pause simply clears the interval. It does NOT reset tourStep or camera!
     return () => clearInterval(interval);
-  }, [isPlaying, isDataGenerated, cinematicNodes, setActiveTourNode, tourStep]);
+  }, [isPlaying, isDataGenerated, cinematicNodes, setActiveTourNode]);
 
   const currentDescription = (tourStep >= 0 && tourStep < cinematicNodes.length)
     ? cinematicNodes[tourStep].description 
@@ -357,7 +334,7 @@ export default function MapCanvas({
       <div style={{ position: 'absolute', inset: 0, background: 'rgba(0, 230, 118, 0.05)', mixBlendMode: 'overlay', pointerEvents: 'none', zIndex: 3 }} />
 
       {/* ========================================== */}
-      {/* VIBRANT FLOWMAP.BLUE AESTHETIC             */}
+      {/* VIBRANT FLOWMAP.BLUE ARROWS (FIXED VISIBILITY)*/}
       {/* ========================================== */}
       <svg ref={svgRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 10, pointerEvents: 'none', overflow: 'visible', opacity: (isDataGenerated && isZoomedIn) ? 1 : 0, transition: 'opacity 0.6s ease-in-out' }}>
          <defs>
@@ -367,23 +344,18 @@ export default function MapCanvas({
            <marker id="arrow-yellow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#facc15" /></marker>
          </defs>
          <g>
-             {/* Dim Base Tracks */}
-             <path id="edge-track-e1" fill="none" stroke="#ffffff" strokeWidth="4" opacity="0.15" strokeLinecap="round" />
-             <path id="edge-track-e3" fill="none" stroke="#a5f3fc" strokeWidth="3" opacity="0.15" strokeLinecap="round" />
-             <path id="edge-track-e5" fill="none" stroke="#1e3a8a" strokeWidth="2" opacity="0.15" strokeLinecap="round" />
-             
              {/* Highly Visible Kinetic Arrows */}
-             <path id="edge-e1" fill="none" stroke="#ffffff" strokeWidth="3.5" opacity="1.0" strokeDasharray="15 15" markerEnd="url(#arrow-cyan)" style={{ animation: (isPlaying || activeTool) ? 'flowDash 1.5s linear infinite' : 'none' }} />
+             <path id="edge-e1" fill="none" stroke="#ffffff" strokeWidth="3.5" opacity="1.0" strokeDasharray="15 15" markerEnd="url(#arrow-cyan)" style={{ animation: (isPlaying || isZoomedIn) ? 'flowDash 1.5s linear infinite' : 'none' }} />
              <path id="edge-e2" fill="none" stroke="#a5f3fc" strokeWidth="2.5" opacity="0.9" strokeDasharray="4 4" />
-             <path id="edge-e3" fill="none" stroke="#ffffff" strokeWidth="3.0" opacity="1.0" strokeDasharray="15 15" markerEnd="url(#arrow-cyan)" style={{ animation: (isPlaying || activeTool) ? 'flowDash 2s linear infinite' : 'none' }} />
+             <path id="edge-e3" fill="none" stroke="#ffffff" strokeWidth="3.0" opacity="1.0" strokeDasharray="15 15" markerEnd="url(#arrow-cyan)" style={{ animation: (isPlaying || isZoomedIn) ? 'flowDash 2s linear infinite' : 'none' }} />
              <path id="edge-e4" fill="none" stroke="#a5f3fc" strokeWidth="2.0" opacity="0.8" />
-             <path id="edge-e5" fill="none" stroke="#a5f3fc" strokeWidth="2.5" opacity="1.0" strokeDasharray="15 15" markerEnd="url(#arrow-yellow)" style={{ animation: (isPlaying || activeTool) ? 'flowDash 2.5s linear infinite' : 'none' }} />
+             <path id="edge-e5" fill="none" stroke="#a5f3fc" strokeWidth="2.5" opacity="1.0" strokeDasharray="15 15" markerEnd="url(#arrow-yellow)" style={{ animation: (isPlaying || isZoomedIn) ? 'flowDash 2.5s linear infinite' : 'none' }} />
              <path id="edge-e6" fill="none" stroke="#1e3a8a" strokeWidth="2.0" opacity="0.8" />
              <path id="edge-e7" fill="none" stroke="#a5f3fc" strokeWidth="1.5" opacity="0.7" strokeDasharray="2 6" />
 
              {/* White Nodes */}
              {flowmapNodes.map((n) => (
-                <circle key={n.id} id={`node-${n.id}`} r={n.r} fill="#ffffff" stroke="rgba(0, 230, 118, 0.5)" strokeWidth="2" />
+                <circle key={n.id} id={`node-${n.id}`} r={n.r} fill="#ffffff" stroke="#00e676" strokeWidth="2" />
              ))}
          </g>
       </svg>
@@ -398,6 +370,7 @@ export default function MapCanvas({
         <button onClick={() => setCanvasMode('analysis')} style={{ padding: '5px 14px', borderRadius: '16px', border: 'none', fontSize: '10px', fontWeight: '700', cursor: 'pointer', background: canvasMode === 'analysis' ? 'rgba(255,255,255,0.1)' : 'transparent', color: canvasMode === 'analysis' ? '#fff' : '#a1a1aa', transition: 'all 0.2s' }}>Deep Analysis</button>
       </div>
 
+      {/* OVERLAP FIX: Z-Index 150 ensures Map Style Dropdown overlays Description Card */}
       <div style={{ position: 'absolute', top: '16px', right: '16px', display: 'flex', gap: '6px', zIndex: 150 }}>
         <GlassButton onClick={() => { if(mapRef.current) mapRef.current.zoomIn(); }} icon={<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>} text="Zoom in" shortcut="C" />
         <div style={{ position: 'relative' }}>
@@ -418,16 +391,16 @@ export default function MapCanvas({
       {isDataGenerated && (
          <div style={{ 
             position: 'absolute', top: '60px', right: '16px', 
-            width: '190px', // Perfectly scaled down width
+            width: '180px', // Further Shrunk Width
             background: 'rgba(15, 15, 18, 0.85)', backdropFilter: 'blur(20px)', 
-            border: `1px solid ${isPlaying ? '#00e676' : 'rgba(255,255,255,0.08)'}`, 
-            borderRadius: '8px', padding: '10px', zIndex: 40, 
-            boxShadow: isPlaying ? '0 10px 40px rgba(0, 230, 118, 0.15)' : '0 10px 40px rgba(0,0,0,0.5)',
+            border: `1px solid ${isZoomedIn ? '#00e676' : 'rgba(255,255,255,0.08)'}`, 
+            borderRadius: '8px', padding: '8px', zIndex: 40, 
+            boxShadow: isZoomedIn ? '0 10px 40px rgba(0, 230, 118, 0.15)' : '0 10px 40px rgba(0,0,0,0.5)',
             transform: isDataGenerated ? 'translateX(0)' : 'translateX(20px)',
             opacity: isDataGenerated ? 1 : 0, transition: 'all 0.4s ease'
          }}>
-            <div style={{ fontSize: '8px', color: isPlaying ? '#00e676' : '#a5f3fc', fontWeight: '700', fontFamily: mono, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: isPlaying ? '#00e676' : '#a5f3fc' }} />
+            <div style={{ fontSize: '8px', color: isZoomedIn ? '#00e676' : '#a5f3fc', fontWeight: '700', fontFamily: mono, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: isZoomedIn ? '#00e676' : '#a5f3fc' }} />
               Description:
             </div>
             <div style={{ fontSize: '9px', color: '#d4d4d8', lineHeight: '1.4', fontWeight: '500' }}>
@@ -444,7 +417,7 @@ export default function MapCanvas({
         position: 'absolute', bottom: '48px', left: '16px', 
         background: 'rgba(15, 15, 18, 0.85)', backdropFilter: 'blur(12px)',
         border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', 
-        padding: '8px', width: '190px', zIndex: 40,
+        padding: '8px', width: '180px', zIndex: 40, // Shrunk Width & Padding
         opacity: isDataGenerated ? 1 : 0, transition: 'opacity 0.4s ease'
       }}>
          <div style={{ color: '#a1a1aa', fontSize: '6px', textTransform: 'uppercase', fontFamily: mono, fontWeight: '700', letterSpacing: '0.5px', marginBottom: '6px' }}>
