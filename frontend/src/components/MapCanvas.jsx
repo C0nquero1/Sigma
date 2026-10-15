@@ -136,6 +136,12 @@ export default function MapCanvas({
     layers: [{ id: 'google-satellite-layer', type: 'raster', source: 'google-satellite', minzoom: 0, maxzoom: 22 }]
   };
 
+  // ==========================================
+  // DEFINE STATES & FIX STALE CLOSURES
+  // ==========================================
+  const isTouring = tourStep >= 0;
+  const isZoomedIn = currentZoom >= 11.0 || isPlaying || activeTool !== null;
+
   // This ref guarantees the map NEVER uses stale memory when rebuilding layers
   const stateRef = useRef({ isDataGenerated, isZoomedIn });
   useEffect(() => {
@@ -259,8 +265,6 @@ export default function MapCanvas({
   // ==========================================
   // PERFECTED STYLE SWITCHER & LAYER RESTORER (IDLE-EVENT BYPASS)
   // ==========================================
-  const isTouring = tourStep >= 0;
-  const isZoomedIn = currentZoom >= 11.0 || isPlaying || activeTool !== null;
 
   // 1. Live State Ref guarantees the absolute freshest data is used
   const liveStateRef = useRef({ isDataGenerated, isZoomedIn, targetCoords, searchQuery });
