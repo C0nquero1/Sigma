@@ -127,7 +127,7 @@ export default function MapCanvas({
   };
 
   // ==========================================
-  // BASEMAP STYLES
+  // BASEMAP STYLES (Streets & Names Fully Visible)
   // ==========================================
   const cartoDarkStyle = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
   const maxarSatelliteStyle = {
@@ -136,56 +136,51 @@ export default function MapCanvas({
     layers: [{ id: 'google-satellite-layer', type: 'raster', source: 'google-satellite', minzoom: 0, maxzoom: 22 }]
   };
 
-  // Robust function to explicitly inject our custom data layers
-  const addCustomLayers = (map) => {
-    if (!map || !map.getStyle()) return;
+  // ==========================================
+  // DEFINE STATES & FIX STALE CLOSURES
+  // ==========================================
+  const isTouring = tourStep >= 0;
+  const isZoomedIn = currentZoom >= 11.0 || isPlaying || activeTool !== null;
+
+  // This ref guarantees the map NEVER uses stale memory when rebuilding layers
+  const stateRef = useRef({ isDataGenerated, isZoomedIn });
+  useEffect(() => {
+    stateRef.current = { isDataGenerated, isZoomedIn };
+  }, [isDataGenerated, isZoomedIn]);
+
+  // Robust master function to instantly rebuild layers AND enforce correct opacities
+  const enforceMapLayers = (map) => {
+    if (!map || !map.isStyleLoaded()) return;
+
+    // Pull the absolute freshest state from the ref
+    const { isDataGenerated: dataGen, isZoomedIn: zoomed } = stateRef.current;
     
-    if (!map.getSource('geofence')) {
-      map.addSource('geofence', { type: 'geojson', data: generateGeofence() });
-    }
-    
-    // 1. The Geofence Fill
+    const gridOpacity = dataGen ? (zoomed ? 0.15 : 0.85) : 0.0;
+    const geoOpacity = dataGen ? 1.0 : 0.0;
+    const geoFillOpacity = dataGen ? 0.15 : 0.0;
+
+    if (!map.getSource('geofence')) map.addSource('geofence', { type: 'geojson', data: generateGeofence() });
+    if (!map.getSource('valgo-grid')) map.addSource('valgo-grid', { type: 'geojson', data: generateValgoGrid() });
+
+    // Geofence Fill
     if (!map.getLayer('geofence-fill')) {
-      map.addLayer({ 
-        id: 'geofence-fill', 
-        type: 'fill', 
-        source: 'geofence', 
-        paint: { 
-          'fill-color': '#00e676', 
-          'fill-opacity': 0 // ALWAYS initialize hidden
-        } 
-      });
-    }
-    
-    // 2. The Geofence Line (Solid, sleek line shape, no round stuffs)
-    if (!map.getLayer('geofence-line')) {
-      map.addLayer({ 
-        id: 'geofence-line', 
-        type: 'line', 
-        source: 'geofence', 
-        paint: { 
-          'line-color': '#00e676', 
-          'line-width': 3, 
-          'line-opacity': 0 // ALWAYS initialize hidden
-        } 
-      });
+      map.addLayer({ id: 'geofence-fill', type: 'fill', source: 'geofence', paint: { 'fill-color': '#00e676', 'fill-opacity': geoFillOpacity } });
+    } else {
+      map.setPaintProperty('geofence-fill', 'fill-opacity', geoFillOpacity);
     }
 
-    // 3. Valgo Hex Grid
-    if (!map.getSource('valgo-grid')) {
-      map.addSource('valgo-grid', { type: 'geojson', data: generateValgoGrid() });
+    // Geofence Line (Sleek line, NO round dots)
+    if (!map.getLayer('geofence-line')) {
+      map.addLayer({ id: 'geofence-line', type: 'line', source: 'geofence', paint: { 'line-color': '#00e676', 'line-width': 3, 'line-opacity': geoOpacity } });
+    } else {
+      map.setPaintProperty('geofence-line', 'line-opacity', geoOpacity);
     }
+
+    // Valgo Hex Grid
     if (!map.getLayer('valgo-grid-layer')) {
-      map.addLayer({ 
-        id: 'valgo-grid-layer', 
-        type: 'fill', 
-        source: 'valgo-grid', 
-        paint: { 
-          'fill-color': ['get', 'color'], 
-          'fill-opacity': 0, // ALWAYS initialize hidden
-          'fill-outline-color': 'rgba(0,0,0,0)' 
-        } 
-      });
+      map.addLayer({ id: 'valgo-grid-layer', type: 'fill', source: 'valgo-grid', paint: { 'fill-color': ['get', 'color'], 'fill-opacity': gridOpacity, 'fill-outline-color': 'rgba(0,0,0,0)' } });
+    } else {
+      map.setPaintProperty('valgo-grid-layer', 'fill-opacity', gridOpacity);
     }
   };
 
@@ -209,8 +204,8 @@ export default function MapCanvas({
       mapRef.current = map;
       map.on('zoom', () => setCurrentZoom(map.getZoom()));
       
-      // Ensure layers apply when style loads
-      map.on('style.load', () => addCustomLayers(map));
+      // Ensure layers apply when style loads initially
+      map.on('style.load', () => enforceMapLayers(map));
 
       // Continuous SVG Projection Logic for Flowmap
       map.on('render', () => {
@@ -268,64 +263,32 @@ export default function MapCanvas({
   }, []);
 
   // ==========================================
-  // 1. MAP STYLE SWITCHER
+  // MAP STYLE SWITCHER & OPACITY CONTROLLER
   // ==========================================
+  
+  // 1. Handle Style Switches (Instantly forces redraw using the master function)
   useEffect(() => {
     if (mapRef.current) {
        mapRef.current.setStyle(mapStyle === 'Satellite' ? maxarSatelliteStyle : cartoDarkStyle);
-       
        mapRef.current.once('style.load', () => {
-          addCustomLayers(mapRef.current);
-          window.dispatchEvent(new Event('styleRebuilt'));
+          enforceMapLayers(mapRef.current);
        });
     }
   }, [mapStyle]);
 
-  // ==========================================
-  // 2. DEFINE STATES FIRST (Fixes ReferenceError)
-  // ==========================================
-  const isTouring = tourStep >= 0;
-  const isZoomedIn = currentZoom >= 11.0 || isPlaying || activeTool !== null;
-
-  // ==========================================
-  // 3. LAYER OPACITY CONTROLLER 
-  // ==========================================
+  // 2. Continually sync opacities when zooming or prompting
   useEffect(() => {
-    const updateOpacities = () => {
-      if (!mapRef.current) return;
-      
-      // Valgo Hex Grid Visibility
-      if (mapRef.current.getLayer('valgo-grid-layer')) {
-        mapRef.current.setPaintProperty(
-          'valgo-grid-layer', 
-          'fill-opacity', 
-          isDataGenerated ? (isZoomedIn ? 0.15 : 0.85) : 0.0
-        );
-      }
-      
-      // Sleek Geofence Polygon Visibility
-      if (mapRef.current.getLayer('geofence-line')) {
-        mapRef.current.setPaintProperty(
-          'geofence-line', 
-          'line-opacity', 
-          isDataGenerated ? 1.0 : 0.0
-        );
-      }
-      if (mapRef.current.getLayer('geofence-fill')) {
-        mapRef.current.setPaintProperty(
-          'geofence-fill', 
-          'fill-opacity', 
-          isDataGenerated ? 0.15 : 0.0
-        );
-      }
-    };
-
-    updateOpacities();
-
-    window.addEventListener('styleRebuilt', updateOpacities);
-    return () => window.removeEventListener('styleRebuilt', updateOpacities);
-    
+    enforceMapLayers(mapRef.current);
   }, [isDataGenerated, isZoomedIn]);
+
+  // Handle Interactive Polygon Tool Zooming
+  useEffect(() => {
+     if ((activeTool === 'poly' || activeTool === 'rect') && isDataGenerated && mapRef.current) {
+         mapRef.current.flyTo({ zoom: 12.5, pitch: 45, speed: 1.2 });
+     } else if (!activeTool && !isPlaying && isDataGenerated && mapRef.current) {
+         mapRef.current.flyTo({ zoom: 10.2, pitch: 45, speed: 1.2 });
+     }
+  }, [activeTool, isDataGenerated, isPlaying]);
 
   // ==========================================
   // PERFECTED TRUE PAUSE & AUTO-RESET CINEMATIC TOUR
