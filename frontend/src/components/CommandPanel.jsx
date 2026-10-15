@@ -60,7 +60,7 @@ export default function CommandPanel({
 
   // Dynamic Background Logic: Returns to pure black (#050505) once the user prompts
   const hasPrompted = chatHistory.length > 0 || isSearching || isDataGenerated;
-  const currentBgColor = hasPrompted ? '#050505' : '#040a08';
+  const currentBgColor = hasPrompted ? '#020504' : '#030705';
 
   return (
     <div style={{ 
