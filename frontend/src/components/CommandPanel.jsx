@@ -70,12 +70,12 @@ export default function CommandPanel({
       overflow: 'hidden' 
     }}>
       
-      {/* Top-to-Center Green Fade Gradient */}
+      {/* Top-to-Center Green Fade Gradient (Slightly darker opacity at 0.045) */}
       {commandTab === 'chat' && (
         <div style={{ 
           position: 'absolute', 
           top: 0, left: 0, right: 0, height: '60%', 
-          background: 'linear-gradient(180deg, rgba(0, 230, 118, 0.08) 0%, rgba(4, 10, 8, 1) 90%, rgba(4, 10, 8, 1) 100%)',
+          background: 'linear-gradient(180deg, rgba(0, 230, 118, 0.045) 0%, rgba(4, 10, 8, 1) 80%, rgba(4, 10, 8, 1) 100%)',
           pointerEvents: 'none',
           zIndex: 0
         }} />
@@ -88,7 +88,6 @@ export default function CommandPanel({
       {/* ========================================== */}
       <div style={{ padding: '24px 24px 0 24px', zIndex: 50, position: 'relative', display: 'flex', justifyContent: 'space-between' }}>
         
-        {/* Restored wide pill shape matching the reference image */}
         <div 
           onClick={() => setIsHistoryOpen(!isHistoryOpen)}
           style={{ 
@@ -171,12 +170,11 @@ export default function CommandPanel({
                 </svg>
               </div>
 
-              {/* Exact match to reference: What's up, Founder. (Founder is green) */}
               <h1 style={{ fontSize: '32px', fontWeight: '800', color: '#fff', letterSpacing: '-0.5px', margin: '0 0 8px 0', textAlign: 'center' }}>
                 What's up, <span style={{ color: '#00e676' }}>Founder.</span>
               </h1>
               <p style={{ fontSize: '14px', color: '#a1a1aa', fontWeight: '500', marginBottom: '40px', textAlign: 'center' }}>
-                Deploy an intelligence agent to map spatial liquidity.
+                What would you like to discover now?
               </p>
 
               {/* Bento Grid */}

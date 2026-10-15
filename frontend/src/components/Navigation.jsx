@@ -17,7 +17,6 @@ const NavItem = ({ icon, label, isActive, onClick, navExpanded }) => {
         width: navExpanded ? 'auto' : '44px',
         height: '44px',
         padding: navExpanded ? '0 14px' : '0',
-        /* Removed the cramped margin, we now use flex gaps in the parent container */
         margin: navExpanded ? '0 12px' : '0 auto', 
         justifyContent: navExpanded ? 'flex-start' : 'center',
         cursor: 'pointer',
@@ -96,7 +95,7 @@ export default function Navigation({ navExpanded, setNavExpanded, activePage, se
           justifyContent: navExpanded ? 'flex-start' : 'center',
           cursor: 'pointer',
           borderBottom: '1px solid rgba(255,255,255,0.03)',
-          marginBottom: '24px' // Added more space below header
+          marginBottom: '40px' // Increased spacing below logo to match reference
         }}
       >
         <div style={{ position: 'relative', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -124,9 +123,8 @@ export default function Navigation({ navExpanded, setNavExpanded, activePage, se
         )}
       </div>
 
-      {/* 2. PRIMARY NAVIGATION (Properly Spaced) */}
-      {/* Increased the gap to 16px to give the icons professional breathing room */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* 2. PRIMARY NAVIGATION */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}> {/* Increased gap to 24px */}
         <NavItem icon={icons.command} label="Command Deck" isActive={activePage === 'Command'} onClick={() => { setActivePage('Command'); setCanvasMode('map'); }} navExpanded={navExpanded} />
         <NavItem icon={icons.business} label="Business Intel" isActive={activePage === 'Business'} onClick={() => setActivePage('Business')} navExpanded={navExpanded} />
         <NavItem icon={icons.export} label="Export Data" isActive={activePage === 'Export'} onClick={() => setActivePage('Export')} navExpanded={navExpanded} />
@@ -137,7 +135,7 @@ export default function Navigation({ navExpanded, setNavExpanded, activePage, se
       <div style={{ flex: 1 }} />
 
       {/* 3. RESOURCES SECTION (At the bottom) */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '24px' }}> {/* Increased gap to 20px */}
         {navExpanded && (
           <div style={{ padding: '0 26px', fontSize: '10px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px', fontFamily: sans }}>
             Resources
