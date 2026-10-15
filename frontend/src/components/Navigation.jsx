@@ -79,6 +79,7 @@ export default function Navigation({ navExpanded, setNavExpanded, activePage, se
       transition: 'width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)', 
       height: '100vh',
       overflow: 'hidden',
+      paddingBottom: '20px', // Anchor padding for the bottom
       zIndex: 50 
     }}>
       
@@ -95,7 +96,7 @@ export default function Navigation({ navExpanded, setNavExpanded, activePage, se
           justifyContent: navExpanded ? 'flex-start' : 'center',
           cursor: 'pointer',
           borderBottom: '1px solid rgba(255,255,255,0.03)',
-          marginBottom: '40px' // Increased spacing below logo to match reference
+          marginBottom: '32px' // Generous gap below the logo line
         }}
       >
         <div style={{ position: 'relative', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -123,19 +124,19 @@ export default function Navigation({ navExpanded, setNavExpanded, activePage, se
         )}
       </div>
 
-      {/* 2. PRIMARY NAVIGATION */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}> {/* Increased gap to 24px */}
+      {/* 2. PRIMARY NAVIGATION (Massive 36px Gap to match reference) */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '36px' }}>
         <NavItem icon={icons.command} label="Command Deck" isActive={activePage === 'Command'} onClick={() => { setActivePage('Command'); setCanvasMode('map'); }} navExpanded={navExpanded} />
         <NavItem icon={icons.business} label="Business Intel" isActive={activePage === 'Business'} onClick={() => setActivePage('Business')} navExpanded={navExpanded} />
         <NavItem icon={icons.export} label="Export Data" isActive={activePage === 'Export'} onClick={() => setActivePage('Export')} navExpanded={navExpanded} />
         <NavItem icon={icons.api} label="API Keys" isActive={activePage === 'API'} onClick={() => setActivePage('API')} navExpanded={navExpanded} />
       </div>
 
-      {/* FLEX SPACER - Pushes everything below it to the bottom */}
+      {/* FLEX SPACER - Aggressively pushes everything below it to the absolute bottom */}
       <div style={{ flex: 1 }} />
 
-      {/* 3. RESOURCES SECTION (At the bottom) */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '24px' }}> {/* Increased gap to 20px */}
+      {/* 3. RESOURCES SECTION (Wide 32px Gap) */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', marginBottom: '24px' }}>
         {navExpanded && (
           <div style={{ padding: '0 26px', fontSize: '10px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px', fontFamily: sans }}>
             Resources
@@ -147,9 +148,9 @@ export default function Navigation({ navExpanded, setNavExpanded, activePage, se
       </div>
 
       {/* Subtle Divider before Profile */}
-      <div style={{ height: '1px', background: 'rgba(255,255,255,0.04)', margin: '0 12px 16px 12px' }} />
+      <div style={{ height: '1px', background: 'rgba(255,255,255,0.04)', margin: '0 12px 24px 12px' }} />
 
-      {/* 4. USER PROFILE */}
+      {/* 4. USER PROFILE (Anchored firmly at the bottom) */}
       <UserProfile navExpanded={navExpanded} />
 
     </div>
