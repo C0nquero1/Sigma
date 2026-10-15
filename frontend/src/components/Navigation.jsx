@@ -3,7 +3,6 @@ import UserProfile from './UserProfile';
 
 const sans = "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif";
 
-// Refined Nav Item with tighter, bolder active states
 const NavItem = ({ icon, label, isActive, onClick, navExpanded }) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -18,11 +17,11 @@ const NavItem = ({ icon, label, isActive, onClick, navExpanded }) => {
         width: navExpanded ? 'auto' : '44px',
         height: '44px',
         padding: navExpanded ? '0 14px' : '0',
-        margin: navExpanded ? '4px 12px' : '6px auto',
+        /* Removed the cramped margin, we now use flex gaps in the parent container */
+        margin: navExpanded ? '0 12px' : '0 auto', 
         justifyContent: navExpanded ? 'flex-start' : 'center',
         cursor: 'pointer',
         borderRadius: '12px',
-        
         background: isActive 
           ? 'rgba(0, 230, 118, 0.08)' 
           : isHovered 
@@ -30,7 +29,6 @@ const NavItem = ({ icon, label, isActive, onClick, navExpanded }) => {
             : 'transparent',
         border: isActive ? '1px solid rgba(0, 230, 118, 0.3)' : '1px solid transparent',
         boxShadow: isActive ? '0 0 12px rgba(0, 230, 118, 0.1)' : 'none',
-        
         color: isActive ? '#00e676' : isHovered ? '#fff' : '#a1a1aa',
         transition: 'all 0.2s ease',
         fontFamily: sans
@@ -58,11 +56,8 @@ const NavItem = ({ icon, label, isActive, onClick, navExpanded }) => {
 export default function Navigation({ navExpanded, setNavExpanded, activePage, setActivePage, setCanvasMode }) {
   const [logoHovered, setLogoHovered] = useState(false);
 
-  // Upgraded Bolder Icons (strokeWidth: 2.5, dimensions: 22x22)
   const icons = {
-    // New Map Icon for Command Deck
     command: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"></polygon><line x1="9" y1="3" x2="9" y2="18"></line><line x1="15" y1="6" x2="15" y2="21"></line></svg>,
-    // New Stacked Layers Icon for Business Intel
     business: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>,
     export: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"></path><polyline points="8 12 12 16 16 12"></polyline><line x1="12" y1="8" x2="12" y2="16"></line></svg>,
     api: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="18" r="3"></circle><circle cx="6" cy="6" r="3"></circle><path d="M13 6h3a2 2 0 0 1 2 2v7"></path><line x1="6" y1="9" x2="6" y2="21"></line></svg>,
@@ -88,7 +83,7 @@ export default function Navigation({ navExpanded, setNavExpanded, activePage, se
       zIndex: 50 
     }}>
       
-      {/* 1. TOP HEADER: LOGO HOVER */}
+      {/* 1. TOP HEADER */}
       <div 
         onClick={() => setNavExpanded(!navExpanded)}
         onMouseEnter={() => setLogoHovered(true)}
@@ -101,24 +96,11 @@ export default function Navigation({ navExpanded, setNavExpanded, activePage, se
           justifyContent: navExpanded ? 'flex-start' : 'center',
           cursor: 'pointer',
           borderBottom: '1px solid rgba(255,255,255,0.03)',
-          marginBottom: '16px'
+          marginBottom: '24px' // Added more space below header
         }}
       >
-        <div style={{ 
-          position: 'relative', 
-          width: '28px', 
-          height: '28px', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center' 
-        }}>
-          {/* Default Logo Icon */}
-          <div style={{ 
-            position: 'absolute', 
-            opacity: logoHovered ? 0 : 1, 
-            transition: 'opacity 0.2s',
-            color: '#10b981'
-          }}>
+        <div style={{ position: 'relative', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ position: 'absolute', opacity: logoHovered ? 0 : 1, transition: 'opacity 0.2s', color: '#10b981' }}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="url(#logoGrad)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <defs>
                 <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -130,56 +112,34 @@ export default function Navigation({ navExpanded, setNavExpanded, activePage, se
               <line x1="9" y1="3" x2="9" y2="18"></line><line x1="15" y1="6" x2="15" y2="21"></line>
             </svg>
           </div>
-          
-          {/* Hover Menu Icon */}
-          <div style={{ 
-            position: 'absolute', 
-            opacity: logoHovered ? 1 : 0, 
-            transition: 'opacity 0.2s',
-            color: '#fff' 
-          }}>
+          <div style={{ position: 'absolute', opacity: logoHovered ? 1 : 0, transition: 'opacity 0.2s', color: '#fff' }}>
             {navExpanded ? icons.panelToggle : icons.menu}
           </div>
         </div>
 
         {navExpanded && (
-          <div style={{ 
-            marginLeft: '12px', 
-            fontSize: '15px', 
-            fontWeight: '800', 
-            letterSpacing: '-0.5px', 
-            color: '#fff',
-            fontFamily: sans
-          }}>
+          <div style={{ marginLeft: '12px', fontSize: '15px', fontWeight: '800', letterSpacing: '-0.5px', color: '#fff', fontFamily: sans }}>
             Street AI
           </div>
         )}
       </div>
 
-      {/* 2. PRIMARY NAVIGATION */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+      {/* 2. PRIMARY NAVIGATION (Properly Spaced) */}
+      {/* Increased the gap to 16px to give the icons professional breathing room */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <NavItem icon={icons.command} label="Command Deck" isActive={activePage === 'Command'} onClick={() => { setActivePage('Command'); setCanvasMode('map'); }} navExpanded={navExpanded} />
         <NavItem icon={icons.business} label="Business Intel" isActive={activePage === 'Business'} onClick={() => setActivePage('Business')} navExpanded={navExpanded} />
         <NavItem icon={icons.export} label="Export Data" isActive={activePage === 'Export'} onClick={() => setActivePage('Export')} navExpanded={navExpanded} />
         <NavItem icon={icons.api} label="API Keys" isActive={activePage === 'API'} onClick={() => setActivePage('API')} navExpanded={navExpanded} />
       </div>
 
-      {/* FLEX SPACER */}
+      {/* FLEX SPACER - Pushes everything below it to the bottom */}
       <div style={{ flex: 1 }} />
 
-      {/* 3. RESOURCES SECTION */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
+      {/* 3. RESOURCES SECTION (At the bottom) */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
         {navExpanded && (
-          <div style={{ 
-            padding: '0 26px', 
-            fontSize: '10px', 
-            fontWeight: '700', 
-            color: '#555', 
-            textTransform: 'uppercase', 
-            letterSpacing: '1px', 
-            marginBottom: '4px',
-            fontFamily: sans
-          }}>
+          <div style={{ padding: '0 26px', fontSize: '10px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px', fontFamily: sans }}>
             Resources
           </div>
         )}
@@ -189,7 +149,7 @@ export default function Navigation({ navExpanded, setNavExpanded, activePage, se
       </div>
 
       {/* Subtle Divider before Profile */}
-      <div style={{ height: '1px', background: 'rgba(255,255,255,0.04)', margin: '8px 12px 16px 12px' }} />
+      <div style={{ height: '1px', background: 'rgba(255,255,255,0.04)', margin: '0 12px 16px 12px' }} />
 
       {/* 4. USER PROFILE */}
       <UserProfile navExpanded={navExpanded} />
