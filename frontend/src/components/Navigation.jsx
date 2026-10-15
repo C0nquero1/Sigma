@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import UserProfile from './UserProfile';
 
-const sans = "system-ui, -apple-system, sans-serif";
+const sans = "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif";
 
-// Helper Component for Nav Items to handle their own hover states elegantly
+// Refined Nav Item with tighter, bolder active states
 const NavItem = ({ icon, label, isActive, onClick, navExpanded }) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -15,23 +15,23 @@ const NavItem = ({ icon, label, isActive, onClick, navExpanded }) => {
       style={{
         display: 'flex',
         alignItems: 'center',
-        width: navExpanded ? 'auto' : '40px',
-        height: '40px',
+        width: navExpanded ? 'auto' : '44px',
+        height: '44px',
         padding: navExpanded ? '0 14px' : '0',
-        margin: navExpanded ? '4px 12px' : '4px auto',
+        margin: navExpanded ? '4px 12px' : '6px auto',
         justifyContent: navExpanded ? 'flex-start' : 'center',
         cursor: 'pointer',
-        borderRadius: '10px',
+        borderRadius: '12px',
         
         background: isActive 
           ? 'rgba(0, 230, 118, 0.08)' 
           : isHovered 
             ? 'rgba(255,255,255,0.03)' 
             : 'transparent',
-        border: isActive ? '1px solid rgba(0, 230, 118, 0.4)' : '1px solid transparent',
+        border: isActive ? '1px solid rgba(0, 230, 118, 0.3)' : '1px solid transparent',
         boxShadow: isActive ? '0 0 12px rgba(0, 230, 118, 0.1)' : 'none',
         
-        color: isActive ? '#00e676' : isHovered ? '#eee' : '#888',
+        color: isActive ? '#00e676' : isHovered ? '#fff' : '#a1a1aa',
         transition: 'all 0.2s ease',
         fontFamily: sans
       }}
@@ -44,7 +44,7 @@ const NavItem = ({ icon, label, isActive, onClick, navExpanded }) => {
         <span style={{ 
           marginLeft: '14px', 
           fontSize: '13px', 
-          fontWeight: isActive ? '600' : '500', 
+          fontWeight: isActive ? '700' : '600', 
           color: isActive ? '#fff' : 'inherit',
           whiteSpace: 'nowrap'
         }}>
@@ -58,25 +58,28 @@ const NavItem = ({ icon, label, isActive, onClick, navExpanded }) => {
 export default function Navigation({ navExpanded, setNavExpanded, activePage, setActivePage, setCanvasMode }) {
   const [logoHovered, setLogoHovered] = useState(false);
 
+  // Upgraded Bolder Icons (strokeWidth: 2.5, dimensions: 22x22)
   const icons = {
-    command: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>,
-    news: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>,
-    export: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"></path><polyline points="8 12 12 16 16 12"></polyline><line x1="12" y1="8" x2="12" y2="16"></line></svg>,
-    api: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="18" r="3"></circle><circle cx="6" cy="6" r="3"></circle><path d="M13 6h3a2 2 0 0 1 2 2v7"></path><line x1="6" y1="9" x2="6" y2="21"></line></svg>,
-    about: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>,
-    docs: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>,
-    support: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="4"></circle><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"></line><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"></line><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"></line><line x1="14.83" y1="9.17" x2="18.36" y2="5.64"></line><line x1="4.93" y1="19.07" x2="9.17" y2="14.83"></line></svg>,
-    menu: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>,
-    panelToggle: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+    // New Map Icon for Command Deck
+    command: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"></polygon><line x1="9" y1="3" x2="9" y2="18"></line><line x1="15" y1="6" x2="15" y2="21"></line></svg>,
+    // New Stacked Layers Icon for Business Intel
+    business: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>,
+    export: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"></path><polyline points="8 12 12 16 16 12"></polyline><line x1="12" y1="8" x2="12" y2="16"></line></svg>,
+    api: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="18" r="3"></circle><circle cx="6" cy="6" r="3"></circle><path d="M13 6h3a2 2 0 0 1 2 2v7"></path><line x1="6" y1="9" x2="6" y2="21"></line></svg>,
+    about: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>,
+    docs: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>,
+    support: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="4"></circle><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"></line><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"></line><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"></line><line x1="14.83" y1="9.17" x2="18.36" y2="5.64"></line><line x1="4.93" y1="19.07" x2="9.17" y2="14.83"></line></svg>,
+    menu: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>,
+    panelToggle: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
   };
 
   return (
     <div style={{ 
-      width: navExpanded ? '260px' : '68px', 
-      minWidth: navExpanded ? '260px' : '68px',
+      width: navExpanded ? '260px' : '60px', 
+      minWidth: navExpanded ? '260px' : '60px',
       background: 'rgba(5, 5, 7, 0.85)',
       backdropFilter: 'blur(20px)',
-      borderRight: '1px solid rgba(255, 255, 255, 0.06)', 
+      borderRight: '1px solid rgba(255, 255, 255, 0.04)', 
       display: 'flex', 
       flexDirection: 'column', 
       transition: 'width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)', 
@@ -85,7 +88,7 @@ export default function Navigation({ navExpanded, setNavExpanded, activePage, se
       zIndex: 50 
     }}>
       
-      {/* 1. TOP HEADER: GEMINI-STYLE LOGO HOVER */}
+      {/* 1. TOP HEADER: LOGO HOVER */}
       <div 
         onClick={() => setNavExpanded(!navExpanded)}
         onMouseEnter={() => setLogoHovered(true)}
@@ -109,7 +112,7 @@ export default function Navigation({ navExpanded, setNavExpanded, activePage, se
           alignItems: 'center', 
           justifyContent: 'center' 
         }}>
-          {/* Default Logo Map Icon */}
+          {/* Default Logo Icon */}
           <div style={{ 
             position: 'absolute', 
             opacity: logoHovered ? 0 : 1, 
@@ -156,7 +159,7 @@ export default function Navigation({ navExpanded, setNavExpanded, activePage, se
       {/* 2. PRIMARY NAVIGATION */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
         <NavItem icon={icons.command} label="Command Deck" isActive={activePage === 'Command'} onClick={() => { setActivePage('Command'); setCanvasMode('map'); }} navExpanded={navExpanded} />
-        <NavItem icon={icons.news} label="Business Intel" isActive={activePage === 'Business'} onClick={() => setActivePage('Business')} navExpanded={navExpanded} />
+        <NavItem icon={icons.business} label="Business Intel" isActive={activePage === 'Business'} onClick={() => setActivePage('Business')} navExpanded={navExpanded} />
         <NavItem icon={icons.export} label="Export Data" isActive={activePage === 'Export'} onClick={() => setActivePage('Export')} navExpanded={navExpanded} />
         <NavItem icon={icons.api} label="API Keys" isActive={activePage === 'API'} onClick={() => setActivePage('API')} navExpanded={navExpanded} />
       </div>
