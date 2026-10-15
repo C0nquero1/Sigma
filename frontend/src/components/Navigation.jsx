@@ -136,7 +136,7 @@ export default function Navigation({ navExpanded, setNavExpanded, activePage, se
       <div style={{ flex: 1 }} />
 
       {/* 4. RESOURCES SECTION - TIGHT GAP */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '13px' }}>
         {navExpanded && (
           <div style={{ padding: '0 26px', fontSize: '10px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px', fontFamily: sans }}>
             Resources
