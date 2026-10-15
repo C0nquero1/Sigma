@@ -136,12 +136,6 @@ export default function MapCanvas({
     layers: [{ id: 'google-satellite-layer', type: 'raster', source: 'google-satellite', minzoom: 0, maxzoom: 22 }]
   };
 
-  // ==========================================
-  // DEFINE STATES & FIX STALE CLOSURES
-  // ==========================================
-  const isTouring = tourStep >= 0;
-  const isZoomedIn = currentZoom >= 11.0 || isPlaying || activeTool !== null;
-
   // This ref guarantees the map NEVER uses stale memory when rebuilding layers
   const stateRef = useRef({ isDataGenerated, isZoomedIn });
   useEffect(() => {
@@ -263,10 +257,12 @@ export default function MapCanvas({
   }, []);
 
   // ==========================================
-  // PERFECTED STYLE SWITCHER & LAYER RESTORER (CLOSURE-PROOF)
+  // PERFECTED STYLE SWITCHER & LAYER RESTORER (IDLE-EVENT BYPASS)
   // ==========================================
+  const isTouring = tourStep >= 0;
+  const isZoomedIn = currentZoom >= 11.0 || isPlaying || activeTool !== null;
 
-  // 1. Live State Ref: Guarantees MapLibre NEVER reads stale memory during asynchronous style swaps
+  // 1. Live State Ref guarantees the absolute freshest data is used
   const liveStateRef = useRef({ isDataGenerated, isZoomedIn, targetCoords, searchQuery });
   useEffect(() => {
     liveStateRef.current = { isDataGenerated, isZoomedIn, targetCoords, searchQuery };
@@ -275,35 +271,27 @@ export default function MapCanvas({
   // 2. The Master Layer Controller
   useEffect(() => {
     const enforceLayers = () => {
+      // If the map isn't fully ready yet, patiently wait. 
       if (!mapRef.current || !mapRef.current.isStyleLoaded()) return;
-      const map = mapRef.current;
       
-      // Extract the absolute freshest data directly from the Ref
+      const map = mapRef.current;
       const { isDataGenerated: dataGen, isZoomedIn: zoomed, targetCoords: coords, searchQuery: query } = liveStateRef.current;
 
-      // Ensure Sources Exist using live coordinates
-      if (!map.getSource('geofence')) {
-        map.addSource('geofence', { type: 'geojson', data: generateGeofence(coords.lng, coords.lat) });
-      }
-      if (!map.getSource('valgo-grid')) {
-        map.addSource('valgo-grid', { type: 'geojson', data: generateValgoGrid(coords.lng, coords.lat, query) });
-      }
+      if (!map.getSource('geofence')) map.addSource('geofence', { type: 'geojson', data: generateGeofence(coords.lng, coords.lat) });
+      if (!map.getSource('valgo-grid')) map.addSource('valgo-grid', { type: 'geojson', data: generateValgoGrid(coords.lng, coords.lat, query) });
 
-      // Geofence Fill
       if (!map.getLayer('geofence-fill')) {
         map.addLayer({ id: 'geofence-fill', type: 'fill', source: 'geofence', paint: { 'fill-color': '#00e676', 'fill-opacity': dataGen ? 0.15 : 0 } });
       } else {
         map.setPaintProperty('geofence-fill', 'fill-opacity', dataGen ? 0.15 : 0);
       }
 
-      // Geofence Line (Solid, sleek line)
       if (!map.getLayer('geofence-line')) {
         map.addLayer({ id: 'geofence-line', type: 'line', source: 'geofence', paint: { 'line-color': '#00e676', 'line-width': 3, 'line-opacity': dataGen ? 1.0 : 0 } });
       } else {
         map.setPaintProperty('geofence-line', 'line-opacity', dataGen ? 1.0 : 0);
       }
 
-      // Valgo Hex Grid Heatmap
       if (!map.getLayer('valgo-grid-layer')) {
         map.addLayer({ id: 'valgo-grid-layer', type: 'fill', source: 'valgo-grid', paint: { 'fill-color': ['get', 'color'], 'fill-opacity': dataGen ? (zoomed ? 0.15 : 0.85) : 0.0, 'fill-outline-color': 'rgba(0,0,0,0)' } });
       } else {
@@ -311,17 +299,19 @@ export default function MapCanvas({
       }
     };
 
-    // Apply instantly on any standard interaction
     enforceLayers();
 
-    // Attach to 'styledata' which pulses continuously as the new map builds.
-    // The millisecond isStyleLoaded() returns true, it rebuilds the heatmap!
+    // CRITICAL FIX: The 'idle' event guarantees the map is 100% finished loading before forcing the heatmap on.
     if (mapRef.current) {
+      mapRef.current.on('idle', enforceLayers);
       mapRef.current.on('styledata', enforceLayers);
     }
 
     return () => {
-      if (mapRef.current) mapRef.current.off('styledata', enforceLayers);
+      if (mapRef.current) {
+        mapRef.current.off('idle', enforceLayers);
+        mapRef.current.off('styledata', enforceLayers);
+      }
     };
   }, [mapStyle, isDataGenerated, isZoomedIn, targetCoords, searchQuery]);
 
