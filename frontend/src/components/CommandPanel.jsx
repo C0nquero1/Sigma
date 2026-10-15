@@ -58,7 +58,7 @@ export default function CommandPanel({
     { id: 4, query: "Top seller in Balogun?", time: "Oct 2" }
   ];
 
-  // Dynamic Background Logic: Returns to pure black (#050505) once the user prompts
+  // Dynamic Background Logic: Returns to seamless #020504 perfectly matching the map
   const hasPrompted = chatHistory.length > 0 || isSearching || isDataGenerated;
   const currentBgColor = hasPrompted ? '#020504' : '#010201';
 
@@ -71,15 +71,15 @@ export default function CommandPanel({
       fontFamily: sans, 
       position: 'relative', 
       overflow: 'hidden',
-      transition: 'background 0.5s ease-in-out' // Smooth transition to black
+      transition: 'background 0.5s ease-in-out'
     }}>
       
-      {/* Show the subtle green gradient ONLY when idle (no prompt yet) */}
+      {/* FIXED: Replaced height: '60%' with bottom: 0 to cover the entire panel to the bottom */}
       {!hasPrompted && commandTab === 'chat' && (
         <div style={{ 
           position: 'absolute', 
-          top: 0, left: 0, right: 0, height: '60%', 
-          background: 'linear-gradient(180deg, rgba(0, 230, 118, 0.015) 0%, rgba(4, 10, 8, 1) 60%, rgba(4, 10, 8, 1) 100%)',
+          top: 0, left: 0, right: 0, bottom: 0, 
+          background: 'linear-gradient(180deg, rgba(0, 230, 118, 0.005) 0%, rgba(1, 2, 1, 1) 100%)',
           pointerEvents: 'none',
           zIndex: 0
         }} />

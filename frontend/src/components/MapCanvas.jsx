@@ -136,26 +136,56 @@ export default function MapCanvas({
     layers: [{ id: 'google-satellite-layer', type: 'raster', source: 'google-satellite', minzoom: 0, maxzoom: 22 }]
   };
 
-  // Robust function to instantly redraw our custom layers (Fixes Satellite dropout)
+  // Robust function to explicitly inject our custom data layers
   const addCustomLayers = (map) => {
     if (!map || !map.getStyle()) return;
     
     if (!map.getSource('geofence')) {
       map.addSource('geofence', { type: 'geojson', data: generateGeofence() });
     }
+    
+    // 1. The Geofence Fill
     if (!map.getLayer('geofence-fill')) {
-      map.addLayer({ id: 'geofence-fill', type: 'fill', source: 'geofence', paint: { 'fill-color': '#00e676', 'fill-opacity': isDataGenerated ? 0.1 : 0 } });
+      map.addLayer({ 
+        id: 'geofence-fill', 
+        type: 'fill', 
+        source: 'geofence', 
+        paint: { 
+          'fill-color': '#00e676', 
+          'fill-opacity': 0 // ALWAYS initialize hidden
+        } 
+      });
     }
+    
+    // 2. The Geofence Line (Solid, sleek line shape, no round stuffs)
     if (!map.getLayer('geofence-line')) {
-      // Bold polygon line, no dots
-      map.addLayer({ id: 'geofence-line', type: 'line', source: 'geofence', paint: { 'line-color': '#00e676', 'line-width': 4, 'line-dasharray': [2, 2], 'line-opacity': isDataGenerated ? 1.0 : 0 } });
+      map.addLayer({ 
+        id: 'geofence-line', 
+        type: 'line', 
+        source: 'geofence', 
+        paint: { 
+          'line-color': '#00e676', 
+          'line-width': 3, 
+          'line-opacity': 0 // ALWAYS initialize hidden
+        } 
+      });
     }
 
+    // 3. Valgo Hex Grid
     if (!map.getSource('valgo-grid')) {
       map.addSource('valgo-grid', { type: 'geojson', data: generateValgoGrid() });
     }
     if (!map.getLayer('valgo-grid-layer')) {
-      map.addLayer({ id: 'valgo-grid-layer', type: 'fill', source: 'valgo-grid', paint: { 'fill-color': ['get', 'color'], 'fill-opacity': isDataGenerated ? 0.85 : 0.0, 'fill-outline-color': 'rgba(0,0,0,0)' } });
+      map.addLayer({ 
+        id: 'valgo-grid-layer', 
+        type: 'fill', 
+        source: 'valgo-grid', 
+        paint: { 
+          'fill-color': ['get', 'color'], 
+          'fill-opacity': 0, // ALWAYS initialize hidden
+          'fill-outline-color': 'rgba(0,0,0,0)' 
+        } 
+      });
     }
   };
 
@@ -237,22 +267,63 @@ export default function MapCanvas({
     };
   }, []);
 
-  // Guarantee layers re-add on map style switch (Fixes Satellite missing heatmap)
+  // ==========================================
+  // 1. MAP STYLE SWITCHER
+  // ==========================================
   useEffect(() => {
     if (mapRef.current) {
        mapRef.current.setStyle(mapStyle === 'Satellite' ? maxarSatelliteStyle : cartoDarkStyle);
-       mapRef.current.once('style.load', () => addCustomLayers(mapRef.current));
+       
+       mapRef.current.once('style.load', () => {
+          addCustomLayers(mapRef.current);
+          // CRITICAL FIX: Broadcast an event when the new style finishes building
+          // so the opacity controller knows to wake up and restore visibility.
+          window.dispatchEvent(new Event('styleRebuilt'));
+       });
     }
   }, [mapStyle]);
 
-  // Handle Interactive Polygon/Rectangle Tools (Zooms in when active)
+  // ==========================================
+  // 2. LAYER OPACITY CONTROLLER 
+  // ==========================================
   useEffect(() => {
-     if ((activeTool === 'poly' || activeTool === 'rect') && isDataGenerated && mapRef.current) {
-         mapRef.current.flyTo({ zoom: 12.5, pitch: 45, speed: 1.2 });
-     } else if (!activeTool && !isPlaying && isDataGenerated && mapRef.current) {
-         mapRef.current.flyTo({ zoom: 10.2, pitch: 45, speed: 1.2 });
-     }
-  }, [activeTool, isDataGenerated, isPlaying]);
+    const updateOpacities = () => {
+      if (!mapRef.current) return;
+      
+      // Valgo Hex Grid Visibility
+      if (mapRef.current.getLayer('valgo-grid-layer')) {
+        mapRef.current.setPaintProperty(
+          'valgo-grid-layer', 
+          'fill-opacity', 
+          isDataGenerated ? (isZoomedIn ? 0.15 : 0.85) : 0.0
+        );
+      }
+      
+      // Sleek Geofence Polygon Visibility
+      if (mapRef.current.getLayer('geofence-line')) {
+        mapRef.current.setPaintProperty(
+          'geofence-line', 
+          'line-opacity', 
+          isDataGenerated ? 1.0 : 0.0
+        );
+      }
+      if (mapRef.current.getLayer('geofence-fill')) {
+        mapRef.current.setPaintProperty(
+          'geofence-fill', 
+          'fill-opacity', 
+          isDataGenerated ? 0.15 : 0.0
+        );
+      }
+    };
+
+    // Apply opacities normally when data or zoom changes
+    updateOpacities();
+
+    // Re-apply instantly when the map finishes switching styles (e.g., Satellite)
+    window.addEventListener('styleRebuilt', updateOpacities);
+    return () => window.removeEventListener('styleRebuilt', updateOpacities);
+    
+  }, [isDataGenerated, isZoomedIn]);
 
   const isTouring = tourStep >= 0;
   
@@ -334,28 +405,33 @@ export default function MapCanvas({
       <div style={{ position: 'absolute', inset: 0, background: 'rgba(0, 230, 118, 0.05)', mixBlendMode: 'overlay', pointerEvents: 'none', zIndex: 3 }} />
 
       {/* ========================================== */}
-      {/* VIBRANT FLOWMAP.BLUE ARROWS (FIXED VISIBILITY)*/}
+      {/* VIBRANT FLOWMAP.BLUE AESTHETIC (NO SVG FILTERS) */}
       {/* ========================================== */}
-      <svg ref={svgRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 10, pointerEvents: 'none', overflow: 'visible', opacity: (isDataGenerated && isZoomedIn) ? 1 : 0, transition: 'opacity 0.6s ease-in-out' }}>
+      <svg ref={svgRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 20, pointerEvents: 'none', overflow: 'visible', opacity: (isDataGenerated && isZoomedIn) ? 1 : 0, transition: 'opacity 0.6s ease-in-out' }}>
          <defs>
-           <marker id="arrow-cyan" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#a5f3fc" /></marker>
-           <marker id="arrow-pink" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#d946ef" /></marker>
-           <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#3b82f6" /></marker>
-           <marker id="arrow-yellow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#facc15" /></marker>
+           {/* Drastically scaled up arrow heads for the Flowmap.blue style */}
+           <marker id="arrow-cyan" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 1 L 10 5 L 0 9 z" fill="#00e5ff" /></marker>
+           <marker id="arrow-white" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 1 L 10 5 L 0 9 z" fill="#ffffff" /></marker>
+           <marker id="arrow-yellow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 1 L 10 5 L 0 9 z" fill="#facc15" /></marker>
          </defs>
          <g>
-             {/* Highly Visible Kinetic Arrows */}
-             <path id="edge-e1" fill="none" stroke="#ffffff" strokeWidth="3.5" opacity="1.0" strokeDasharray="15 15" markerEnd="url(#arrow-cyan)" style={{ animation: (isPlaying || isZoomedIn) ? 'flowDash 1.5s linear infinite' : 'none' }} />
-             <path id="edge-e2" fill="none" stroke="#a5f3fc" strokeWidth="2.5" opacity="0.9" strokeDasharray="4 4" />
-             <path id="edge-e3" fill="none" stroke="#ffffff" strokeWidth="3.0" opacity="1.0" strokeDasharray="15 15" markerEnd="url(#arrow-cyan)" style={{ animation: (isPlaying || isZoomedIn) ? 'flowDash 2s linear infinite' : 'none' }} />
-             <path id="edge-e4" fill="none" stroke="#a5f3fc" strokeWidth="2.0" opacity="0.8" />
-             <path id="edge-e5" fill="none" stroke="#a5f3fc" strokeWidth="2.5" opacity="1.0" strokeDasharray="15 15" markerEnd="url(#arrow-yellow)" style={{ animation: (isPlaying || isZoomedIn) ? 'flowDash 2.5s linear infinite' : 'none' }} />
-             <path id="edge-e6" fill="none" stroke="#1e3a8a" strokeWidth="2.0" opacity="0.8" />
-             <path id="edge-e7" fill="none" stroke="#a5f3fc" strokeWidth="1.5" opacity="0.7" strokeDasharray="2 6" />
+             {/* 1. Base Tracks: Thick, highly visible translucent lines mapping the street connections */}
+             <path id="edge-track-e1" fill="none" stroke="#ffffff" strokeWidth="8" opacity="0.3" strokeLinecap="round" />
+             <path id="edge-track-e3" fill="none" stroke="#00e5ff" strokeWidth="6" opacity="0.3" strokeLinecap="round" />
+             <path id="edge-track-e5" fill="none" stroke="#1e3a8a" strokeWidth="5" opacity="0.3" strokeLinecap="round" />
+             
+             {/* 2. Highly Visible Kinetic Flow Arrows (Thickened ribbons, 100% Opacity) */}
+             <path id="edge-e1" fill="none" stroke="#ffffff" strokeWidth="5" opacity="1.0" strokeDasharray="15 20" markerEnd="url(#arrow-white)" style={{ animation: (isPlaying || isZoomedIn) ? 'flowDash 1.2s linear infinite' : 'none' }} />
+             <path id="edge-e2" fill="none" stroke="#00e5ff" strokeWidth="4" opacity="1.0" strokeDasharray="6 8" />
+             <path id="edge-e3" fill="none" stroke="#ffffff" strokeWidth="4.5" opacity="1.0" strokeDasharray="12 18" markerEnd="url(#arrow-white)" style={{ animation: (isPlaying || isZoomedIn) ? 'flowDash 1.8s linear infinite' : 'none' }} />
+             <path id="edge-e4" fill="none" stroke="#00e5ff" strokeWidth="3" opacity="0.9" />
+             <path id="edge-e5" fill="none" stroke="#facc15" strokeWidth="4" opacity="1.0" strokeDasharray="15 20" markerEnd="url(#arrow-yellow)" style={{ animation: (isPlaying || isZoomedIn) ? 'flowDash 2.2s linear infinite' : 'none' }} />
+             <path id="edge-e6" fill="none" stroke="#1e3a8a" strokeWidth="3" opacity="0.9" />
+             <path id="edge-e7" fill="none" stroke="#00e5ff" strokeWidth="2.5" opacity="0.8" strokeDasharray="4 10" />
 
-             {/* White Nodes */}
+             {/* 3. Enlarged High-Contrast Nodes */}
              {flowmapNodes.map((n) => (
-                <circle key={n.id} id={`node-${n.id}`} r={n.r} fill="#ffffff" stroke="#00e676" strokeWidth="2" />
+                <circle key={n.id} id={`node-${n.id}`} r={n.r + 3} fill="#ffffff" stroke={n.color === '#ffffff' ? '#00e676' : n.color} strokeWidth="2.5" />
              ))}
          </g>
       </svg>
