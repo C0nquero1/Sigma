@@ -17,7 +17,7 @@ export default function MapCanvas({
   
   const [activeTool, setActiveTool] = useState(null); 
   const [styleMenuOpen, setStyleMenuOpen] = useState(false);
-  const [currentZoom, setCurrentZoom] = useState(10.0); // Zoomed out slightly for macro view
+  const [currentZoom, setCurrentZoom] = useState(10.0);
   
   const [targetCoords, setTargetCoords] = useState({ lng: 3.3792, lat: 6.5244 }); 
 
@@ -65,13 +65,13 @@ export default function MapCanvas({
     ];
 
     const fNodes = [
-      { id: 'hub', lng: targetCoords.lng - 0.015, lat: targetCoords.lat + 0.015, r: 8, color: '#facc15' }, 
-      { id: 'n1', lng: targetCoords.lng + 0.01, lat: targetCoords.lat + 0.02, r: 5, color: '#00e676' },
-      { id: 'n2', lng: targetCoords.lng - 0.03, lat: targetCoords.lat - 0.01, r: 5, color: '#00e676' },
-      { id: 'n3', lng: targetCoords.lng + 0.02, lat: targetCoords.lat - 0.015, r: 4, color: '#0d9488' },
-      { id: 'n4', lng: targetCoords.lng - 0.005, lat: targetCoords.lat - 0.025, r: 4, color: '#0d9488' },
-      { id: 'n5', lng: targetCoords.lng + 0.03, lat: targetCoords.lat + 0.005, r: 3, color: '#1e3a8a' },
-      { id: 'n6', lng: targetCoords.lng - 0.025, lat: targetCoords.lat + 0.03, r: 3, color: '#3b0764' },
+      { id: 'hub', lng: targetCoords.lng - 0.015, lat: targetCoords.lat + 0.015, r: 8, color: '#ffffff' }, 
+      { id: 'n1', lng: targetCoords.lng + 0.01, lat: targetCoords.lat + 0.02, r: 5, color: '#ffffff' },
+      { id: 'n2', lng: targetCoords.lng - 0.03, lat: targetCoords.lat - 0.01, r: 5, color: '#ffffff' },
+      { id: 'n3', lng: targetCoords.lng + 0.02, lat: targetCoords.lat - 0.015, r: 4, color: '#ffffff' },
+      { id: 'n4', lng: targetCoords.lng - 0.005, lat: targetCoords.lat - 0.025, r: 4, color: '#ffffff' },
+      { id: 'n5', lng: targetCoords.lng + 0.03, lat: targetCoords.lat + 0.005, r: 3, color: '#ffffff' },
+      { id: 'n6', lng: targetCoords.lng - 0.025, lat: targetCoords.lat + 0.03, r: 3, color: '#ffffff' },
     ];
 
     return { cinematicNodes: cNodes, flowmapNodes: fNodes };
@@ -169,12 +169,12 @@ export default function MapCanvas({
       map.on('zoom', () => setCurrentZoom(map.getZoom()));
 
       map.on('style.load', () => {
-        // UPDATED GEOFENCE: Thick, bold, solid green polygon
+        // ENHANCED GEOFENCE: Much thicker line, highly visible emerald fill
         if (!map.getSource('geofence')) {
           map.addSource('geofence', { type: 'geojson', data: generateGeofence() });
           map.addLayer({
             id: 'geofence-fill', type: 'fill', source: 'geofence',
-            paint: { 'fill-color': '#00e676', 'fill-opacity': isDataGenerated ? 0.15 : 0 }
+            paint: { 'fill-color': '#00e676', 'fill-opacity': isDataGenerated ? 0.2 : 0 }
           });
           map.addLayer({
             id: 'geofence-line', type: 'line', source: 'geofence',
@@ -195,9 +195,12 @@ export default function MapCanvas({
         }
       });
 
-      // SVG Projection Logic for Flowmap
+      // ==========================================
+      // FIXED FLOWMAP PROJECTION
+      // ==========================================
+      // The stale closure bug is completely removed here.
       map.on('render', () => {
-        if (!svgRef.current || !isDataGenerated) return;
+        if (!svgRef.current) return; 
         
         const projectNode = (id, lng, lat) => {
           const p = map.project([lng, lat]);
@@ -217,7 +220,7 @@ export default function MapCanvas({
         const setCurvedEdge = (id, pStart, pEnd, curveOffset) => {
           const edge = document.getElementById(`edge-${id}`);
           const track = document.getElementById(`edge-track-${id}`);
-          if (!edge || !pStart || !pEnd) return;
+          if (!edge || !pStart || !pEnd || isNaN(pStart.x) || isNaN(pEnd.x)) return;
           
           const cx = (pStart.x + pEnd.x) / 2 + curveOffset;
           const cy = (pStart.y + pEnd.y) / 2 + curveOffset;
@@ -269,34 +272,40 @@ export default function MapCanvas({
     }
     if (mapRef.current && mapRef.current.getLayer('geofence-line')) {
       mapRef.current.setPaintProperty('geofence-line', 'line-opacity', isDataGenerated ? 1.0 : 0.0);
-      mapRef.current.setPaintProperty('geofence-fill', 'fill-opacity', isDataGenerated ? 0.15 : 0.0);
+      mapRef.current.setPaintProperty('geofence-fill', 'fill-opacity', isDataGenerated ? 0.2 : 0.0);
     }
   }, [isDataGenerated, isTouring]);
 
   // ==========================================
-  // UPDATED TRUE PAUSE & RESUME LOGIC
+  // PERFECTED AUTO-RESET CINEMATIC TOUR
   // ==========================================
   useEffect(() => {
     let interval;
     if (isPlaying && isDataGenerated && mapRef.current) {
       
       setTourStep(prev => {
-        if (prev === -1 || prev >= cinematicNodes.length - 1) {
+        if (prev === -1) {
           const next = 0;
           if(setActiveTourNode) setActiveTourNode(cinematicNodes[next]);
           mapRef.current.flyTo({ center: [cinematicNodes[next].lng, cinematicNodes[next].lat], zoom: cinematicNodes[next].zoom, pitch: cinematicNodes[next].pitch, speed: 0.6, curve: 1.2 });
           return next;
         }
-        return prev; // If paused, just resume where we left off
+        return prev; 
       });
 
       interval = setInterval(() => {
         setTourStep(prev => {
           let next = prev + 1;
+          
+          // Tour Complete: Reset to the beginning!
           if (next >= cinematicNodes.length) {
             setIsPlaying(false);
-            return prev; // Stop at the end without resetting
+            if(setActiveTourNode) setActiveTourNode(null);
+            // Fly back to Macro View
+            mapRef.current.flyTo({ center: [cinematicNodes[0].lng, cinematicNodes[0].lat], zoom: cinematicNodes[0].zoom, pitch: cinematicNodes[0].pitch, speed: 1.0, curve: 1.2 });
+            return -1; 
           }
+          
           if(setActiveTourNode) setActiveTourNode(cinematicNodes[next]);
           mapRef.current.flyTo({ center: [cinematicNodes[next].lng, cinematicNodes[next].lat], zoom: cinematicNodes[next].zoom, pitch: cinematicNodes[next].pitch, speed: 0.6, curve: 1.2 });
           return next;
@@ -304,7 +313,6 @@ export default function MapCanvas({
       }, 7000);
       
     }
-    // Clicking pause simply clears the interval. It does NOT reset tourStep.
     return () => clearInterval(interval);
   }, [isPlaying, isDataGenerated, cinematicNodes, setActiveTourNode]);
 
@@ -335,29 +343,32 @@ export default function MapCanvas({
       <div style={{ position: 'absolute', inset: 0, background: 'rgba(2, 5, 4, 0.65)', mixBlendMode: 'multiply', pointerEvents: 'none', zIndex: 2 }} />
       <div style={{ position: 'absolute', inset: 0, background: 'rgba(0, 230, 118, 0.05)', mixBlendMode: 'overlay', pointerEvents: 'none', zIndex: 3 }} />
 
-      {/* UPDATED FLOWMAP.BLUE: Filters Removed, Fully Opaque, Thicker Strokes for Guaranteed Visibility */}
+      {/* ========================================== */}
+      {/* PERFECTED FLOWMAP.BLUE AESTHETIC           */}
+      {/* ========================================== */}
       <svg ref={svgRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 10, pointerEvents: 'none', opacity: (isDataGenerated && isTouring) ? 1 : 0, transition: 'opacity 0.8s ease-in-out' }}>
          <defs>
-           <marker id="arrow-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 2 L 10 5 L 0 8 z" fill="#00e676" /></marker>
-           <marker id="arrow-yellow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 2 L 10 5 L 0 8 z" fill="#facc15" /></marker>
+           <marker id="arrow-white" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 2 L 10 5 L 0 8 z" fill="#ffffff" /></marker>
+           <marker id="arrow-cyan" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 2 L 10 5 L 0 8 z" fill="#a5f3fc" /></marker>
          </defs>
          <g>
-             {/* Dim Tracks */}
-             <path id="edge-track-e1" fill="none" stroke="#00e676" strokeWidth="6" opacity="0.2" strokeLinecap="round" />
-             <path id="edge-track-e3" fill="none" stroke="#0d9488" strokeWidth="4" opacity="0.2" strokeLinecap="round" />
-             <path id="edge-track-e5" fill="none" stroke="#1e3a8a" strokeWidth="3" opacity="0.2" strokeLinecap="round" />
+             {/* Dim Base Tracks */}
+             <path id="edge-track-e1" fill="none" stroke="#ffffff" strokeWidth="4" opacity="0.15" strokeLinecap="round" />
+             <path id="edge-track-e3" fill="none" stroke="#a5f3fc" strokeWidth="3" opacity="0.15" strokeLinecap="round" />
+             <path id="edge-track-e5" fill="none" stroke="#1e3a8a" strokeWidth="2" opacity="0.15" strokeLinecap="round" />
              
-             {/* Bright Kinetic Arrows */}
-             <path id="edge-e1" fill="none" stroke="#00e676" strokeWidth="4" opacity="1" strokeDasharray="12 12" markerEnd="url(#arrow-green)" style={{ animation: isPlaying ? 'flowDash 1.5s linear infinite' : 'none' }} />
-             <path id="edge-e2" fill="none" stroke="#0d9488" strokeWidth="2.5" opacity="0.9" strokeDasharray="4 4" />
-             <path id="edge-e3" fill="none" stroke="#00e676" strokeWidth="3.5" opacity="1" strokeDasharray="12 12" markerEnd="url(#arrow-green)" style={{ animation: isPlaying ? 'flowDash 2s linear infinite' : 'none' }} />
-             <path id="edge-e4" fill="none" stroke="#0d9488" strokeWidth="2" opacity="0.8" />
-             <path id="edge-e5" fill="none" stroke="#facc15" strokeWidth="3" opacity="1" strokeDasharray="12 12" markerEnd="url(#arrow-yellow)" style={{ animation: isPlaying ? 'flowDash 2.5s linear infinite' : 'none' }} />
-             <path id="edge-e6" fill="none" stroke="#3b0764" strokeWidth="2" opacity="0.8" />
-             <path id="edge-e7" fill="none" stroke="#0d9488" strokeWidth="2" opacity="0.7" strokeDasharray="2 6" />
+             {/* Stark White & Cyan Kinetic Arrows (Reference Image 26 matches) */}
+             <path id="edge-e1" fill="none" stroke="#ffffff" strokeWidth="3.5" opacity="1.0" strokeDasharray="15 15" markerEnd="url(#arrow-white)" style={{ animation: isPlaying ? 'flowDash 1.5s linear infinite' : 'none' }} />
+             <path id="edge-e2" fill="none" stroke="#a5f3fc" strokeWidth="2.5" opacity="0.9" strokeDasharray="4 4" />
+             <path id="edge-e3" fill="none" stroke="#ffffff" strokeWidth="3.0" opacity="1.0" strokeDasharray="15 15" markerEnd="url(#arrow-white)" style={{ animation: isPlaying ? 'flowDash 2s linear infinite' : 'none' }} />
+             <path id="edge-e4" fill="none" stroke="#a5f3fc" strokeWidth="2.0" opacity="0.8" />
+             <path id="edge-e5" fill="none" stroke="#a5f3fc" strokeWidth="2.5" opacity="1.0" strokeDasharray="15 15" markerEnd="url(#arrow-cyan)" style={{ animation: isPlaying ? 'flowDash 2.5s linear infinite' : 'none' }} />
+             <path id="edge-e6" fill="none" stroke="#1e3a8a" strokeWidth="2.0" opacity="0.8" />
+             <path id="edge-e7" fill="none" stroke="#a5f3fc" strokeWidth="1.5" opacity="0.7" strokeDasharray="2 6" />
 
+             {/* White Nodes */}
              {flowmapNodes.map((n) => (
-                <circle key={n.id} id={`node-${n.id}`} r={n.r} fill={n.color} stroke="#040a08" strokeWidth="1.5" />
+                <circle key={n.id} id={`node-${n.id}`} r={n.r} fill="#ffffff" stroke="rgba(0, 230, 118, 0.5)" strokeWidth="2" />
              ))}
          </g>
       </svg>
@@ -372,7 +383,6 @@ export default function MapCanvas({
         <button onClick={() => setCanvasMode('analysis')} style={{ padding: '5px 14px', borderRadius: '16px', border: 'none', fontSize: '10px', fontWeight: '700', cursor: 'pointer', background: canvasMode === 'analysis' ? 'rgba(255,255,255,0.1)' : 'transparent', color: canvasMode === 'analysis' ? '#fff' : '#a1a1aa', transition: 'all 0.2s' }}>Deep Analysis</button>
       </div>
 
-      {/* UPDATED Z-INDEX: Elevated to 100 to ensure dropdown falls over Description Card */}
       <div style={{ position: 'absolute', top: '16px', right: '16px', display: 'flex', gap: '6px', zIndex: 100 }}>
         <GlassButton onClick={() => { if(mapRef.current) mapRef.current.zoomIn(); }} icon={<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>} text="Zoom in" shortcut="C" />
         <div style={{ position: 'relative' }}>
@@ -389,43 +399,52 @@ export default function MapCanvas({
         </div>
       </div>
 
-      {/* SCALED DOWN DESCRIPTION CARD */}
+      {/* ========================================== */}
+      {/* FINAL SCALED DOWN DESCRIPTION CARD         */}
+      {/* ========================================== */}
       {isDataGenerated && (
          <div style={{ 
-            position: 'absolute', top: '60px', right: '16px', width: '240px', 
+            position: 'absolute', top: '64px', right: '16px', 
+            width: '220px', // Shrunk width
             background: 'rgba(15, 15, 18, 0.85)', backdropFilter: 'blur(20px)', 
             border: `1px solid ${isTouring ? '#00e676' : 'rgba(255,255,255,0.08)'}`, 
-            borderRadius: '10px', padding: '14px', zIndex: 40, 
+            borderRadius: '10px', 
+            padding: '12px', // Tighter padding
+            zIndex: 40, 
             boxShadow: isTouring ? '0 10px 40px rgba(0, 230, 118, 0.15)' : '0 10px 40px rgba(0,0,0,0.5)',
             transform: isDataGenerated ? 'translateX(0)' : 'translateX(20px)',
             opacity: isDataGenerated ? 1 : 0, transition: 'all 0.4s ease'
          }}>
-            <div style={{ fontSize: '10px', color: isTouring ? '#00e676' : '#00e5ff', fontWeight: '700', fontFamily: mono, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: isTouring ? '#00e676' : '#00e5ff', animation: 'pulseGeofence 1s infinite alternate' }} />
+            <div style={{ fontSize: '9px', color: isTouring ? '#00e676' : '#00e5ff', fontWeight: '700', fontFamily: mono, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: isTouring ? '#00e676' : '#00e5ff' }} />
               Description:
             </div>
-            <div style={{ fontSize: '11px', color: '#d4d4d8', lineHeight: '1.5', fontWeight: '500' }}>
+            <div style={{ fontSize: '10px', color: '#d4d4d8', lineHeight: '1.5', fontWeight: '500' }}>
                {currentDescription}
             </div>
-            <div style={{ marginTop: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '6px', padding: '8px', fontSize: '9px', color: '#888', fontWeight: '600', fontFamily: mono }}>
+            <div style={{ marginTop: '10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '6px', padding: '6px', fontSize: '8px', color: '#888', fontWeight: '600', fontFamily: mono }}>
               [NOTE: Active geofence drawn. Data prioritized.]
             </div>
          </div>
       )}
 
-      {/* SCALED DOWN LEGEND */}
+      {/* ========================================== */}
+      {/* FINAL SCALED DOWN LEGEND                   */}
+      {/* ========================================== */}
       <div style={{ 
         position: 'absolute', bottom: '48px', left: '16px', 
         background: 'rgba(15, 15, 18, 0.85)', backdropFilter: 'blur(12px)',
         border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', 
-        padding: '10px', width: '240px', zIndex: 40,
+        padding: '10px', // Tighter padding 
+        width: '220px',  // Shrunk width
+        zIndex: 40,
         opacity: isDataGenerated ? 1 : 0, transition: 'opacity 0.4s ease'
       }}>
-         <div style={{ color: '#a1a1aa', fontSize: '8px', textTransform: 'uppercase', fontFamily: mono, fontWeight: '700', letterSpacing: '0.5px', marginBottom: '6px' }}>
+         <div style={{ color: '#a1a1aa', fontSize: '7px', textTransform: 'uppercase', fontFamily: mono, fontWeight: '700', letterSpacing: '0.5px', marginBottom: '6px' }}>
             PER-CELL CALIBRATED VOLUME (NGN)
          </div>
-         <div style={{ width: '100%', height: '6px', borderRadius: '3px', background: 'linear-gradient(90deg, #3b0764 0%, #1e3a8a 25%, #0d9488 50%, #00e676 75%, #facc15 100%)', marginBottom: '6px' }} />
-         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#d4d4d8', fontWeight: '600', fontFamily: mono }}>
+         <div style={{ width: '100%', height: '5px', borderRadius: '3px', background: 'linear-gradient(90deg, #3b0764 0%, #1e3a8a 25%, #0d9488 50%, #00e676 75%, #facc15 100%)', marginBottom: '6px' }} />
+         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '8px', color: '#d4d4d8', fontWeight: '600', fontFamily: mono }}>
             <span>0</span><span>36.0k</span><span>72.0k+</span>
          </div>
       </div>
@@ -448,7 +467,7 @@ export default function MapCanvas({
                 </button>
                 <div style={{ display: 'flex', flexDirection: 'column', opacity: isPlaying ? 1 : 0, transition: 'opacity 0.3s 0.2s', overflow: 'hidden', whiteSpace: 'nowrap', marginLeft: '10px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <div style={{ width: '4px', height: '4px', background: tourStep >= 0 ? cinematicNodes[tourStep].color : '#fff', borderRadius: '50%', boxShadow: `0 0 8px ${tourStep >= 0 ? cinematicNodes[tourStep].color : '#fff'}`, animation: 'pulseGeofence 1s infinite' }} />
+                        <div style={{ width: '4px', height: '4px', background: tourStep >= 0 ? cinematicNodes[tourStep].color : '#fff', borderRadius: '50%', boxShadow: `0 0 8px ${tourStep >= 0 ? cinematicNodes[tourStep].color : '#fff'}` }} />
                         <span style={{ fontSize: '8px', color: tourStep >= 0 ? cinematicNodes[tourStep].color : '#fff', fontFamily: mono, fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase' }}>
                             TOUR GUIDE ACTIVE • {tourStep >= 0 ? cinematicNodes[tourStep].type : 'INITIATING'}
                         </span>
@@ -468,7 +487,6 @@ export default function MapCanvas({
       </div>
 
       <style>{`
-        @keyframes pulseGeofence { 0% { opacity: 0.4; } 100% { opacity: 1; } }
         @keyframes flowDash { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
       `}</style>
     </div>
