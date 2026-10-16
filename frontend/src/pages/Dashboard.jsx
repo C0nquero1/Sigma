@@ -86,21 +86,24 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* PERFECTED OVERLAY: Smoothed and slowed transition to prevent background bleeding */}
+      {/* PERFECTED OVERLAY: Anchored to left: 0 to permanently prevent background bleeding */}
       <div style={{ 
         position: 'fixed', 
         top: 0, 
         right: 0, 
         bottom: 0, 
-        left: navExpanded ? '240px' : '64px', // Adjust 64px to your exact collapsed nav width
+        left: 0, /* FIX: Always covers the left edge, sitting safely behind the Nav Bar */
+        paddingLeft: navExpanded ? '240px' : '64px', /* FIX: We animate padding instead of the container's physical position */
         opacity: (activePage === 'Command' && canvasMode === 'analysis') ? 1 : 0, 
         pointerEvents: (activePage === 'Command' && canvasMode === 'analysis') ? 'auto' : 'none', 
-        // FIX: Increased 'left' duration to 0.5s and changed to ease-in-out for a unified glide
-        transition: 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), left 0.5s ease-in-out', 
+        transition: 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), padding-left 0.4s ease-in-out', 
         zIndex: 40,
-        background: '#050505' 
+        background: '#050505' /* Ensures any gap during the animation is pure black */
       }}>
-          <DeepAnalysisTab canvasMode={canvasMode} scanData={scanData} contextHub={contextHub} setCanvasMode={setCanvasMode} />
+          {/* We wrap the tab in a relative container so it smoothly inherits the animated padding bounds */}
+          <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+            <DeepAnalysisTab canvasMode={canvasMode} scanData={scanData} contextHub={contextHub} setCanvasMode={setCanvasMode} />
+          </div>
       </div>
 
       {/* Keep Navigation rendered normally without the 9999 z-index wrapper */}
