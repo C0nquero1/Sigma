@@ -4,7 +4,7 @@ const sans = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const mono = "'JetBrains Mono', 'Fira Code', ui-monospace, monospace";
 
 // ==========================================
-// 1. DEEP ANALYSIS INTERACTIVE NODE (Ultra-Wide Variant)
+// 1. HYPER-DENSE INTERACTIVE NODE
 // ==========================================
 const InteractiveNode = ({ title, icon, live, aiInsight, deepMetrics, children }) => {
   const [expanded, setExpanded] = useState(false);
@@ -23,7 +23,7 @@ const InteractiveNode = ({ title, icon, live, aiInsight, deepMetrics, children }
         transition: 'border 0.2s ease'
       }}
     >
-      <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {live && <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#00e676', boxShadow: '0 0 8px #00e676', animation: 'pulseLive 2s infinite' }} />}
@@ -70,7 +70,7 @@ const InteractiveNode = ({ title, icon, live, aiInsight, deepMetrics, children }
 };
 
 // ==========================================
-// 2. FULL-SCREEN MACRO WIDGETS
+// 2. DATA-RICH MACRO WIDGETS
 // ==========================================
 
 const generateCandlesticks = (count) => {
@@ -81,8 +81,9 @@ const generateCandlesticks = (count) => {
     const close = open + (Math.random() - 0.5) * 12;
     const high = Math.max(open, close) + Math.random() * 6;
     const low = Math.min(open, close) - Math.random() * 6;
+    const volume = Math.random() * 100; // Added volume data
     currentPrice = close;
-    data.push({ open, close, high, low, bullish: close >= open });
+    data.push({ open, close, high, low, volume, bullish: close >= open });
   }
   return data;
 };
@@ -90,41 +91,60 @@ const generateCandlesticks = (count) => {
 const MacroVolatilityChart = () => {
   const [candles, setCandles] = useState([]);
   useEffect(() => {
-    setCandles(generateCandlesticks(36));
-    const int = setInterval(() => setCandles(generateCandlesticks(36)), 4000);
+    setCandles(generateCandlesticks(40));
+    const int = setInterval(() => setCandles(generateCandlesticks(40)), 4000);
     return () => clearInterval(int);
   }, []);
 
+  if (candles.length === 0) return null;
   const maxHigh = Math.max(...candles.map(c => c.high), 1);
   const minLow = Math.min(...candles.map(c => c.low), 0);
   const range = maxHigh - minLow;
+  const maxVol = Math.max(...candles.map(c => c.volume), 1);
 
   return (
     <InteractiveNode 
-      title="Macro Liquidity Volatility" live={true}
+      title="Macro Liquidity Volatility & Volume" live={true}
       icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/></svg>}
       aiInsight="Algorithmic flow analysis indicates extreme volatility clustering between 14:00 and 16:00. This pattern heavily correlates with unrecorded wholesale offloading from primary supply nodes."
       deepMetrics={[ { label: 'RSI (14)', val: '64.2' }, { label: 'MACD', val: '+0.04' }, { label: 'Bollinger', val: 'Upper Band' }, { label: 'Vol/Min', val: '4,210' }, { label: 'Skewness', val: '+1.42' }, { label: 'Kurtosis', val: '3.1' }, { label: 'VWAP', val: '$42.1k' }, { label: 'Spread', val: '1.2%' } ]}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', height: '180px', position: 'relative' }}>
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', opacity: 0.15, zIndex: 0 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '200px', position: 'relative' }}>
+        
+        {/* Dense Y-Axis Labels */}
+        <div style={{ position: 'absolute', right: 0, top: 0, bottom: '40px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', fontSize: '9px', color: '#555', fontFamily: mono, zIndex: 0, textAlign: 'right' }}>
+          <span>${maxHigh.toFixed(1)}k</span>
+          <span>${(minLow + range * 0.66).toFixed(1)}k</span>
+          <span>${(minLow + range * 0.33).toFixed(1)}k</span>
+          <span>${minLow.toFixed(1)}k</span>
+        </div>
+
+        {/* Grid Lines */}
+        <div style={{ position: 'absolute', top: 0, left: 0, right: '35px', bottom: '40px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', opacity: 0.15, zIndex: 0 }}>
           <div style={{ borderBottom: '1px dashed #fff', width: '100%' }} />
           <div style={{ borderBottom: '1px dashed #fff', width: '100%' }} />
           <div style={{ borderBottom: '1px dashed #fff', width: '100%' }} />
           <div style={{ borderBottom: '1px dashed #fff', width: '100%' }} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '100%', zIndex: 1, padding: '10px 0' }}>
+
+        {/* Candlesticks & Volume Histogram */}
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '100%', zIndex: 1, paddingRight: '40px' }}>
           {candles.map((c, i) => {
-            const h = ((c.high - minLow) / range) * 100;
-            const l = ((c.low - minLow) / range) * 100;
-            const o = ((c.open - minLow) / range) * 100;
-            const cl = ((c.close - minLow) / range) * 100;
+            const h = ((c.high - minLow) / range) * 75; // Top 75% for candles
+            const l = ((c.low - minLow) / range) * 75;
+            const o = ((c.open - minLow) / range) * 75;
+            const cl = ((c.close - minLow) / range) * 75;
+            const volH = (c.volume / maxVol) * 20; // Bottom 20% for volume
             const color = c.bullish ? '#00e5ff' : '#ef4444';
             
             return (
-              <div key={i} style={{ position: 'relative', width: '4px', height: '100%' }}>
-                <div style={{ position: 'absolute', bottom: `${l}%`, height: `${h - l}%`, width: '1px', background: color, left: '1.5px', opacity: 0.7 }} />
-                <div style={{ position: 'absolute', bottom: `${Math.min(o, cl)}%`, height: `${Math.max(1, Math.abs(o - cl))}%`, width: '4px', background: color, borderRadius: '1px' }} />
+              <div key={i} style={{ position: 'relative', width: '5px', height: '100%' }}>
+                {/* Candle Wick */}
+                <div style={{ position: 'absolute', bottom: `calc(${l}% + 25%)`, height: `${h - l}%`, width: '1px', background: color, left: '2px', opacity: 0.7 }} />
+                {/* Candle Body */}
+                <div style={{ position: 'absolute', bottom: `calc(${Math.min(o, cl)}% + 25%)`, height: `${Math.max(1, Math.abs(o - cl))}%`, width: '5px', background: color, borderRadius: '1px' }} />
+                {/* Volume Bar */}
+                <div style={{ position: 'absolute', bottom: 0, height: `${volH}%`, width: '4px', background: color, opacity: 0.3, left: '0.5px' }} />
               </div>
             );
           })}
@@ -143,20 +163,22 @@ const EntityLedgerTable = () => (
   >
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr', paddingBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '4px' }}>
-        <span style={{ fontSize: '9px', color: '#666', textTransform: 'uppercase', letterSpacing: '1px' }}>Hash ID</span>
+        <span style={{ fontSize: '9px', color: '#666', textTransform: 'uppercase', letterSpacing: '1px' }}>Encrypted Hash ID</span>
         <span style={{ fontSize: '9px', color: '#666', textTransform: 'uppercase', letterSpacing: '1px' }}>Vector</span>
-        <span style={{ fontSize: '9px', color: '#666', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'right' }}>Volume</span>
-        <span style={{ fontSize: '9px', color: '#666', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'right' }}>Risk</span>
+        <span style={{ fontSize: '9px', color: '#666', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'right' }}>Capital Volume</span>
+        <span style={{ fontSize: '9px', color: '#666', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'right' }}>Risk Profile</span>
       </div>
       {[ 
-        { id: '0x8f...4a1', vec: 'Inbound', vol: '$14,200', r: 'Low', rc: '#00e676' },
-        { id: '0x2a...9b3', vec: 'Outbound', vol: '$8,400', r: 'Med', rc: '#f59e0b' },
-        { id: '0x9c...1e2', vec: 'Internal', vol: '$42,150', r: 'High', rc: '#ef4444' },
-        { id: '0x4d...8f5', vec: 'Inbound', vol: '$2,100', r: 'Low', rc: '#00e676' },
-        { id: '0x1a...b22', vec: 'Internal', vol: '$9,300', r: 'Med', rc: '#f59e0b' },
-        { id: '0x7e...c99', vec: 'Outbound', vol: '$1,400', r: 'Low', rc: '#00e676' }
+        { id: '0x8f73...4a1b', vec: 'Inbound', vol: '$14,200', r: 'Low', rc: '#00e676' },
+        { id: '0x2a91...9b3f', vec: 'Outbound', vol: '$8,400', r: 'Med', rc: '#f59e0b' },
+        { id: '0x9c44...1e2a', vec: 'Internal', vol: '$42,150', r: 'High', rc: '#ef4444' },
+        { id: '0x4d12...8f5c', vec: 'Inbound', vol: '$2,100', r: 'Low', rc: '#00e676' },
+        { id: '0x1a88...b22d', vec: 'Internal', vol: '$9,300', r: 'Med', rc: '#f59e0b' },
+        { id: '0x7e05...c99f', vec: 'Outbound', vol: '$1,400', r: 'Low', rc: '#00e676' },
+        { id: '0x3b11...a44e', vec: 'Inbound', vol: '$28,050', r: 'High', rc: '#ef4444' },
+        { id: '0x5f90...d11c', vec: 'Internal', vol: '$6,200', r: 'Low', rc: '#00e676' }
       ].map((row, i) => (
-        <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr', padding: '12px 0', borderBottom: i === 5 ? 'none' : '1px dashed rgba(255,255,255,0.04)' }}>
+        <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr', padding: '12px 0', borderBottom: i === 7 ? 'none' : '1px dashed rgba(255,255,255,0.04)' }}>
           <span style={{ fontSize: '11px', color: '#a1a1aa', fontFamily: mono }}>{row.id}</span>
           <span style={{ fontSize: '11px', color: '#888', fontFamily: sans }}>{row.vec}</span>
           <span style={{ fontSize: '11px', color: '#d4d4d8', fontFamily: mono, textAlign: 'right' }}>{row.vol}</span>
@@ -175,10 +197,10 @@ const MacroCorrelationGrid = () => (
     deepMetrics={[ { label: 'Primary Node', val: 'S-4' }, { label: 'R-Squared', val: '0.92' }, { label: 'P-Value', val: '< 0.01' }, { label: 'Conf', val: '98%' }, { label: 'Covariance', val: '14.2' }, { label: 'Pearson-r', val: '-0.84' }, { label: 'Sample', val: '12k' }, { label: 'Outliers', val: 'Droppd' } ]}
   >
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <div style={{ display: 'flex', gap: '8px', height: '120px' }}>
-         {[...Array(10)].map((_, colIdx) => (
+      <div style={{ display: 'flex', gap: '8px', height: '140px' }}>
+         {[...Array(12)].map((_, colIdx) => (
            <div key={colIdx} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-             {[...Array(6)].map((_, rowIdx) => {
+             {[...Array(8)].map((_, rowIdx) => {
                const intensity = Math.random();
                const isHot = intensity > 0.8;
                return (
@@ -192,8 +214,8 @@ const MacroCorrelationGrid = () => (
            </div>
          ))}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#666', fontFamily: mono, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px' }}>
-        <span>Density</span> <span>Friction</span> <span>Volume</span> <span>Velocity</span> <span>Risk</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#666', fontFamily: mono, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px' }}>
+        <span>Density</span> <span>Friction</span> <span>Volume</span> <span>Velocity</span> <span>Risk</span> <span>Arbitrage</span>
       </div>
     </div>
   </InteractiveNode>
@@ -262,23 +284,39 @@ export default function DeepAnalysisTab({ canvasMode, scanData, contextHub, setC
       position: 'absolute', inset: 0, 
       opacity: canvasMode === 'analysis' ? 1 : 0, 
       pointerEvents: canvasMode === 'analysis' ? 'auto' : 'none', 
-      background: '#020202', // True black to immerse the entire screen
+      background: '#020202', 
       padding: '48px 64px', 
       overflowY: 'auto', zIndex: 100, 
       transition: 'opacity 0.3s ease-in-out',
       fontFamily: sans
     }}>
-       {/* Max-width pushed to 1600px to fully utilize the ultra-wide layout */}
        <div style={{ maxWidth: '1600px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '40px' }}>
           
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '24px' }}>
+          {/* Enhanced Hero Section with Telemetry HUD */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '24px' }}>
              <div>
                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
                  <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#00e676', animation: 'pulseLive 2s infinite' }} />
                  <span style={{ fontSize: '11px', color: '#00e676', fontFamily: mono, textTransform: 'uppercase', letterSpacing: '1px' }}>Deep Analysis Uplink Active</span>
                </div>
-               <div style={{ fontSize: '36px', color: '#fff', fontWeight: '600', letterSpacing: '-1.5px' }}>{contextHub || "Macro Topology"}</div>
+               <div style={{ fontSize: '42px', color: '#fff', fontWeight: '700', letterSpacing: '-1.5px', marginBottom: '16px' }}>{contextHub || "Macro Topology"}</div>
+               
+               {/* New System Telemetry HUD */}
+               <div style={{ display: 'flex', gap: '32px' }}>
+                 {[
+                   { label: 'S2 Cell ID', val: '89c25c7' },
+                   { label: 'Signal Dwell', val: '42m 18s' },
+                   { label: 'Confidence', val: '96.4%', c: '#00e676' },
+                   { label: 'Live Nodes', val: '14,204' }
+                 ].map((t, i) => (
+                   <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                     <span style={{ fontSize: '9px', color: '#666', fontFamily: mono, textTransform: 'uppercase', letterSpacing: '1px' }}>{t.label}</span>
+                     <span style={{ fontSize: '14px', color: t.c || '#d4d4d8', fontFamily: mono, fontWeight: '600' }}>{t.val}</span>
+                   </div>
+                 ))}
+               </div>
              </div>
+             
              <div style={{ display: 'flex', gap: '16px' }}>
                <button style={{ padding: '12px 20px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: '#e4e4e7', fontSize: '12px', fontWeight: '500', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.background='rgba(255,255,255,0.08)'} onMouseLeave={(e)=>e.currentTarget.style.background='rgba(255,255,255,0.03)'}>
                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export Data
@@ -289,8 +327,7 @@ export default function DeepAnalysisTab({ canvasMode, scanData, contextHub, setC
              </div>
           </div>
 
-          {/* Dossier widened to 420px for better typography scaling */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 420px', gap: '40px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 480px', gap: '40px' }}>
              
              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '24px', alignContent: 'start' }}>
                 {activeWidgets.map((widgetName, index) => {
@@ -304,20 +341,43 @@ export default function DeepAnalysisTab({ canvasMode, scanData, contextHub, setC
                 })}
              </div>
 
+             {/* Upgraded Data-Rich Executive Dossier */}
              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', animation: `fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s backwards` }}>
                 <div style={{ background: '#050505', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '8px', padding: '32px', display: 'flex', flexDirection: 'column' }}>
                    <div style={{ fontSize: '11px', color: '#888', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> 
-                     Executive Dossier
+                     Executive Intelligence Dossier
                    </div>
                    
-                   <div style={{ color: '#d4d4d8', fontSize: '14px', lineHeight: '1.8', fontWeight: '400', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                   <div style={{ color: '#d4d4d8', fontSize: '13px', lineHeight: '1.8', fontWeight: '400', display: 'flex', flexDirection: 'column', gap: '24px' }}>
                       <p>{execSummary}</p>
-                      <p>Secondary analysis algorithms detected a <span style={{ color: '#00e676', fontFamily: mono }}>+14.2%</span> acceleration vector in macro liquidity, overriding the established baseline. This necessitates immediate reconfiguration of deployment strategies within the targeted spatial cell.</p>
                       
-                      <div style={{ marginTop: '12px', padding: '20px', background: 'rgba(0, 230, 118, 0.03)', borderLeft: '2px solid #00e676', borderRadius: '4px' }}>
-                        <div style={{ fontSize: '10px', color: '#00e676', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px', fontFamily: mono }}>Automated Recommendation</div>
-                        <div style={{ fontSize: '13px', color: '#ccc', lineHeight: '1.6' }}>Scale infrastructural nodes by 18% to absorb excess liquidity overflow and prevent critical logistical failure in Sector 4.</div>
+                      {/* Detailed Bullet Points */}
+                      <div>
+                        <div style={{ fontSize: '11px', color: '#fff', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>Key Telemetry Findings</div>
+                        <ul style={{ paddingLeft: '16px', margin: 0, display: 'flex', flexDirection: 'column', gap: '8px', color: '#aaa' }}>
+                          <li><strong style={{ color: '#d4d4d8' }}>Volatility Spike:</strong> Secondary analysis algorithms detected a <span style={{ color: '#00e676', fontFamily: mono }}>+14.2%</span> acceleration vector in macro liquidity between 14:00 and 16:00.</li>
+                          <li><strong style={{ color: '#d4d4d8' }}>Routing Decay:</strong> Logistical efficiency has dropped 8.4% YoY due to infrastructure stress.</li>
+                          <li><strong style={{ color: '#d4d4d8' }}>Arbitrage Gap:</strong> Cross-border delta currently holding at a 4.8% premium over domestic standard.</li>
+                        </ul>
+                      </div>
+
+                      {/* Risk Matrix */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                         <div style={{ padding: '12px', background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.1)', borderRadius: '6px' }}>
+                           <div style={{ fontSize: '9px', color: '#ef4444', textTransform: 'uppercase', letterSpacing: '1px', fontFamily: mono, marginBottom: '4px' }}>Primary Risk Vector</div>
+                           <div style={{ fontSize: '12px', color: '#fff' }}>Supply Bottleneck (North)</div>
+                         </div>
+                         <div style={{ padding: '12px', background: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245, 158, 11, 0.1)', borderRadius: '6px' }}>
+                           <div style={{ fontSize: '9px', color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '1px', fontFamily: mono, marginBottom: '4px' }}>Secondary Friction</div>
+                           <div style={{ fontSize: '12px', color: '#fff' }}>Settlement Attrition (40%)</div>
+                         </div>
+                      </div>
+                      
+                      {/* Automated Recommendation */}
+                      <div style={{ padding: '20px', background: 'rgba(0, 230, 118, 0.03)', borderLeft: '2px solid #00e676', borderRadius: '4px' }}>
+                        <div style={{ fontSize: '10px', color: '#00e676', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px', fontFamily: mono }}>Strategic Imperative</div>
+                        <div style={{ fontSize: '13px', color: '#ccc', lineHeight: '1.6' }}>Immediate reconfiguration of deployment strategies is required. Scale infrastructural nodes by 18% to absorb excess liquidity overflow and prevent critical logistical failure in Sector 4.</div>
                       </div>
                    </div>
                 </div>
