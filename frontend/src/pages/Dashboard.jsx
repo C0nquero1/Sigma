@@ -92,10 +92,11 @@ export default function Dashboard() {
         top: 0, 
         right: 0, 
         bottom: 0, 
-        left: navExpanded ? '240px' : '72px', /* <-- DYNAMIC: Pushes and shrinks the page */
+        // FIX: Reduced from 72px. Adjust 64px to exactly match your collapsed Nav width!
+        left: navExpanded ? '240px' : '64px', 
         opacity: (activePage === 'Command' && canvasMode === 'analysis') ? 1 : 0, 
         pointerEvents: (activePage === 'Command' && canvasMode === 'analysis') ? 'auto' : 'none', 
-        transition: 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), left 0.3s ease', /* <-- ADDED: Smooth glide transition for the left offset */
+        transition: 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), left 0.3s ease', 
         zIndex: 40,
         background: '#050505' 
       }}>
