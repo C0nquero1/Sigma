@@ -77,8 +77,15 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* NEW: TRUE FULL-SCREEN DEEP ANALYSIS OVERLAY */}
-      <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: '72px', opacity: canvasMode === 'analysis' ? 1 : 0, pointerEvents: canvasMode === 'analysis' ? 'auto' : 'none', transition: 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1)', zIndex: 5000 }}>
+     {/* NEW: TRUE FULL-SCREEN DEEP ANALYSIS OVERLAY */}
+     <div style={{ 
+        position: 'fixed', 
+        top: 0, right: 0, bottom: 0, left: '72px', /* <-- FIX: Clears the Nav Bar */
+        opacity: canvasMode === 'analysis' ? 1 : 0, 
+        pointerEvents: canvasMode === 'analysis' ? 'auto' : 'none', 
+        transition: 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1)', 
+        zIndex: 5000 
+      }}>
           <DeepAnalysisTab canvasMode={canvasMode} scanData={scanData} contextHub={contextHub} setCanvasMode={setCanvasMode} />
       </div>
 

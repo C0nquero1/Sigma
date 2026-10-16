@@ -390,12 +390,12 @@ export default function DeepAnalysisTab({ canvasMode, scanData, contextHub, setC
 
   return (
     <div style={{ 
-      position: 'fixed', inset: 0, left: '72px', width: 'calc(100vw - 72px)', // Mathematically clears sidebar
+      position: 'absolute', inset: 0, // <-- FIXED HERE
       opacity: canvasMode === 'analysis' ? 1 : 0, 
       pointerEvents: canvasMode === 'analysis' ? 'auto' : 'none', 
       background: '#050505', padding: '48px 64px', overflowY: 'auto', overflowX: 'hidden', 
       zIndex: 5000, transition: 'opacity 0.4s ease-in-out', fontFamily: sans,
-      boxShadow: '-20px 0 50px rgba(0,0,0,0.9)' // Heavy shadow mask against nav bar
+      boxShadow: '-20px 0 50px rgba(0,0,0,0.9)'
     }}>
        {exportModal && <ExportModal onClose={() => setExportModal(false)} />}
        
