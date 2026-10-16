@@ -390,12 +390,11 @@ export default function DeepAnalysisTab({ canvasMode, scanData, contextHub, setC
 
   return (
     <div style={{ 
-      position: 'absolute', inset: 0, // <-- FIXED HERE
+      position: 'absolute', inset: 0, // <-- Changed to absolute, inset: 0
       opacity: canvasMode === 'analysis' ? 1 : 0, 
       pointerEvents: canvasMode === 'analysis' ? 'auto' : 'none', 
       background: '#050505', padding: '48px 64px', overflowY: 'auto', overflowX: 'hidden', 
-      zIndex: 5000, transition: 'opacity 0.4s ease-in-out', fontFamily: sans,
-      boxShadow: '-20px 0 50px rgba(0,0,0,0.9)'
+      zIndex: 5000, transition: 'opacity 0.4s ease-in-out', fontFamily: sans
     }}>
        {exportModal && <ExportModal onClose={() => setExportModal(false)} />}
        

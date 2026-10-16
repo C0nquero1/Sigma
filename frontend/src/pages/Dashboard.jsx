@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navigation from '../components/Navigation';
 import CommandPanel from '../components/CommandPanel';
 import TelemetryPanel from '../components/TelemetryPanel';
@@ -24,6 +24,16 @@ export default function Dashboard() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTourNode, setActiveTourNode] = useState(null);
+
+  // =========================================================
+  // CRITICAL FIX: Automatically close Deep Analysis when 
+  // navigating away via the primary sidebar icons.
+  // =========================================================
+  useEffect(() => {
+    if (activePage !== 'Command') {
+      setCanvasMode('map');
+    }
+  }, [activePage]);
 
   const executeIntelligenceScan = async (promptText, candidateToForce = null) => {
     setIsSearching(true);
@@ -67,7 +77,6 @@ export default function Dashboard() {
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100vw', background: '#050505', color: '#ededef', overflow: 'hidden', position: 'relative' }}>
       
-      {/* FULL SCREEN WEBSITE OVERLAY */}
       {['About', 'Documentation', 'Support'].includes(activePage) && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999 }}>
           <Website 
@@ -77,14 +86,18 @@ export default function Dashboard() {
         </div>
       )}
 
-     {/* NEW: TRUE FULL-SCREEN DEEP ANALYSIS OVERLAY */}
-     <div style={{ 
+      {/* ========================================================= */}
+      {/* PERFECTED OVERLAY: mathematically clears the 72px nav bar */}
+      {/* Tied to activePage === 'Command' so it never traps the user */}
+      {/* ========================================================= */}
+      <div style={{ 
         position: 'fixed', 
-        top: 0, right: 0, bottom: 0, left: '72px', /* <-- FIX: Clears the Nav Bar */
-        opacity: canvasMode === 'analysis' ? 1 : 0, 
-        pointerEvents: canvasMode === 'analysis' ? 'auto' : 'none', 
+        top: 0, right: 0, bottom: 0, left: '72px', 
+        opacity: (activePage === 'Command' && canvasMode === 'analysis') ? 1 : 0, 
+        pointerEvents: (activePage === 'Command' && canvasMode === 'analysis') ? 'auto' : 'none', 
         transition: 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1)', 
-        zIndex: 5000 
+        zIndex: 5000,
+        background: '#050505' // Solid background prevents the map from bleeding through
       }}>
           <DeepAnalysisTab canvasMode={canvasMode} scanData={scanData} contextHub={contextHub} setCanvasMode={setCanvasMode} />
       </div>
@@ -100,7 +113,6 @@ export default function Dashboard() {
         </div>
       ) : (
         <>
-          {/* SIDEBAR DECK */}
           <div style={{ width: deckExpanded ? '460px' : '0px', minWidth: deckExpanded ? '460px' : '0px', maxWidth: deckExpanded ? '460px' : '0px', flex: deckExpanded ? '0 0 460px' : '0 0 0px', display: 'flex', flexDirection: 'column', background: '#050505', borderRight: deckExpanded ? '1px solid #1a1a1c' : 'none', position: 'relative', transition: 'all 0.3s ease', height: '100vh', overflow: 'visible', zIndex: 20 }}>
             
             <div onClick={() => setDeckExpanded(!deckExpanded)} style={{ position: 'absolute', top: '50%', right: '-14px', transform: 'translateY(-50%)', width: '28px', height: '56px', background: '#0a0a0c', border: '1px solid #333', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 100, color: '#888', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
@@ -132,7 +144,6 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* MAP CANVAS CONTAINER */}
           <div style={{ flex: 1, position: 'relative' }}>
              <MapCanvas searchQuery={searchQuery} resolvedLocation={resolvedLocation} isDataGenerated={isDataGenerated} scanData={scanData} canvasMode={canvasMode} setCanvasMode={setCanvasMode} setActiveTourNode={setActiveTourNode} />
           </div>
