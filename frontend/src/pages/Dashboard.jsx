@@ -86,17 +86,17 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* PERFECTED OVERLAY: Dynamically shrinks when Nav expands */}
+      {/* PERFECTED OVERLAY: Smoothed and slowed transition to prevent background bleeding */}
       <div style={{ 
         position: 'fixed', 
         top: 0, 
         right: 0, 
         bottom: 0, 
-        // FIX: Reduced from 72px. Adjust 64px to exactly match your collapsed Nav width!
-        left: navExpanded ? '240px' : '64px', 
+        left: navExpanded ? '240px' : '64px', // Adjust 64px to your exact collapsed nav width
         opacity: (activePage === 'Command' && canvasMode === 'analysis') ? 1 : 0, 
         pointerEvents: (activePage === 'Command' && canvasMode === 'analysis') ? 'auto' : 'none', 
-        transition: 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), left 0.3s ease', 
+        // FIX: Increased 'left' duration to 0.5s and changed to ease-in-out for a unified glide
+        transition: 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), left 0.5s ease-in-out', 
         zIndex: 40,
         background: '#050505' 
       }}>
