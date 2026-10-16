@@ -86,23 +86,23 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ========================================================= */}
       {/* PERFECTED OVERLAY: mathematically clears the 72px nav bar */}
-      {/* Tied to activePage === 'Command' so it never traps the user */}
-      {/* ========================================================= */}
       <div style={{ 
         position: 'fixed', 
         top: 0, right: 0, bottom: 0, left: '72px', 
         opacity: (activePage === 'Command' && canvasMode === 'analysis') ? 1 : 0, 
         pointerEvents: (activePage === 'Command' && canvasMode === 'analysis') ? 'auto' : 'none', 
         transition: 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1)', 
-        zIndex: 5000,
-        background: '#050505' // Solid background prevents the map from bleeding through
+        zIndex: 40, // <-- FIX: Lowered from 5000 to 40
+        background: '#050505' 
       }}>
           <DeepAnalysisTab canvasMode={canvasMode} scanData={scanData} contextHub={contextHub} setCanvasMode={setCanvasMode} />
       </div>
 
-      <Navigation navExpanded={navExpanded} setNavExpanded={setNavExpanded} activePage={activePage} setActivePage={setActivePage} setCanvasMode={setCanvasMode} />
+      {/* CRITICAL FIX: Wrap Navigation to force its expanded drawer over everything */}
+      <div style={{ position: 'relative', zIndex: 9999 }}>
+        <Navigation navExpanded={navExpanded} setNavExpanded={setNavExpanded} activePage={activePage} setActivePage={setActivePage} setCanvasMode={setCanvasMode} />
+      </div>
 
       {activePage === 'Business' ? (
         <BusinessDashboard />
