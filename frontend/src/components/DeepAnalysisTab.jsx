@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const sans = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
 const mono = "'JetBrains Mono', 'Fira Code', ui-monospace, monospace";
 
 // ==========================================
-// SHARED INTERACTIVE NODE (Deep Analysis Variant)
+// 1. DEEP ANALYSIS INTERACTIVE NODE
 // ==========================================
 const InteractiveNode = ({ title, icon, live, aiInsight, deepMetrics, children }) => {
   const [expanded, setExpanded] = useState(false);
@@ -16,22 +16,25 @@ const InteractiveNode = ({ title, icon, live, aiInsight, deepMetrics, children }
       onMouseLeave={() => setIsHovered(false)}
       style={{
         background: '#050505',
-        border: `1px solid ${isHovered ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.06)'}`,
-        borderRadius: '8px', display: 'flex', flexDirection: 'column',
-        position: 'relative', overflow: 'hidden', transition: 'border 0.2s ease'
+        border: `1px solid ${isHovered ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.06)'}`,
+        borderRadius: '8px',
+        display: 'flex', flexDirection: 'column',
+        position: 'relative', overflow: 'hidden',
+        transition: 'border 0.2s ease'
       }}
     >
       <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {live && <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#00e676', boxShadow: '0 0 8px #00e676', animation: 'pulseLive 2s infinite' }} />}
-            <span style={{ color: '#888', fontSize: '9px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px', fontFamily: sans }}>{title}</span>
+            <span style={{ color: '#888', fontSize: '9px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', fontFamily: sans }}>{title}</span>
           </div>
           <span style={{ color: '#444' }}>{icon}</span>
         </div>
-        <div>{children}</div>
+        <div style={{ width: '100%' }}>{children}</div>
       </div>
 
+      {/* Expandable Footer */}
       <div style={{ borderTop: '1px solid rgba(255,255,255,0.04)', background: isHovered ? 'rgba(255,255,255,0.02)' : 'transparent', transition: 'background 0.2s' }}>
         <button 
           onClick={() => setExpanded(!expanded)}
@@ -41,14 +44,15 @@ const InteractiveNode = ({ title, icon, live, aiInsight, deepMetrics, children }
             cursor: 'pointer', fontFamily: sans
           }}
         >
-          <span>Deep Synthesis & Metadata</span>
+          <span>Deep Correlation & AI Synthesis</span>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}><polyline points="6 9 12 15 18 9"></polyline></svg>
         </button>
 
         <div style={{ display: 'grid', gridTemplateRows: expanded ? '1fr' : '0fr', transition: 'grid-template-rows 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}>
           <div style={{ overflow: 'hidden' }}>
             <div style={{ padding: '0 16px 16px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '6px' }}>
+              {/* Deep 8-Point Metrics Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '6px' }}>
                 {deepMetrics.map((m, i) => (
                   <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     <div style={{ fontSize: '8px', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{m.label}</div>
@@ -57,7 +61,7 @@ const InteractiveNode = ({ title, icon, live, aiInsight, deepMetrics, children }
                 ))}
               </div>
               <div style={{ padding: '10px 12px', borderLeft: '2px solid rgba(0, 230, 118, 0.5)', background: 'rgba(0, 230, 118, 0.02)' }}>
-                <div style={{ color: '#aaa', fontSize: '11px', lineHeight: '1.5', fontFamily: sans }}>{aiInsight}</div>
+                <div style={{ color: '#aaa', fontSize: '11px', lineHeight: '1.6', fontFamily: sans }}>{aiInsight}</div>
               </div>
             </div>
           </div>
@@ -68,14 +72,76 @@ const InteractiveNode = ({ title, icon, live, aiInsight, deepMetrics, children }
 };
 
 // ==========================================
-// DEEP ANALYSIS WIDGETS
+// 2. ULTRA-DENSE MACRO WIDGETS
 // ==========================================
+
+// Generates dynamic candlestick data
+const generateCandlesticks = (count) => {
+  let data = [];
+  let currentPrice = 100;
+  for (let i = 0; i < count; i++) {
+    const open = currentPrice;
+    const close = open + (Math.random() - 0.5) * 10;
+    const high = Math.max(open, close) + Math.random() * 5;
+    const low = Math.min(open, close) - Math.random() * 5;
+    currentPrice = close;
+    data.push({ open, close, high, low, bullish: close >= open });
+  }
+  return data;
+};
+
+const MacroVolatilityChart = () => {
+  const [candles, setCandles] = useState([]);
+  useEffect(() => {
+    setCandles(generateCandlesticks(30));
+    const int = setInterval(() => setCandles(generateCandlesticks(30)), 5000);
+    return () => clearInterval(int);
+  }, []);
+
+  const maxHigh = Math.max(...candles.map(c => c.high), 1);
+  const minLow = Math.min(...candles.map(c => c.low), 0);
+  const range = maxHigh - minLow;
+
+  return (
+    <InteractiveNode 
+      title="Macro Liquidity Volatility" live={true}
+      icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/></svg>}
+      aiInsight="Algorithmic flow analysis indicates extreme volatility clustering between 14:00 and 16:00. This pattern heavily correlates with unrecorded wholesale offloading from primary supply nodes."
+      deepMetrics={[ { label: 'RSI (14)', val: '64.2' }, { label: 'MACD', val: '+0.04' }, { label: 'Bollinger', val: 'Upper Band' }, { label: 'Vol/Min', val: '4,210' }, { label: 'Skewness', val: '+1.42' }, { label: 'Kurtosis', val: '3.1' }, { label: 'VWAP', val: '$42.1k' }, { label: 'Spread', val: '1.2%' } ]}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', height: '140px', position: 'relative' }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', opacity: 0.2, zIndex: 0 }}>
+          <div style={{ borderBottom: '1px dashed #fff', width: '100%' }} />
+          <div style={{ borderBottom: '1px dashed #fff', width: '100%' }} />
+          <div style={{ borderBottom: '1px dashed #fff', width: '100%' }} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '100%', zIndex: 1, padding: '10px 0' }}>
+          {candles.map((c, i) => {
+            const h = ((c.high - minLow) / range) * 100;
+            const l = ((c.low - minLow) / range) * 100;
+            const o = ((c.open - minLow) / range) * 100;
+            const cl = ((c.close - minLow) / range) * 100;
+            const color = c.bullish ? '#00e5ff' : '#ef4444'; // Cyan and Red for terminal look
+            
+            return (
+              <div key={i} style={{ position: 'relative', width: '4px', height: '100%' }}>
+                <div style={{ position: 'absolute', bottom: `${l}%`, height: `${h - l}%`, width: '1px', background: color, left: '1.5px' }} />
+                <div style={{ position: 'absolute', bottom: `${Math.min(o, cl)}%`, height: `${Math.abs(o - cl)}%`, width: '4px', background: color, borderRadius: '1px' }} />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </InteractiveNode>
+  );
+};
+
 const EntityLedgerTable = () => (
   <InteractiveNode 
-    title="Entity Transaction Ledger" live={true}
-    icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>}
-    aiInsight="High frequency algorithmic execution detected across Wholesale nodes. Mean transaction size is positively skewed, indicating institutional-grade aggregation within the geofence."
-    deepMetrics={[ { label: 'Total Rows', val: '14,204' }, { label: 'Anomalies', val: '12' }, { label: 'Hash Integrity', val: '99.9%' }, { label: 'Latency', val: '42ms' } ]}
+    title="Entity Transaction Ledger" live={false}
+    icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line></svg>}
+    aiInsight="High frequency execution detected across Wholesale nodes. Mean transaction size is positively skewed, indicating institutional-grade aggregation within the geofence."
+    deepMetrics={[ { label: 'Total Rows', val: '14,204' }, { label: 'Anomalies', val: '12' }, { label: 'Hash Int', val: '99.9%' }, { label: 'Latency', val: '42ms' }, { label: 'Mean Tx', val: '$8.4k' }, { label: 'Mode Tx', val: '$1.2k' }, { label: 'Outliers', val: '0.4%' }, { label: 'Confidence', val: 'High' } ]}
   >
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '4px' }}>
@@ -89,11 +155,12 @@ const EntityLedgerTable = () => (
         { id: '0x2a...9b3', vec: 'Outbound', vol: '$8,400', r: 'Med', rc: '#f59e0b' },
         { id: '0x9c...1e2', vec: 'Internal', vol: '$42,150', r: 'High', rc: '#ef4444' },
         { id: '0x4d...8f5', vec: 'Inbound', vol: '$2,100', r: 'Low', rc: '#00e676' },
+        { id: '0x1a...b22', vec: 'Internal', vol: '$9,300', r: 'Med', rc: '#f59e0b' }
       ].map((row, i) => (
-        <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr', padding: '8px 0', borderBottom: i === 3 ? 'none' : '1px dashed rgba(255,255,255,0.04)' }}>
+        <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr', padding: '10px 0', borderBottom: i === 4 ? 'none' : '1px dashed rgba(255,255,255,0.04)' }}>
           <span style={{ fontSize: '10px', color: '#a1a1aa', fontFamily: mono }}>{row.id}</span>
-          <span style={{ fontSize: '10px', color: '#d4d4d8', fontFamily: sans }}>{row.vec}</span>
-          <span style={{ fontSize: '10px', color: '#fff', fontFamily: mono, textAlign: 'right' }}>{row.vol}</span>
+          <span style={{ fontSize: '9px', color: '#888', fontFamily: sans }}>{row.vec}</span>
+          <span style={{ fontSize: '10px', color: '#d4d4d8', fontFamily: mono, textAlign: 'right' }}>{row.vol}</span>
           <span style={{ fontSize: '9px', color: row.rc, fontFamily: mono, textAlign: 'right' }}>{row.r}</span>
         </div>
       ))}
@@ -103,53 +170,173 @@ const EntityLedgerTable = () => (
 
 const MacroCorrelationGrid = () => (
   <InteractiveNode 
-    title="Macro Correlation Heat-Grid" live={false}
+    title="Macro Correlation Matrix" live={false}
     icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>}
-    aiInsight="Strong negative correlation (-0.84) observed between Vendor Density and Logistical Efficiency. As active nodes increase in Sector 4, localized supply chain friction scales exponentially."
-    deepMetrics={[ { label: 'Primary Node', val: 'Sector 4' }, { label: 'R-Squared', val: '0.92' }, { label: 'P-Value', val: '< 0.01' }, { label: 'Confidence', val: '98%' } ]}
+    aiInsight="Strong negative correlation (-0.84) observed between Vendor Density and Logistical Efficiency. As active nodes increase, supply chain friction scales exponentially."
+    deepMetrics={[ { label: 'Primary Node', val: 'S-4' }, { label: 'R-Squared', val: '0.92' }, { label: 'P-Value', val: '< 0.01' }, { label: 'Conf', val: '98%' }, { label: 'Covariance', val: '14.2' }, { label: 'Pearson-r', val: '-0.84' }, { label: 'Sample', val: '12k' }, { label: 'Outliers', val: 'Droppd' } ]}
   >
-    <div style={{ display: 'flex', gap: '8px', height: '80px' }}>
-       {/* Generating a static micro-heatmap representation */}
-       {[...Array(6)].map((_, colIdx) => (
-         <div key={colIdx} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-           {[...Array(4)].map((_, rowIdx) => {
-             const intensity = Math.random();
-             const isHot = intensity > 0.7;
-             return (
-               <div key={rowIdx} style={{ 
-                 flex: 1, borderRadius: '2px', 
-                 background: isHot ? `rgba(0, 230, 118, ${intensity})` : `rgba(255,255,255, ${intensity * 0.1})`,
-                 border: `1px solid ${isHot ? 'rgba(0,230,118,0.2)' : 'transparent'}`
-               }} />
-             )
-           })}
-         </div>
-       ))}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div style={{ display: 'flex', gap: '8px', height: '100px' }}>
+         {[...Array(8)].map((_, colIdx) => (
+           <div key={colIdx} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+             {[...Array(5)].map((_, rowIdx) => {
+               const intensity = Math.random();
+               const isHot = intensity > 0.75;
+               return (
+                 <div key={rowIdx} style={{ 
+                   flex: 1, borderRadius: '2px', 
+                   background: isHot ? `rgba(0, 230, 118, ${intensity})` : `rgba(255,255,255, ${intensity * 0.1})`,
+                   border: `1px solid ${isHot ? 'rgba(0,230,118,0.2)' : 'transparent'}`
+                 }} />
+               )
+             })}
+           </div>
+         ))}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#666', fontFamily: mono, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '8px' }}>
+        <span>Density</span> <span>Friction</span> <span>Volume</span> <span>Velocity</span> <span>Risk</span>
+      </div>
     </div>
   </InteractiveNode>
 );
 
-export default function DeepAnalysisTab({ contextHub }) {
-  return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, background: '#000000', fontFamily: sans }}>
-      {contextHub && (
-        <div style={{ padding: '20px 20px 0 20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-           <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#00e676', animation: 'pulseLive 2s infinite' }} />
-           <span style={{ fontSize: '10px', color: '#666', fontFamily: mono, textTransform: 'uppercase', letterSpacing: '1px' }}>
-             Deep Analysis Vector: <span style={{ color: '#aaa' }}>{contextHub}</span>
-           </span>
+const ExtendedConversionFunnel = () => (
+  <InteractiveNode 
+    title="Extended Lifecycle Funnel" live={false}
+    icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"></path></svg>}
+    aiInsight="Expanded demographic funnel reveals strong retention up to 'Validation', but 'Settlement' experiences a sharp 40% failure rate linked to lack of physical cash equivalents in the zone."
+    deepMetrics={[ { label: 'Discovery', val: '12k' }, { label: 'Engagement', val: '7.8k' }, { label: 'Validation', val: '6.1k' }, { label: 'Intent', val: '3.6k' }, { label: 'Checkout', val: '3.0k' }, { label: 'Settlement', val: '1.8k' }, { label: 'Retention', val: '1.2k' }, { label: 'LTV Margin', val: '$420' } ]}
+  >
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', height: '120px' }}>
+      {[ 
+        { h: '100%', l: 'DISC', v: '12k', c: '#333' }, 
+        { h: '75%', l: 'ENG', v: '7.8k', c: '#333' }, 
+        { h: '60%', l: 'VAL', v: '6.1k', c: '#333' }, 
+        { h: '45%', l: 'INT', v: '3.6k', c: '#333' }, 
+        { h: '38%', l: 'CHK', v: '3.0k', c: '#333' },
+        { h: '22%', l: 'SETL', v: '1.8k', c: '#00e676' },
+        { h: '15%', l: 'RET', v: '1.2k', c: '#00e5ff' }
+      ].map((f, i) => (
+        <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '9px', color: '#aaa', fontFamily: mono }}>{f.v}</span>
+          <div style={{ position: 'relative', width: '2px', height: f.h, background: f.c, borderRadius: '1px' }}>
+             <div style={{ position: 'absolute', top: 0, left: '-1.5px', width: '5px', height: '5px', borderRadius: '50%', background: f.c, boxShadow: i >= 5 ? `0 0 8px ${f.c}` : 'none' }} />
+          </div>
+          <span style={{ fontSize: '8px', color: '#666', fontFamily: mono }}>{f.l}</span>
         </div>
-      )}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px 32px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <div style={{ animation: `fadeInUp 0.4s ease-out 0s backwards` }}><EntityLedgerTable /></div>
-        <div style={{ animation: `fadeInUp 0.4s ease-out 0.05s backwards` }}><MacroCorrelationGrid /></div>
-      </div>
-      <style>{`
-        @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+      ))}
+    </div>
+  </InteractiveNode>
+);
+
+const WidgetRegistry = {
+  MacroVolatility: MacroVolatilityChart,
+  EntityLedger: EntityLedgerTable,
+  MacroCorrelation: MacroCorrelationGrid,
+  ExtendedFunnel: ExtendedConversionFunnel
+};
+
+// ==========================================
+// 3. MAIN TAB COMPOSITOR
+// ==========================================
+export default function DeepAnalysisTab({ canvasMode, scanData, contextHub, setCanvasMode }) {
+  
+  // Polymorphic Intent Router for Deep Analysis
+  const determineRelevantWidgets = (query) => {
+    const q = (query || '').toLowerCase();
+    let widgets = ['MacroVolatility']; 
+    if (q.includes('cashflow') || q.includes('liquidity') || q.includes('flow')) {
+      widgets.push('EntityLedger', 'MacroCorrelation', 'ExtendedFunnel');
+    } else if (q.includes('where') || q.includes('density') || q.includes('saturation')) {
+      widgets.push('MacroCorrelation', 'ExtendedFunnel', 'EntityLedger');
+    } else {
+      widgets.push('ExtendedFunnel', 'EntityLedger', 'MacroCorrelation');
+    }
+    return widgets;
+  };
+
+  const activeWidgets = determineRelevantWidgets(contextHub);
+  
+  const execSummary = scanData?.deep_analysis?.overview_executive_summary || "The spatial analysis indicates a highly concentrated liquidity vortex within the primary aggregator hub. Unrecorded cash velocity is currently outperforming formal sector baselines by a factor of 3.2x in this specific geolocation. Friction variables remain stable, though logistical bottlenecks at wholesale checkpoints show a 12% increase in delay-related capital depreciation over the trailing 72 hours.";
+
+  return (
+    <div style={{ 
+      position: 'absolute', inset: 0, 
+      opacity: canvasMode === 'analysis' ? 1 : 0, 
+      pointerEvents: canvasMode === 'analysis' ? 'auto' : 'none', 
+      background: 'rgba(2, 2, 2, 0.98)', 
+      backdropFilter: 'blur(30px)', 
+      padding: '40px', 
+      overflowY: 'auto', zIndex: 100, 
+      transition: 'opacity 0.3s ease-in-out',
+      fontFamily: sans
+    }}>
+       <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '32px' }}>
+          
+          {/* Header Section */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '20px' }}>
+             <div>
+               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                 <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#00e676', animation: 'pulseLive 2s infinite' }} />
+                 <span style={{ fontSize: '10px', color: '#00e676', fontFamily: mono, textTransform: 'uppercase', letterSpacing: '1px' }}>Deep Analysis Uplink Active</span>
+               </div>
+               <div style={{ fontSize: '32px', color: '#fff', fontWeight: '600', letterSpacing: '-1px' }}>{contextHub || "Macro Topology"}</div>
+             </div>
+             <div style={{ display: 'flex', gap: '12px' }}>
+               <button style={{ padding: '10px 16px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: '#ccc', fontSize: '11px', fontWeight: '500', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.background='rgba(255,255,255,0.08)'} onMouseLeave={(e)=>e.currentTarget.style.background='rgba(255,255,255,0.03)'}>
+                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export Data
+               </button>
+               <button onClick={() => setCanvasMode('map')} style={{ padding: '10px 16px', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '6px', color: '#fff', cursor: 'pointer', fontSize: '11px', fontWeight: '600' }}>Close Analysis</button>
+             </div>
+          </div>
+
+          {/* Tri-Panel Layout: Left/Center for Widgets, Right for Text Report */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '32px' }}>
+             
+             {/* Left/Center: Dynamic Grid of Widgets */}
+             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px', alignContent: 'start' }}>
+                {activeWidgets.map((widgetName, index) => {
+                  const WidgetComponent = WidgetRegistry[widgetName];
+                  if (!WidgetComponent) return null;
+                  return (
+                    <div key={`${widgetName}-${index}`} style={{ animation: `fadeInUp 0.4s ease-out ${index * 0.05}s backwards` }}>
+                      <WidgetComponent />
+                    </div>
+                  );
+                })}
+             </div>
+
+             {/* Right Panel: Executive Intelligence Dossier */}
+             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', animation: `fadeInUp 0.4s ease-out 0.2s backwards` }}>
+                <div style={{ background: '#050505', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '8px', padding: '24px', display: 'flex', flexDirection: 'column' }}>
+                   <div style={{ fontSize: '10px', color: '#888', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> 
+                     Executive Dossier
+                   </div>
+                   
+                   <div style={{ color: '#d4d4d8', fontSize: '13px', lineHeight: '1.7', fontWeight: '400', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      <p>{execSummary}</p>
+                      <p>Secondary analysis algorithms detected a <span style={{ color: '#00e676', fontFamily: mono }}>+14.2%</span> acceleration vector in macro liquidity, overriding the established baseline. This necessitates immediate reconfiguration of deployment strategies within the targeted spatial cell.</p>
+                      
+                      {/* Generative Insights Highlight */}
+                      <div style={{ marginTop: '8px', padding: '16px', background: 'rgba(0, 230, 118, 0.03)', borderLeft: '2px solid #00e676', borderRadius: '4px' }}>
+                        <div style={{ fontSize: '9px', color: '#00e676', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px', fontFamily: mono }}>Automated Recommendation</div>
+                        <div style={{ fontSize: '12px', color: '#ccc' }}>Scale infrastructural nodes by 18% to absorb excess liquidity overflow and prevent critical logistical failure in Sector 4.</div>
+                      </div>
+                   </div>
+                </div>
+             </div>
+
+          </div>
+       </div>
+
+       <style>{`
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes pulseLive { 0% { opacity: 1; } 50% { opacity: 0.2; } 100% { opacity: 1; } }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
       `}</style>
     </div>
   );
