@@ -86,23 +86,24 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* PERFECTED OVERLAY: mathematically clears the 72px nav bar */}
+      {/* PERFECTED OVERLAY: Dynamically shrinks when Nav expands */}
       <div style={{ 
         position: 'fixed', 
-        top: 0, right: 0, bottom: 0, left: '72px', 
+        top: 0, 
+        right: 0, 
+        bottom: 0, 
+        left: navExpanded ? '240px' : '72px', /* <-- DYNAMIC: Pushes and shrinks the page */
         opacity: (activePage === 'Command' && canvasMode === 'analysis') ? 1 : 0, 
         pointerEvents: (activePage === 'Command' && canvasMode === 'analysis') ? 'auto' : 'none', 
-        transition: 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1)', 
-        zIndex: 40, // <-- FIX: Lowered from 5000 to 40
+        transition: 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), left 0.3s ease', /* <-- ADDED: Smooth glide transition for the left offset */
+        zIndex: 40,
         background: '#050505' 
       }}>
           <DeepAnalysisTab canvasMode={canvasMode} scanData={scanData} contextHub={contextHub} setCanvasMode={setCanvasMode} />
       </div>
 
-      {/* CRITICAL FIX: Wrap Navigation to force its expanded drawer over everything */}
-      <div style={{ position: 'relative', zIndex: 9999 }}>
-        <Navigation navExpanded={navExpanded} setNavExpanded={setNavExpanded} activePage={activePage} setActivePage={setActivePage} setCanvasMode={setCanvasMode} />
-      </div>
+      {/* Keep Navigation rendered normally without the 9999 z-index wrapper */}
+      <Navigation navExpanded={navExpanded} setNavExpanded={setNavExpanded} activePage={activePage} setActivePage={setActivePage} setCanvasMode={setCanvasMode} />
 
       {activePage === 'Business' ? (
         <BusinessDashboard />
