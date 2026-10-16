@@ -4,11 +4,10 @@ import CommandPanel from '../components/CommandPanel';
 import TelemetryPanel from '../components/TelemetryPanel';
 import MapCanvas from '../components/MapCanvas';
 import DeepAnalysisTab from '../components/DeepAnalysisTab';
-import DeepAnalysisFilterTab from '../components/DeepAnalysisFilterTab';
 import BusinessDashboard from '../components/BusinessDashboard'; 
 import API from '../components/API';               
 import ExportData from '../components/ExportData'; 
-import Website from './Website'; // <-- NEW: Imported Website
+import Website from './Website'; 
 
 export default function Dashboard() {
   const [navExpanded, setNavExpanded] = useState(false);
@@ -68,7 +67,7 @@ export default function Dashboard() {
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100vw', background: '#050505', color: '#ededef', overflow: 'hidden', position: 'relative' }}>
       
-      {/* NEW: FULL SCREEN WEBSITE OVERLAY */}
+      {/* FULL SCREEN WEBSITE OVERLAY */}
       {['About', 'Documentation', 'Support'].includes(activePage) && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999 }}>
           <Website 
@@ -77,6 +76,11 @@ export default function Dashboard() {
           />
         </div>
       )}
+
+      {/* NEW: TRUE FULL-SCREEN DEEP ANALYSIS OVERLAY */}
+      <div style={{ position: 'fixed', inset: 0, opacity: canvasMode === 'analysis' ? 1 : 0, pointerEvents: canvasMode === 'analysis' ? 'auto' : 'none', transition: 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1)', zIndex: 5000 }}>
+          <DeepAnalysisTab canvasMode={canvasMode} scanData={scanData} contextHub={contextHub} setCanvasMode={setCanvasMode} />
+      </div>
 
       <Navigation navExpanded={navExpanded} setNavExpanded={setNavExpanded} activePage={activePage} setActivePage={setActivePage} setCanvasMode={setCanvasMode} />
 
@@ -89,6 +93,7 @@ export default function Dashboard() {
         </div>
       ) : (
         <>
+          {/* SIDEBAR DECK */}
           <div style={{ width: deckExpanded ? '460px' : '0px', minWidth: deckExpanded ? '460px' : '0px', maxWidth: deckExpanded ? '460px' : '0px', flex: deckExpanded ? '0 0 460px' : '0 0 0px', display: 'flex', flexDirection: 'column', background: '#050505', borderRight: deckExpanded ? '1px solid #1a1a1c' : 'none', position: 'relative', transition: 'all 0.3s ease', height: '100vh', overflow: 'visible', zIndex: 20 }}>
             
             <div onClick={() => setDeckExpanded(!deckExpanded)} style={{ position: 'absolute', top: '50%', right: '-14px', transform: 'translateY(-50%)', width: '28px', height: '56px', background: '#0a0a0c', border: '1px solid #333', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 100, color: '#888', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
@@ -97,9 +102,13 @@ export default function Dashboard() {
 
             <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', opacity: deckExpanded ? 1 : 0 }}>
               {activePage !== 'Command' ? (
-                <TelemetryPanel activePage={activePage} setActivePage={setActivePage} scanData={scanData} contextHub={contextHub} executeIntelligenceScan={executeIntelligenceScan} />
-              ) : canvasMode === 'analysis' ? (
-                <DeepAnalysisFilterTab />
+                <TelemetryPanel 
+                  activePage={activePage} 
+                  setActivePage={setActivePage} 
+                  scanData={scanData} 
+                  contextHub={contextHub} 
+                  executeIntelligenceScan={executeIntelligenceScan} 
+                />
               ) : (
                 <CommandPanel 
                   executeIntelligenceScan={executeIntelligenceScan} 
@@ -109,18 +118,16 @@ export default function Dashboard() {
                   contextHub={contextHub}
                   setCanvasMode={setCanvasMode}
                   activeTourNode={activeTourNode}
-                  commandTab={commandTab}         
+                  commandTab={commandTab}        
                   setCommandTab={setCommandTab}
                 />
               )}
             </div>
           </div>
 
+          {/* MAP CANVAS CONTAINER */}
           <div style={{ flex: 1, position: 'relative' }}>
              <MapCanvas searchQuery={searchQuery} resolvedLocation={resolvedLocation} isDataGenerated={isDataGenerated} scanData={scanData} canvasMode={canvasMode} setCanvasMode={setCanvasMode} setActiveTourNode={setActiveTourNode} />
-             <div style={{ position: 'absolute', inset: 0, opacity: canvasMode === 'analysis' ? 1 : 0, pointerEvents: canvasMode === 'analysis' ? 'auto' : 'none', transition: 'opacity 0.3s ease-in-out', zIndex: 100 }}>
-                 <DeepAnalysisTab canvasMode={canvasMode} scanData={scanData} contextHub={contextHub} setCanvasMode={setCanvasMode} />
-             </div>
           </div>
         </>
       )}
