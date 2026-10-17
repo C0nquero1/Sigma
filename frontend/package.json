@@ -13,13 +13,16 @@
     "@deck.gl/aggregation-layers": "^9.3.3",
     "@deck.gl/layers": "^9.3.2",
     "@deck.gl/react": "^9.3.2",
+    "clsx": "^2.1.1",
     "deck.gl": "^9.3.2",
+    "lucide-react": "^1.58.0",
     "mapbox-gl": "^3.24.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-globe.gl": "^2.38.0",
     "react-map-gl": "^7.1.6",
-    "recharts": "^3.8.1",
+    "recharts": "^3.10.1",
+    "tailwind-merge": "^3.7.0",
     "three": "^0.184.0"
   },
   "devDependencies": {
