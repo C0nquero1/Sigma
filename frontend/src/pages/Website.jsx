@@ -1,245 +1,346 @@
 import React, { useState, useEffect } from 'react';
+import { 
+  Command, ArrowRight, Menu, X, Activity, 
+  Database, ShieldCheck, ChevronDown,TrendingUp, Check, Globe
+} from 'lucide-react';
 
-const sans = "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif";
+const sans = "'SF Pro Display', 'Inter', 'Geist', -apple-system, BlinkMacSystemFont, sans-serif";
+const mono = "'JetBrains Mono', 'Geist Mono', 'Fira Code', ui-monospace, monospace";
 
-export default function Website({ onLoginSuccess, initialPage = 'about', onReturnToDashboard }) {
-  // Navigation State: 'about', 'login', 'register', 'docs', 'support'
-  const [activePage, setActivePage] = useState(initialPage);
+const faqs = [
+  {
+    q: "How exactly does the AI track cash velocity?",
+    a: "Our intelligence engine integrates with existing POS systems, mobile money APIs, and ground-fleet telemetry. It aggregates this data in real-time, mapping transaction densities to specific spatial zones to calculate exact cash flow per hour."
+  },
+  {
+    q: "Do I need technical knowledge to use the dashboard?",
+    a: "No. The Business Dashboard is designed for logistics executives and operators. The AI synthesizes complex data arrays into plain-English 'Master Execution Plans'. However, a Developer API is available for your engineering teams."
+  },
+  {
+    q: "How accurate are the demand surge predictions?",
+    a: "Our predictive models operate at a 94.2% accuracy rate for 24-hour windows. By analyzing trailing 7-day historical baselines, competitor stock levels, and local friction points, the engine predicts surges before inventory depletes."
+  },
+  {
+    q: "What is the pricing model?",
+    a: "We operate on a Hybrid Compute model. You pay a base subscription which includes an allowance of Compute Credits. Running live updates, AI chats, and deep exports consume credits. You can top-up instantly at any time."
+  }
+];
 
-  // Sync state if navigating from the Dashboard
-  useEffect(() => {
-    if (initialPage) setActivePage(initialPage);
-  }, [initialPage]);
+const MatrixGrid = () => {
+  return (
+    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '900px', zIndex: 0, pointerEvents: 'none', display: 'flex', justifyContent: 'center', overflow: 'hidden' }}>
+      <div style={{ 
+        width: '100%', maxWidth: '1400px', height: '100%', 
+        display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gridTemplateRows: 'repeat(8, 100px)',
+        borderLeft: '1px solid rgba(255,255,255,0.06)', borderTop: '1px solid rgba(255,255,255,0.06)'
+      }}>
+        {[...Array(96)].map((_, i) => {
+          let glow = null;
+          if (i === 10) glow = 'linear-gradient(90deg, transparent, #012a14, #02401f)';
+          if (i === 11) glow = 'linear-gradient(90deg, #02401f, transparent)';
+          if (i === 21) glow = 'linear-gradient(90deg, transparent, #011a0c, #034a26)';
+          if (i === 22) glow = 'linear-gradient(90deg, #034a26, #02401f, #011a0c)';
+          if (i === 23) glow = 'linear-gradient(90deg, #011a0c, transparent)';
+          if (i === 33) glow = 'linear-gradient(90deg, transparent, #02401f)';
+          if (i === 34) glow = 'linear-gradient(90deg, #02401f, #011a0c)';
+          if (i === 45) glow = 'linear-gradient(90deg, transparent, #034a26)';
+          if (i === 46) glow = 'linear-gradient(90deg, #034a26, #012a14)';
+          if (i === 47) glow = 'linear-gradient(90deg, #012a14, transparent)';
 
-  // --- REUSABLE COMPONENTS ---
-
-  const WebsiteNav = () => (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 40px', width: '100%', maxWidth: '1400px', margin: '0 auto', fontFamily: sans }}>
-      {/* Brand */}
-      <div 
-        onClick={() => onReturnToDashboard ? onReturnToDashboard() : setActivePage('about')}
-        style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
-      >
-        <div style={{ width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="url(#logoGradWeb)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <defs>
-              <linearGradient id="logoGradWeb" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#00e676" />
-                <stop offset="100%" stopColor="#10b981" />
-              </linearGradient>
-            </defs>
-            <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"></polygon>
-            <line x1="9" y1="3" x2="9" y2="18"></line><line x1="15" y1="6" x2="15" y2="21"></line>
-          </svg>
-        </div>
-        <span style={{ color: '#fff', fontSize: '18px', fontWeight: '800', letterSpacing: '-0.5px' }}>Street AI</span>
-      </div>
-
-      {/* Center Links */}
-      <div style={{ display: 'flex', gap: '32px', alignItems: 'center' }}>
-        {['About', 'Documentation', 'Support'].map(link => {
-          const key = link === 'Documentation' ? 'docs' : link.toLowerCase();
-          const isActive = activePage === key;
           return (
-            <span 
-              key={key} 
-              onClick={() => setActivePage(key)}
-              style={{ color: isActive ? '#fff' : '#888', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'color 0.2s' }}
-              onMouseEnter={(e) => e.target.style.color = '#fff'}
-              onMouseLeave={(e) => e.target.style.color = isActive ? '#fff' : '#888'}
-            >
-              {link}
-            </span>
+            <div key={i} style={{ borderRight: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', position: 'relative' }}>
+              {glow && (
+                <div style={{ 
+                  position: 'absolute', inset: '1px', background: glow, 
+                  opacity: 0.8, filter: 'blur(8px)', animation: 'pulseSlow 4s ease-in-out infinite alternate' 
+                }} />
+              )}
+            </div>
           );
         })}
       </div>
-
-      {/* Right Actions (Dynamic based on login status) */}
-      <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-        {onReturnToDashboard ? (
-          <button 
-            onClick={onReturnToDashboard}
-            style={{ background: '#00e676', color: '#050505', border: 'none', borderRadius: '24px', padding: '8px 20px', fontSize: '14px', fontWeight: '700', cursor: 'pointer', transition: 'transform 0.2s', boxShadow: '0 4px 15px rgba(0, 230, 118, 0.2)' }}
-            onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
-            onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
-          >
-            Go to Dashboard
-          </button>
-        ) : (
-          <>
-            <span 
-              onClick={() => setActivePage('login')}
-              style={{ color: '#fff', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}
-            >
-              Log in
-            </span>
-            <button 
-              onClick={() => setActivePage('register')}
-              style={{ background: '#fff', color: '#050505', border: 'none', borderRadius: '24px', padding: '8px 16px', fontSize: '14px', fontWeight: '700', cursor: 'pointer', transition: 'transform 0.2s' }}
-              onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
-              onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
-            >
-              Sign up
-            </button>
-          </>
-        )}
-      </div>
     </div>
   );
+};
 
-  const AbstractLandscape = () => (
-    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '200px', overflow: 'hidden', pointerEvents: 'none' }}>
-      <svg viewBox="0 0 800 200" preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}>
-        <path d="M0,150 C150,200 250,50 400,100 C550,150 650,80 800,120 L800,200 L0,200 Z" fill="rgba(16, 185, 129, 0.1)" />
-        <path d="M0,170 C200,220 300,90 500,140 C650,180 750,120 800,150 L800,200 L0,200 Z" fill="rgba(0, 230, 118, 0.15)" />
-        <path d="M0,200 C250,250 350,130 550,170 C700,200 750,160 800,180 L800,200 L0,200 Z" fill="rgba(0, 230, 118, 0.2)" />
-      </svg>
-    </div>
-  );
+export default function Website({ onNavigate }) {
+  const [scrolled, setScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [openFaq, setOpenFaq] = useState(0);
 
-  // --- PAGE VIEWS ---
-  const AboutView = () => (
-    <>
-      <div style={{ flex: 1, padding: '80px 60px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        <h1 style={{ fontSize: '48px', fontWeight: '800', color: '#fff', letterSpacing: '-1.5px', lineHeight: '1.1', marginBottom: '24px' }}>
-          Spatial liquidity <br/>is one scan away.
-        </h1>
-        <p style={{ fontSize: '16px', color: '#888', fontWeight: '500', lineHeight: '1.6', maxWidth: '400px', marginBottom: '40px' }}>
-          Street AI maps the unbanked economy. Deploy intelligence agents to track informal cash velocity, vendor density, and commodity supply chains in real-time.
-        </p>
-        <div>
-          {!onReturnToDashboard && (
-            <button 
-              onClick={() => setActivePage('register')}
-              style={{ background: '#fff', color: '#050505', border: 'none', borderRadius: '30px', padding: '14px 28px', fontSize: '15px', fontWeight: '700', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 15px rgba(255,255,255,0.1)' }}
-              onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
-              onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
-            >
-              Start for free
-            </button>
-          )}
-        </div>
-      </div>
-      <div style={{ flex: 1, background: '#121214', position: 'relative', borderLeft: '1px solid rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-         <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '24px', width: '320px', zIndex: 10, backdropFilter: 'blur(10px)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-              <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #00e676 0%, #10b981 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#050505" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle></svg>
-              </div>
-              <div>
-                <div style={{ color: '#fff', fontSize: '15px', fontWeight: '700' }}>Wuse Market</div>
-                <div style={{ color: '#888', fontSize: '12px', fontWeight: '500' }}>4,218 active nodes</div>
-              </div>
-            </div>
-            <div style={{ background: '#050505', borderRadius: '8px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-               <span style={{ color: '#888', fontSize: '12px', fontWeight: '600' }}>Live Velocity</span>
-               <span style={{ color: '#00e676', fontSize: '14px', fontWeight: '800' }}>+18.4%</span>
-            </div>
-         </div>
-         <AbstractLandscape />
-      </div>
-    </>
-  );
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
-  const AuthView = ({ isLogin }) => (
-    <>
-      <div style={{ flex: 1, padding: '80px 60px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        <h1 style={{ fontSize: '36px', fontWeight: '800', color: '#fff', letterSpacing: '-1px', marginBottom: '8px' }}>
-          {isLogin ? 'Welcome back.' : 'Create your account.'}
-        </h1>
-        <p style={{ fontSize: '15px', color: '#888', fontWeight: '500', marginBottom: '40px' }}>
-          {isLogin ? 'Enter your credentials to access the command deck.' : 'Join the intelligence network and map the unbanked economy.'}
-        </p>
-        <form onSubmit={(e) => { e.preventDefault(); if(onLoginSuccess) onLoginSuccess(); }} style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '360px' }}>
-          {!isLogin && <input type="text" placeholder="Full Name" required style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />}
-          <input type="email" placeholder="Email address" required style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
-          <input type="password" placeholder="Password" required style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
-          <button type="submit" style={{ background: 'linear-gradient(135deg, #00e676 0%, #10b981 100%)', color: '#050505', border: 'none', borderRadius: '12px', padding: '14px', fontSize: '15px', fontWeight: '800', cursor: 'pointer', marginTop: '8px', transition: 'opacity 0.2s' }} onMouseEnter={(e)=>e.target.style.opacity=0.9} onMouseLeave={(e)=>e.target.style.opacity=1}>
-            {isLogin ? 'Log into Command Deck' : 'Initialize Account'}
-          </button>
-        </form>
-        <div style={{ marginTop: '24px', fontSize: '13px', color: '#666', fontWeight: '500' }}>
-          {isLogin ? "Don't have an account? " : "Already have an account? "}
-          <span onClick={() => setActivePage(isLogin ? 'register' : 'login')} style={{ color: '#00e676', cursor: 'pointer', fontWeight: '600' }}>
-            {isLogin ? 'Sign up' : 'Log in'}
-          </span>
-        </div>
-      </div>
-      <div style={{ flex: 1, background: '#121214', position: 'relative', borderLeft: '1px solid rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-         <div style={{ textAlign: 'center', zIndex: 10, padding: '40px' }}>
-           <div style={{ width: '60px', height: '60px', margin: '0 auto 20px auto', background: 'rgba(0, 230, 118, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(0, 230, 118, 0.3)' }}>
-             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00e676" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-           </div>
-           <h3 style={{ color: '#fff', fontSize: '20px', fontWeight: '700', marginBottom: '8px' }}>Secure Uplink</h3>
-           <p style={{ color: '#888', fontSize: '14px', lineHeight: '1.5' }}>Enterprise-grade encryption for all <br/>spatial intelligence queries.</p>
-         </div>
-         <AbstractLandscape />
-      </div>
-    </>
-  );
-
-  const DocsView = () => (
-    <div style={{ width: '100%', padding: '60px', overflowY: 'auto' }}>
-      <h1 style={{ fontSize: '36px', fontWeight: '800', color: '#fff', letterSpacing: '-1px', marginBottom: '16px' }}>Documentation</h1>
-      <p style={{ fontSize: '16px', color: '#888', fontWeight: '500', maxWidth: '600px', marginBottom: '40px' }}>Learn how to deploy agents, interpret S2 voxel grids, and integrate Street AI into your intelligence pipeline.</p>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-        {[
-          { title: 'Quick Start Guide', desc: 'Initialize your first spatial map.' },
-          { title: 'API Reference', desc: 'Endpoints for automated extraction.' },
-          { title: 'Data Provenance', desc: 'Understanding cellular RF intercept data.' },
-          { title: 'Export Formats', desc: 'Formatting data for Carto and Mapbox.' }
-        ].map((doc, i) => (
-          <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '24px', cursor: 'pointer', transition: 'border-color 0.2s' }} onMouseEnter={(e)=>e.currentTarget.style.borderColor='rgba(0, 230, 118, 0.4)'} onMouseLeave={(e)=>e.currentTarget.style.borderColor='rgba(255,255,255,0.06)'}>
-            <h3 style={{ color: '#fff', fontSize: '16px', fontWeight: '700', marginBottom: '8px' }}>{doc.title}</h3>
-            <p style={{ color: '#888', fontSize: '13px', fontWeight: '500' }}>{doc.desc}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  const SupportView = () => (
-    <div style={{ width: '100%', padding: '60px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ width: '60px', height: '60px', marginBottom: '24px', background: 'rgba(0, 230, 118, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00e676" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-      </div>
-      <h1 style={{ fontSize: '36px', fontWeight: '800', color: '#fff', letterSpacing: '-1px', marginBottom: '8px', textAlign: 'center' }}>How can we help?</h1>
-      <p style={{ fontSize: '15px', color: '#888', fontWeight: '500', marginBottom: '40px', textAlign: 'center', maxWidth: '400px' }}>Our intelligence engineering team is available 24/7 for enterprise support.</p>
-      <button style={{ background: '#fff', color: '#050505', border: 'none', borderRadius: '30px', padding: '14px 28px', fontSize: '15px', fontWeight: '700', cursor: 'pointer' }}>
-        Contact Support Team
-      </button>
-    </div>
-  );
-
-  const inputStyle = {
-    width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '14px 16px', color: '#fff', fontSize: '14px', outline: 'none', fontFamily: sans, transition: 'border 0.2s'
+  // Safe navigation handler
+  const handleNav = (route) => {
+    if (onNavigate) onNavigate(route);
   };
-  const handleFocus = (e) => e.target.style.border = '1px solid rgba(0, 230, 118, 0.5)';
-  const handleBlur = (e) => e.target.style.border = '1px solid rgba(255,255,255,0.1)';
 
   return (
-    <div style={{ background: '#050505', minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: sans }}>
-      <WebsiteNav />
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-        <div style={{ 
-          width: '100%', 
-          maxWidth: '1080px', 
-          height: '600px', 
-          background: '#0a0a0c', 
-          borderRadius: '32px', 
-          border: '1px solid rgba(255,255,255,0.05)',
-          boxShadow: '0 40px 80px rgba(0,0,0,0.8)',
-          overflow: 'hidden',
-          display: 'flex',
-          position: 'relative'
-        }}>
-          {activePage === 'about' && <AboutView />}
-          {activePage === 'login' && <AuthView isLogin={true} />}
-          {activePage === 'register' && <AuthView isLogin={false} />}
-          {activePage === 'docs' && <DocsView />}
-          {activePage === 'support' && <SupportView />}
+    <div style={{ background: '#000000', height: '100vh', color: '#fff', fontFamily: sans, position: 'relative', overflowX: 'hidden', overflowY: 'auto' }}>
+      
+      <MatrixGrid />
+
+      <nav style={{ 
+        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
+        background: scrolled ? 'rgba(0,0,0,0.85)' : 'transparent',
+        backdropFilter: scrolled ? 'blur(20px)' : 'none',
+        borderBottom: scrolled ? '1px solid rgba(255,255,255,0.08)' : '1px solid transparent',
+        transition: 'all 0.3s ease'
+      }}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '20px 5vw', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} onClick={() => handleNav('landing')}>
+            <div style={{ width: '28px', height: '28px', border: '1px solid #fff', borderRadius: '6px', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#fff' }}>
+              <Command size={14} strokeWidth={2.5} />
+            </div>
+            <span style={{ fontSize: '18px', fontWeight: '800', letterSpacing: '-0.5px' }}>Platform</span>
+          </div>
+
+          <div className="desktop-nav" style={{ display: 'flex', gap: '40px', alignItems: 'center' }}>
+            {['About', 'Docs', 'Support'].map(link => (
+              <a key={link} href={`#${link.toLowerCase()}`} style={{ fontSize: '14px', color: '#a1a1aa', textDecoration: 'none', fontWeight: '500', transition: 'color 0.2s' }} className="nav-link-hover">
+                {link}
+              </a>
+            ))}
+          </div>
+
+          <div className="desktop-nav" style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+            <button onClick={() => handleNav('login')} style={{ background: 'transparent', border: 'none', fontSize: '14px', color: '#fff', textDecoration: 'none', fontWeight: '600', cursor: 'pointer' }} className="nav-link-hover">
+              Log in
+            </button>
+            <button onClick={() => handleNav('signup')} style={{ background: '#fff', color: '#000', border: 'none', padding: '10px 24px', borderRadius: '100px', fontSize: '14px', fontWeight: '700', cursor: 'pointer', transition: 'transform 0.2s' }} className="btn-scale">
+              Get Started
+            </button>
+          </div>
+
+          <button className="mobile-nav-toggle" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}>
+            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
         </div>
-      </div>
+      </nav>
+
+      <main style={{ position: 'relative', zIndex: 1, maxWidth: '1400px', margin: '0 auto', padding: '160px 5vw 120px 5vw', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ maxWidth: '600px', paddingTop: '80px', animation: 'fadeInUp 0.8s ease-out backwards' }}>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '40px' }}>
+            <div style={{ background: 'rgba(255,255,255,0.1)', padding: '4px', borderRadius: '4px' }}>
+              <Command size={12} color="#a1a1aa" />
+            </div>
+            <span style={{ fontSize: '13px', color: '#e4e4e7', fontFamily: sans, fontWeight: '500' }}>
+              Command Engine is live now. <span onClick={() => handleNav('signup')} style={{ color: '#a1a1aa', textDecoration: 'underline', cursor: 'pointer' }} className="nav-link-hover">Try the first intelligence agent.</span>
+            </span>
+          </div>
+
+          <h1 style={{ fontSize: 'clamp(48px, 6vw, 72px)', fontWeight: '800', lineHeight: '1.05', letterSpacing: '-0.04em', marginBottom: '24px', color: '#fff' }}>
+            Business intelligence in real-time.
+          </h1>
+
+          <p style={{ fontSize: 'clamp(16px, 2vw, 18px)', color: '#a1a1aa', lineHeight: '1.6', marginBottom: '48px', fontWeight: '400', maxWidth: '500px' }}>
+            The most powerful serverless platform for tracking physical cash velocity and mapping supply chain liquidity. Build. Deploy. Scale.
+          </p>
+
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button onClick={() => handleNav('signup')} style={{ background: '#fff', color: '#000', border: 'none', padding: '14px 28px', borderRadius: '100px', fontSize: '15px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: 'transform 0.2s' }} className="btn-scale">
+              <Command size={16} /> Get Started
+            </button>
+            <button style={{ background: '#000', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', padding: '14px 28px', borderRadius: '100px', fontSize: '15px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' }} className="btn-outline">
+              Explore docs
+            </button>
+          </div>
+        </div>
+      </main>
+
+      <section id="about" style={{ position: 'relative', zIndex: 1, background: '#000', borderTop: '1px solid rgba(255,255,255,0.08)', padding: '120px 5vw' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <div style={{ marginBottom: '80px', maxWidth: '600px' }}>
+            <h3 style={{ fontSize: '40px', fontWeight: '800', color: '#fff', letterSpacing: '-0.03em', margin: '0 0 16px 0', lineHeight: 1.1 }}>Not just a dashboard.<br/>An autonomous brain.</h3>
+            <p style={{ fontSize: '16px', color: '#a1a1aa', lineHeight: '1.6' }}>The platform pulls live signals from your infrastructure to map exact liquidity flow, predict demand surges, and execute commands.</p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '32px' }}>
+            <div className="feature-block">
+              <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', color: '#fff', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '24px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <Activity size={20} />
+              </div>
+              <h4 style={{ fontSize: '18px', fontWeight: '700', color: '#fff', marginBottom: '12px', letterSpacing: '-0.5px' }}>Real-Time Telemetry</h4>
+              <p style={{ fontSize: '14px', color: '#a1a1aa', lineHeight: '1.6' }}>The engine pulls live signals from POS terminals, dispatch riders, and digital transfers to map exact liquidity flow per minute.</p>
+            </div>
+            
+            <div className="feature-block">
+              <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(2, 51, 27, 0.4)', color: '#00e676', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '24px', border: '1px solid rgba(4, 92, 50, 0.5)' }}>
+                <TrendingUp size={20} />
+              </div>
+              <h4 style={{ fontSize: '18px', fontWeight: '700', color: '#fff', marginBottom: '12px', letterSpacing: '-0.5px' }}>Predictive Surge Analysis</h4>
+              <p style={{ fontSize: '14px', color: '#a1a1aa', lineHeight: '1.6' }}>By mapping historical matrices against live friction points, the AI predicts demand spikes before your inventory burns out.</p>
+            </div>
+            
+            <div className="feature-block">
+              <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', color: '#fff', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '24px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <ShieldCheck size={20} />
+              </div>
+              <h4 style={{ fontSize: '18px', fontWeight: '700', color: '#fff', marginBottom: '12px', letterSpacing: '-0.5px' }}>Execution Protocol</h4>
+              <p style={{ fontSize: '14px', color: '#a1a1aa', lineHeight: '1.6' }}>The AI synthesizes raw data into a Master Action Plan, telling you exactly where to reroute fleets or adjust pricing.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="velocity" style={{ position: 'relative', zIndex: 1, padding: '120px 5vw', background: '#050505', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '64px', alignItems: 'center' }} className="grid-split">
+          
+          <div>
+            <h3 style={{ fontSize: '40px', fontWeight: '800', color: '#fff', letterSpacing: '-0.03em', margin: '0 0 24px 0', lineHeight: 1.1 }}>See exactly where<br/>the money is moving.</h3>
+            <p style={{ fontSize: '16px', color: '#a1a1aa', lineHeight: '1.6', marginBottom: '32px' }}>
+              Stop guessing where your capital is locked. The Cash Velocity matrix maps highest density zones, tracks modality splits (Cash vs. Digital), and calculates average transaction values in real-time.
+            </p>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {['Spot liquidity vortexes instantly', 'Monitor live digital conversion rates', 'Deploy capital to the most profitable sectors'].map((item, i) => (
+                <li key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '15px', color: '#e4e4e7', fontWeight: '500' }}>
+                  <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', color: '#fff', display: 'flex', justifyContent: 'center', alignItems: 'center' }}><Check size={10} strokeWidth={3} /></div>
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div style={{ background: '#000', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.1)', padding: '32px', boxShadow: '0 40px 100px rgba(0,0,0,0.8), inset 0 1px 1px rgba(255,255,255,0.05)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#fff', fontSize: '14px', fontWeight: '600' }}><Globe size={16} /> Cash velocity heatmap</div>
+              <div style={{ border: '1px solid rgba(255,255,255,0.2)', color: '#fff', padding: '4px 10px', borderRadius: '16px', fontSize: '11px', fontFamily: mono, fontWeight: '700' }}>LIVE</div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              {[
+                { n: 'Central Wholesale', v: '$428K/hr', bg: 'rgba(2, 51, 27, 0.6)', b: 'rgba(4, 92, 50, 0.8)', c: '#fff' },
+                { n: 'Retail Alley', v: '$142K/hr', bg: 'rgba(2, 51, 27, 0.3)', b: 'rgba(4, 92, 50, 0.4)', c: '#fff' },
+                { n: 'Transit Hub', v: '$281K/hr', bg: 'rgba(2, 51, 27, 0.4)', b: 'rgba(4, 92, 50, 0.5)', c: '#fff' },
+                { n: 'North Gate', v: '$54K/hr', bg: 'rgba(255,255,255,0.03)', b: 'rgba(255,255,255,0.05)', c: '#a1a1aa' },
+              ].map((z, i) => (
+                <div key={i} style={{ background: z.bg, padding: '16px', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '8px', border: `1px solid ${z.b}` }}>
+                  <span style={{ fontSize: '12px', color: z.c, fontWeight: '600' }}>{z.n}</span>
+                  <span style={{ fontSize: '16px', color: '#fff', fontFamily: mono, fontWeight: '800' }}>{z.v}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <section id="docs" style={{ position: 'relative', zIndex: 1, background: '#000', borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '120px 5vw' }}>
+        <div style={{ maxWidth: '1000px', margin: '0 auto', textAlign: 'center' }}>
+          <h3 style={{ fontSize: '40px', fontWeight: '800', color: '#fff', letterSpacing: '-0.03em', marginBottom: '24px' }}>Pipe intelligence directly into your ERP.</h3>
+          <p style={{ fontSize: '16px', color: '#a1a1aa', lineHeight: '1.6', marginBottom: '48px', maxWidth: '600px', margin: '0 auto 48px auto' }}>
+            Build custom supply chain routing algorithms or financial triggers using our robust, sub-50ms REST API and live Webhook architecture.
+          </p>
+
+          <div style={{ background: '#050505', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', padding: '32px', fontFamily: mono, fontSize: '14px', lineHeight: '1.8', textAlign: 'left', maxWidth: '700px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
+              <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)' }} />
+              <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)' }} />
+              <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)' }} />
+            </div>
+            <div style={{ color: '#71717a', marginBottom: '8px' }}>// Listen for predictive demand surges via Webhook</div>
+            <div style={{ color: '#e4e4e7' }}>engine.on(<span style={{ color: '#fff' }}>'surge_detected'</span>, (data) =&gt; {'{'}</div>
+            <div style={{ color: '#e4e4e7', paddingLeft: '20px' }}>
+              console.log(<span style={{ color: '#fff' }}>`Surge at {"${data.zone}"}: {"${data.intensity}"}`</span>);
+            </div>
+            <div style={{ color: '#e4e4e7', paddingLeft: '20px' }}>
+              <span style={{ color: '#71717a' }}>// Automatically trigger SAP inventory transfer</span>
+            </div>
+            <div style={{ color: '#e4e4e7', paddingLeft: '20px' }}>erp.executeTransfer(data.recommendedAction);</div>
+            <div style={{ color: '#e4e4e7' }}>{'});'}</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="support" style={{ position: 'relative', zIndex: 1, padding: '120px 5vw', background: '#050505' }}>
+        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '64px' }}>
+            <h3 style={{ fontSize: '40px', fontWeight: '800', color: '#fff', letterSpacing: '-0.03em', marginBottom: '16px' }}>Support & FAQ</h3>
+            <p style={{ fontSize: '16px', color: '#a1a1aa' }}>Everything you need to know about the Intelligence Engine.</p>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {faqs.map((faq, i) => (
+              <div 
+                key={i} 
+                onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                style={{ background: '#000', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '24px', cursor: 'pointer', transition: 'all 0.3s' }}
+                className="faq-block"
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h4 style={{ fontSize: '16px', fontWeight: '600', color: '#fff', margin: 0 }}>{faq.q}</h4>
+                  <ChevronDown size={20} color="#71717a" style={{ transform: openFaq === i ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.3s' }} />
+                </div>
+                {openFaq === i && (
+                  <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)', fontSize: '15px', color: '#a1a1aa', lineHeight: '1.6' }}>
+                    {faq.a}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <footer style={{ borderTop: '1px solid rgba(255,255,255,0.1)', background: '#000', padding: '64px 5vw', position: 'relative', zIndex: 1 }}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '48px' }}>
+          <div className="grid-split" style={{ gap: '64px' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+                <div style={{ width: '24px', height: '24px', border: '1px solid #fff', borderRadius: '6px', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#fff' }}>
+                  <Command size={14} strokeWidth={2.5} />
+                </div>
+                <span style={{ fontSize: '18px', fontWeight: '800', letterSpacing: '-0.5px' }}>Platform</span>
+              </div>
+              <p style={{ fontSize: '14px', color: '#71717a', maxWidth: '300px', lineHeight: '1.6' }}>
+                The most powerful serverless platform for building business intelligence agents.
+              </p>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '64px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <span style={{ fontSize: '12px', color: '#fff', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}>Platform</span>
+                {['Dashboard', 'API Keys', 'Webhooks', 'Compute Billing'].map(link => <a key={link} href="#" style={{ fontSize: '14px', color: '#a1a1aa', textDecoration: 'none' }} className="nav-link-hover">{link}</a>)}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <span style={{ fontSize: '12px', color: '#fff', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}>Resources</span>
+                {['Documentation', 'API Reference', 'Case Studies', 'Support'].map(link => <a key={link} href="#" style={{ fontSize: '14px', color: '#a1a1aa', textDecoration: 'none' }} className="nav-link-hover">{link}</a>)}
+              </div>
+            </div>
+          </div>
+        </div>
+      </footer>
+
+      <style>{`
+        @keyframes pulseSlow { 0% { opacity: 0.5; filter: blur(8px); transform: scale(0.95); } 100% { opacity: 0.9; filter: blur(12px); transform: scale(1.05); } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); filter: blur(4px); } to { opacity: 1; transform: translateY(0); filter: blur(0); } }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .nav-link-hover:hover { color: #fff !important; text-shadow: 0 0 10px rgba(255,255,255,0.3); }
+        .btn-scale:hover { transform: scale(1.03); }
+        .btn-outline:hover { background: rgba(255,255,255,0.05) !important; border-color: rgba(255,255,255,0.3) !important; }
+        
+        .feature-block { padding: 32px; border-radius: 20px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); transition: all 0.3s; cursor: default; }
+        .feature-block:hover { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.1); transform: translateY(-4px); }
+
+        .faq-block:hover { background: rgba(255,255,255,0.03) !important; border-color: rgba(255,255,255,0.15) !important; }
+
+        .grid-split { display: grid; grid-template-columns: 1fr 1fr; }
+        .mobile-nav-toggle { display: none; }
+
+        @media (max-width: 900px) { .grid-split { grid-template-columns: 1fr !important; } }
+        @media (max-width: 768px) { .desktop-nav { display: none !important; } .mobile-nav-toggle { display: block; } }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+      `}</style>
     </div>
   );
 }
