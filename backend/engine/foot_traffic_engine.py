@@ -1,46 +1,52 @@
-import httpx
-import json
-import re
+import os
 import logging
-from typing import Dict, Any
-from fake_useragent import UserAgent
+import asyncio
+from dotenv import load_dotenv
+from typing import Dict, Any, List
 
 logger = logging.getLogger("StreetAI.FootTraffic")
 
+
 class LiveCrowdPatternEngine:
     """
-    Zero-Cost Cuebiq/SafeGraph Patterns Replacement.
-    Extracts real-time live popularity indexes, peak visiting hours, 
-    and median dwell times for commercial clusters.
+    100% Physical Reality Orchestration Engine.
+    Fuses Triangulated Mobility Kinematics and Dynamic Physical Conversion Telemetry.
     """
-    def __init__(self):
-        self.ua = UserAgent()
+    def __init__(self, mobility_engine, conversion_engine):
+        load_dotenv(override=True)
+        self.api_key = os.getenv("TOMTOM_API_KEY", "")
+        self.mobility = mobility_engine
+        self.conversion = conversion_engine
 
-    def get_live_cluster_busyness(self, location_query: str) -> Dict[str, Any]:
-        """
-        Intercepts the live crowd density index (0 - 100) and median dwell times.
-        """
-        headers = {"User-Agent": self.ua.random}
-        url = f"https://www.google.com/search?q={location_query}+market+hours&hl=en"
+    async def get_live_cluster_busyness(self, lat: float, lon: float, cell_id: str, discovered_networks: List[str]) -> Dict[str, Any]:
+        logger.info(f"Fusing live physical reality sensors for coordinate {lat},{lon}...")
 
-        try:
-            with httpx.Client(headers=headers, timeout=5.0, follow_redirects=True) as client:
-                resp = client.get(url)
-                body = resp.text
+        mobility_task = self.mobility.get_live_pedestrian_density(lat, lon)
+        conversion_task = self.conversion.calculate_physical_conversion(lat, lon, cell_id, discovered_networks)
 
-                # Parse live busyness percentage and dwell time via regex heuristics
-                # Searches for patterns like: "Currently X% busy" or "People typically spend X min"
-                live_match = re.search(r"Currently\s+(\d+)%\s+busy", body, re.IGNORECASE)
-                dwell_match = re.search(r"People typically spend\s+([\w\s\-]+)\s+here", body, re.IGNORECASE)
+        results = await asyncio.gather(mobility_task, conversion_task, return_exceptions=True)
 
-                live_busyness = int(live_match.group(1)) if live_match else 68
-                dwell_time = dwell_match.group(1) if dwell_match else "25-45 min"
+        for result in results:
+            if isinstance(result, Exception):
+                logger.critical("Physical telemetry fusion failed due to upstream sensor loss. Halting.")
+                raise result
 
-                return {
-                    "live_busyness_index": live_busyness,
-                    "median_dwell_time": dwell_time,
-                    "is_live_intercept": bool(live_match)
-                }
-        except Exception as e:
-            logger.warning(f"Live crowd intercept failed: {e}")
-            return {"live_busyness_index": 62, "median_dwell_time": "30 min", "is_live_intercept": False}
+        mobility_data = results[0]
+        conversion_data = results[1]
+
+        return {
+            "structural_mobility_state": mobility_data.get("triangulated_mobility_state", "UNKNOWN"),
+            "structural_conversion_state": conversion_data.get("structural_conversion_state", "UNKNOWN"),
+            "raw_physical_telemetry": {
+                "rf_devices_detected": mobility_data.get("unique_rf_devices_detected", 0),
+                "vehicle_speed_kmh": mobility_data.get("tomtom_live_vehicle_speed_kmh", 0.0),
+                "free_flow_speed_kmh": mobility_data.get("tomtom_baseline_empty_road_speed_kmh", 0.0),
+                "foot_velocity_kmh": mobility_data.get("osrm_structural_foot_velocity_kmh", 4.8),
+                "drive_velocity_kmh": mobility_data.get("osrm_structural_driving_velocity_kmh", 25.0),
+                "device_dwell_time_minutes": conversion_data.get("average_device_dwell_time_minutes", 0.0),
+                "active_mpos_terminals": conversion_data.get("dynamic_mpos_hardware_detected", 0),
+                "verified_commercial_venues": conversion_data.get("verified_commercial_venues", 0),
+                "iot_edge_handshakes": conversion_data.get("verified_edge_node_handshakes", 0)
+            },
+            "provenance": "Fused OSINT Reality: WiGLE RF, TomTom GPS, BestTime Dwell, OSRM Kinematics, Redis IoT"
+        }
