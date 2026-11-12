@@ -125,30 +125,32 @@ async def _resolve_live_country_metadata(
     """
     100% Live OSINT Sovereign Country & Currency Resolver.
     Returns (verified_iso2_country_code, country_name, active_iso4217_currency_code).
-    Handles restcountries 301 redirects and verifies against BigDataCloud & Frankfurter/OpenER live FX.
+    Uses BigDataCloud WGS84 Reverse Geocode + RestCountries v2 + Wikidata SPARQL (rank-agnostic P38).
     """
     clean_cc = (country_code or "").strip().upper()
     c_name = ""
     c_curr = ""
 
-    async with httpx.AsyncClient(
-        timeout=8.0, follow_redirects=True, headers={"User-Agent": "StreetAI-Core/7.0"}
-    ) as client:
-        # Live Tier 1: BigDataCloud WGS84 Reverse Geocoder (locks ISO2 + Country Name directly from coordinates)
-        if not clean_cc or clean_cc in ("UNKNOWN", "GLOBAL") or len(clean_cc) != 2:
-            try:
-                r_bdc = await client.get(
-                    "https://api.bigdatacloud.net/data/reverse-geocode-client",
-                    params={"latitude": lat_val, "longitude": lon_val, "localityLanguage": "en"},
-                )
-                if r_bdc.status_code == 200:
-                    bdc_data = r_bdc.json()
-                    cc_hit = (bdc_data.get("countryCode") or "").strip().upper()
-                    if len(cc_hit) == 2:
-                        clean_cc = cc_hit
-                        c_name = (bdc_data.get("countryName") or "").strip()
-            except Exception as e:
-                logger.debug(f"BigDataCloud coordinate ISO lock pivot: {e}")
+    headers = {
+        "User-Agent": "StreetAI-PhysicalEngine/7.0 (https://streetai.io; contact@streetai.io) httpx/0.27",
+        "Accept": "application/json",
+    }
+
+    async with httpx.AsyncClient(timeout=7.0, follow_redirects=True, headers=headers) as client:
+        # Live Tier 1: BigDataCloud WGS84 Reverse Geocoder (locks ISO2 + Country Name from coordinates)
+        try:
+            r_bdc = await client.get(
+                "https://api-bdc.io/data/reverse-geocode-client",
+                params={"latitude": lat_val, "longitude": lon_val, "localityLanguage": "en"},
+            )
+            if r_bdc.status_code == 200:
+                bdc_data = r_bdc.json()
+                cc_hit = (bdc_data.get("countryCode") or "").strip().upper()
+                if len(cc_hit) == 2 and (not clean_cc or clean_cc in ("UNKNOWN", "GLOBAL") or len(clean_cc) != 2):
+                    clean_cc = cc_hit
+                c_name = (bdc_data.get("countryName") or "").strip()
+        except Exception as e:
+            logger.debug(f"BigDataCloud coordinate ISO lock pivot: {e}")
 
         # Live Tier 2: GeoNames KD-Tree if ISO2 still unverified
         if not clean_cc or len(clean_cc) != 2:
@@ -162,61 +164,69 @@ async def _resolve_live_country_metadata(
         if clean_cc in COUNTRY_METADATA_CACHE:
             return COUNTRY_METADATA_CACHE[clean_cc]
 
-        # Live Tier 3: RestCountries (handles both v3.1 single object AND 301 redirect to v2 legacy.json array)
+        # Live Tier 3: Wikidata SPARQL with statement path `p:P38/ps:P38` (handles Thailand TH & multi-currency histories)
         try:
-            r_rc = await client.get(f"https://restcountries.com/v3.1/alpha/{clean_cc}")
-            if r_rc.status_code == 200:
-                payload = r_rc.json()
-                target_obj = None
-                if isinstance(payload, list):
-                    for item in payload:
-                        if isinstance(item, dict):
-                            iso2 = (item.get("cca2") or item.get("alpha2Code") or "").strip().upper()
-                            if iso2 == clean_cc:
-                                target_obj = item
-                                break
-                elif isinstance(payload, dict):
-                    target_obj = payload
-
-                if target_obj:
-                    name_field = target_obj.get("name")
-                    if isinstance(name_field, dict):
-                        c_name = str(name_field.get("common") or name_field.get("official") or c_name).strip()
-                    elif isinstance(name_field, str):
-                        c_name = name_field.strip()
-
-                    currencies = target_obj.get("currencies")
-                    if isinstance(currencies, dict) and currencies:
-                        c_curr = next(iter(currencies.keys()), "").strip().upper()
-                    elif isinstance(currencies, list) and currencies:
-                        first_c = currencies[0]
-                        if isinstance(first_c, dict):
-                            c_curr = str(first_c.get("code") or "").strip().upper()
+            sparql = (
+                f'SELECT ?countryLabel ?isoCurr WHERE {{ '
+                f'?country wdt:P297 "{clean_cc}" ; p:P38/ps:P38 ?curr . '
+                f'?curr wdt:P498 ?isoCurr . '
+                f'FILTER(STRLEN(STR(?isoCurr)) = 3) '
+                f'SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }} '
+                f'}} LIMIT 1'
+            )
+            r_wd = await client.get(
+                "https://query.wikidata.org/sparql",
+                params={"query": sparql, "format": "json"},
+                headers={
+                    "Accept": "application/sparql-results+json",
+                    "User-Agent": "StreetAI-PhysicalEngine/7.0 (https://streetai.io; contact@streetai.io) httpx/0.27",
+                },
+            )
+            if r_wd.status_code == 200:
+                bindings = r_wd.json().get("results", {}).get("bindings", [])
+                if bindings:
+                    c_name = c_name or bindings[0].get("countryLabel", {}).get("value", "").strip()
+                    c_curr = bindings[0].get("isoCurr", {}).get("value", "").strip().upper()
         except Exception as e:
-            logger.debug(f"RestCountries lookup pivot for {clean_cc}: {e}")
+            logger.debug(f"Wikidata sovereign currency lookup pivot for {clean_cc}: {e}")
 
-        # Live Tier 4: Wikidata SPARQL Sovereign Currency & Country Name Endpoint (if RestCountries CDN is down)
+        # Live Tier 4: RestCountries (handles both dict response and 301 redirect to legacy.json list)
         if not c_name or len(c_curr) != 3:
             try:
-                sparql = (
-                    f'SELECT ?countryLabel ?isoCurr WHERE {{ '
-                    f'?country wdt:P297 "{clean_cc}" ; wdt:P38 ?curr . '
-                    f'?curr wdt:P498 ?isoCurr . '
-                    f'SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }} '
-                    f'}} LIMIT 1'
-                )
-                r_wd = await client.get(
-                    "https://query.wikidata.org/sparql",
-                    params={"query": sparql, "format": "json"},
-                    headers={"Accept": "application/sparql-results+json", "User-Agent": "StreetAI-Core/7.0"},
-                )
-                if r_wd.status_code == 200:
-                    bindings = r_wd.json().get("results", {}).get("bindings", [])
-                    if bindings:
-                        c_name = c_name or bindings[0].get("countryLabel", {}).get("value", "").strip()
-                        c_curr = c_curr or bindings[0].get("isoCurr", {}).get("value", "").strip().upper()
+                r_rc = await client.get(f"https://restcountries.com/v2/alpha/{clean_cc}")
+                if r_rc.status_code == 200:
+                    payload = r_rc.json()
+                    target_obj = None
+                    if isinstance(payload, list):
+                        for item in payload:
+                            if isinstance(item, dict):
+                                iso2 = (item.get("cca2") or item.get("alpha2Code") or "").strip().upper()
+                                if iso2 == clean_cc:
+                                    target_obj = item
+                                    break
+                    elif isinstance(payload, dict):
+                        target_obj = payload
+
+                    if isinstance(target_obj, dict):
+                        name_field = target_obj.get("name")
+                        if isinstance(name_field, dict):
+                            c_name = c_name or str(name_field.get("common") or name_field.get("official") or "").strip()
+                        elif isinstance(name_field, str) and name_field.strip():
+                            c_name = c_name or name_field.strip()
+
+                        raw_curr = target_obj.get("currencies") or target_obj.get("currency")
+                        if isinstance(raw_curr, dict) and raw_curr:
+                            c_curr = c_curr or next(iter(raw_curr.keys()), "").strip().upper()
+                        elif isinstance(raw_curr, list) and raw_curr:
+                            first_c = raw_curr[0]
+                            if isinstance(first_c, str) and len(first_c.strip()) == 3:
+                                c_curr = c_curr or first_c.strip().upper()
+                            elif isinstance(first_c, dict):
+                                c_curr = c_curr or str(first_c.get("code") or "").strip().upper()
+                        elif isinstance(raw_curr, str) and len(raw_curr.strip()) == 3:
+                            c_curr = c_curr or raw_curr.strip().upper()
             except Exception as e:
-                logger.debug(f"Wikidata sovereign currency lookup pivot for {clean_cc}: {e}")
+                logger.debug(f"RestCountries lookup pivot for {clean_cc}: {e}")
 
     if not c_name or len(c_curr) != 3:
         raise RuntimeError(f"CRITICAL: Live sovereign currency lookup failed for ISO country '{clean_cc}'.")
@@ -328,7 +338,7 @@ async def process_street_intelligence(request: UserPromptRequest):
             live_forex.get_realtime_rate(country_code, local_currency, lat_val, lon_val),
         )
         physical_poi_count = spatial_snapshot.get("verified_merchants_total", 0)
-        fx_rate_per_usd = float(forex_payload.get("street_rate") or forex_payload.get("official_rate") or 1.0)
+        fx_rate_per_usd = float(forex_payload.get("street_rate") or forex_payload.get("clearing_price") or forex_payload.get("official_rate") or 1.0)
 
         # Step 3: Fire Macro, Port, FX-Anchored Multi-Sector Pricing, Telco, Capacity, MarketShare & Temporal CONCURRENTLY
         (

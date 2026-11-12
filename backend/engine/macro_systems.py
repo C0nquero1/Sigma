@@ -86,9 +86,11 @@ class MacroSystemsEngine:
         raise RuntimeError(f"CRITICAL: All 3 meteorological physics sensors unreachable for {lat},{lon}. Halting.")
 
     async def get_nearest_physical_port(self, lat: float, lon: float) -> Dict[str, Any]:
-        # Sensor 1: SerpApi Google Maps Maritime Search (Properly honours @lat,lon,11z coordinate lock)
+        from engine.overture_engine import LiveInfrastructureEngine
         serpapi_key = os.getenv("SERPAPI_API_KEY")
-        if serpapi_key:
+
+        # Sensor 1: SerpApi Google Maps Maritime Search (only if quota active)
+        if serpapi_key and not getattr(LiveInfrastructureEngine, "_serpapi_exhausted", False):
             try:
                 params = {
                     "engine": "google_maps",
@@ -97,9 +99,11 @@ class MacroSystemsEngine:
                     "ll": f"@{lat},{lon},11z",
                     "api_key": serpapi_key,
                 }
-                async with httpx.AsyncClient(timeout=8.0) as client:
+                async with httpx.AsyncClient(timeout=7.0) as client:
                     res = await client.get("https://serpapi.com/search", params=params)
-                    if res.status_code == 200:
+                    if res.status_code == 429:
+                        LiveInfrastructureEngine._serpapi_exhausted = True
+                    elif res.status_code == 200:
                         data = res.json()
                         results = data.get("local_results", [])
                         if isinstance(data.get("place_results"), dict):
@@ -122,31 +126,52 @@ class MacroSystemsEngine:
             except Exception as e:
                 logger.debug(f"SerpApi maritime scan degraded: {e}")
 
-        # Sensor 2: High-Speed Photon Komoot OSM Maritime/Port Spatial Search (<150ms, immune to Overpass 429s)
+        # Sensor 2: Photon OSM Maritime/Harbour Search with STRICT OSM Tag & Keyword Verification
+        valid_maritime_values = {"port", "harbour", "seaport", "ferry_terminal", "marina", "dock", "shipyard"}
+        maritime_name_keywords = ("port of ", "porto ", "puerto ", "container terminal", "seaport", "harbour", "harbor", "cargo terminal", "maritime")
+
         async with httpx.AsyncClient(timeout=6.0, headers=self.headers) as client:
-            for term in ("port", "container terminal", "harbour", "seaport"):
+            for term in ("container terminal", "seaport", "port of", "harbour"):
                 try:
                     r_ph = await client.get(
                         "https://photon.komoot.io/api/",
-                        params={"q": term, "lat": lat, "lon": lon, "limit": 8},
+                        params={"q": term, "lat": lat, "lon": lon, "limit": 12},
                     )
                     if r_ph.status_code == 200:
                         for feat in r_ph.json().get("features", []):
                             coords = feat.get("geometry", {}).get("coordinates", [])
                             props = feat.get("properties", {})
-                            if len(coords) >= 2:
-                                p_lon, p_lat = float(coords[0]), float(coords[1])
-                                dist = round(_haversine_km(lat, lon, p_lat, p_lon), 2)
-                                name = str(props.get("name") or "").strip()
-                                if dist <= 65.0 and name and "airport" not in name.lower():
-                                    logger.info(f"⚓ Maritime Port Locked: {name} ({dist}km from {lat},{lon})")
-                                    return {
-                                        "port_name": name,
-                                        "lat": p_lat,
-                                        "lon": p_lon,
-                                        "distance_km": dist,
-                                        "provenance": "Photon OSM Maritime Infrastructure",
-                                    }
+                            if len(coords) < 2:
+                                continue
+                            p_lon, p_lat = float(coords[0]), float(coords[1])
+                            dist = round(_haversine_km(lat, lon, p_lat, p_lon), 2)
+                            if dist > 65.0:
+                                continue
+
+                            name = str(props.get("name") or "").strip()
+                            osm_key = str(props.get("osm_key") or "").lower()
+                            osm_val = str(props.get("osm_value") or "").lower()
+                            name_low = name.lower()
+
+                            # Reject streets (highway=*), neighbourhoods/suburbs (place=*), and airports
+                            if osm_key in ("highway", "place", "aeroway", "shop", "amenity") and osm_val != "ferry_terminal":
+                                continue
+                            if any(bad in name_low for bad in ("airport", "aeropuerto", "road", "street", "avenue", "hotel")):
+                                continue
+
+                            is_verified_port = (
+                                osm_val in valid_maritime_values
+                                or any(kw in name_low for kw in maritime_name_keywords)
+                            )
+                            if name and is_verified_port:
+                                logger.info(f"⚓ Maritime Port Locked: {name} ({dist}km from {lat},{lon})")
+                                return {
+                                    "port_name": name,
+                                    "lat": p_lat,
+                                    "lon": p_lon,
+                                    "distance_km": dist,
+                                    "provenance": "Photon OSM Verified Maritime Infrastructure",
+                                }
                 except Exception as e:
                     logger.debug(f"Photon port scan pivot: {e}")
 

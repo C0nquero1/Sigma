@@ -120,27 +120,43 @@ class ZonalCapacityEngine:
         escaped_units = "|".join(re.escape(u) for u in unit_nouns if len(u) >= 2)
         pattern = (
             rf"(?:qty|quantity|stock|available|moq|minimum order|{escaped_units})[\s:]*([\d,]+)"
-            rf"|\b([\d,]+)\s*(?:in stock|available|moq|{escaped_units})"
+            rf"|\b([\d,]+)\s*(?:in stock|available|moq|{escaped_units})\b"
         )
 
         extracted: List[int] = []
-        if self.api_key:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                for q in queries:
-                    try:
-                        params = {"engine": "google", "q": q, "api_key": self.api_key, "num": 15}
-                        res = await client.get("https://serpapi.com/search", params=params)
-                        if res.status_code == 200:
-                            for item in res.json().get("organic_results", []):
-                                text = f"{item.get('title', '')} {item.get('snippet', '')}"
-                                for m in re.findall(pattern, text, flags=re.IGNORECASE):
-                                    raw_num = m[0] or m[1]
-                                    if raw_num:
-                                        val = int(raw_num.replace(",", ""))
-                                        if 2 <= val <= 500_000 and not (1990 <= val <= 2030):
-                                            extracted.append(val)
-                    except Exception as e:
-                        logger.debug(f"Supply OSINT degraded for '{q}': {e}")
+        browser_headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Accept-Language": "en-US,en;q=0.9",
+        }
+
+        async with httpx.AsyncClient(timeout=7.5, follow_redirects=True, headers=browser_headers) as client:
+            for q in queries:
+                text_blobs: List[str] = []
+                try:
+                    r_rss, r_yahoo = await asyncio.gather(
+                        client.get("https://www.bing.com/search", params={"q": q, "format": "rss", "count": "20"}),
+                        client.get("https://search.yahoo.com/search", params={"p": q, "n": "15"}),
+                        return_exceptions=True,
+                    )
+                    for r in (r_rss, r_yahoo):
+                        if isinstance(r, httpx.Response) and r.status_code == 200 and r.text:
+                            no_scripts = re.sub(
+                                r"<(script|style|noscript)[^>]*>.*?</\1>", " ", r.text, flags=re.DOTALL | re.IGNORECASE
+                            )
+                            text_blobs.append(re.sub(r"<[^>]+>", " ", no_scripts))
+                except Exception as e:
+                    logger.debug(f"Visible B2B supply OSINT pivot: {e}")
+
+                combined_text = " ".join(text_blobs)
+                for m in re.findall(pattern, combined_text, flags=re.IGNORECASE):
+                    raw_num = m[0] or m[1]
+                    if raw_num:
+                        try:
+                            val = int(raw_num.replace(",", ""))
+                            if 10 <= val <= 500_000 and not (1990 <= val <= 2035):
+                                extracted.append(val)
+                        except ValueError:
+                            pass
 
         return extracted
 
