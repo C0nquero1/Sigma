@@ -28,10 +28,11 @@ from engine.ui_compiler import build_overview_ui
 from engine.deep_synthesizer import DeepAnalysisSynthesizer
 from engine.metric_engine import MetricExecutionEngine
 
-# 100% Physical Reality OSINT & Sensor Engines
+# 100% Physical Reality OSINT, Empirical Scope & Sensor Engines
 from engine.overture_engine import LiveInfrastructureEngine
 from engine.spatial_product_resolver import SpatialProductResolver
 from engine.ground_truth import GroundTruthCalibrator
+from engine.empirical_scope_engine import EmpiricalScopeEngine
 from engine.street_forex import LiveStreetForex
 from engine.pricing_scraper import AbsolutePhysicalPricingEngine
 from engine.mobility_telemetry import LiveMobilityTelemetry
@@ -55,7 +56,6 @@ groq_api_key = os.getenv("GROQ_API_KEY", "")
 
 PREFERRED_GROQ_MODELS = [
     "qwen/qwen3.8-27b",
-    "llama-3.3-70b-versatile",
     "openai/gpt-oss-120b",
     "openai/gpt-oss-20b",
     "llama-3.1-8b-instant",
@@ -65,31 +65,35 @@ EXCLUDED_MODEL_SUBSTRINGS = ("orpheus", "whisper", "guard", "tts", "audio", "all
 
 
 def discover_active_groq_model(api_key: str) -> str:
-    """Dynamically interrogates Groq for currently active generative reasoning models."""
+    """Dynamically interrogates Groq for active models with instant offline/SSL-timeout failover."""
     if not api_key:
-        raise RuntimeError("CRITICAL: GROQ_API_KEY is missing from environment.")
+        logger.warning("⚠️ GROQ_API_KEY missing; defaulting to deterministic mode.")
+        return PREFERRED_GROQ_MODELS[0]
 
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    res = requests.get("https://api.groq.com/openai/v1/models", headers=headers, timeout=8.0)
-    if res.status_code == 200:
-        available_ids = [m["id"] for m in res.json().get("data", [])]
-        valid_models = [
-            m for m in available_ids
-            if not any(excl in m.lower() for excl in EXCLUDED_MODEL_SUBSTRINGS)
-        ]
-        for pref in PREFERRED_GROQ_MODELS:
-            if pref in valid_models:
-                logger.info(f"🚀 Auto-Discovery Locked Active Groq Model: '{pref}'")
-                return pref
-        if valid_models:
-            logger.info(f"🚀 Auto-Discovery Locked Active Groq Model: '{valid_models[0]}'")
-            return valid_models[0]
+    try:
+        res = requests.get("https://api.groq.com/openai/v1/models", headers=headers, timeout=5.0)
+        if res.status_code == 200:
+            available_ids = [m["id"] for m in res.json().get("data", [])]
+            valid_models = [
+                m for m in available_ids
+                if not any(excl in m.lower() for excl in EXCLUDED_MODEL_SUBSTRINGS)
+            ]
+            for pref in PREFERRED_GROQ_MODELS:
+                if pref in valid_models:
+                    logger.info(f"🚀 Auto-Discovery Locked Active Groq Model: '{pref}'")
+                    return pref
+            if valid_models:
+                logger.info(f"🚀 Auto-Discovery Locked Active Groq Model: '{valid_models[0]}'")
+                return valid_models[0]
+    except Exception as e:
+        logger.warning(f"⚡ Groq model discovery SSL/network timeout ({e}); locking default '{PREFERRED_GROQ_MODELS[0]}'")
 
-    raise RuntimeError(f"CRITICAL: Unable to verify active Groq models (HTTP {res.status_code}).")
+    return PREFERRED_GROQ_MODELS[0]
 
 
 ACTIVE_GROQ_MODEL = discover_active_groq_model(groq_api_key)
-groq_client = Groq(api_key=groq_api_key, max_retries=2, timeout=20.0) if groq_api_key else None
+groq_client = Groq(api_key=groq_api_key, max_retries=0, timeout=12.0) if groq_api_key else None
 
 # Globally Instantiate Pure Physical Reality Engines
 spatial_resolver = SpatialResolver()
@@ -99,6 +103,7 @@ resilience_bus = EnterpriseResilienceBus()
 overture = LiveInfrastructureEngine()
 product_resolver = SpatialProductResolver()
 ground_truth = GroundTruthCalibrator(db_client=db_ledger)
+empirical_scope_engine = EmpiricalScopeEngine()
 
 live_forex = LiveStreetForex(db_ledger=db_ledger)
 pricing_scraper = AbsolutePhysicalPricingEngine()
@@ -116,8 +121,8 @@ ml_engine = PhysicalForecastingEngine()
 market_share = MarketShareEngine()
 metrics_engine = MetricExecutionEngine()
 
-
 COUNTRY_METADATA_CACHE: Dict[str, Tuple[str, str, str]] = {}
+
 
 async def _resolve_live_country_metadata(
     country_code: str, lat_val: float, lon_val: float
@@ -125,7 +130,7 @@ async def _resolve_live_country_metadata(
     """
     100% Live OSINT Sovereign Country & Currency Resolver.
     Returns (verified_iso2_country_code, country_name, active_iso4217_currency_code).
-    Uses BigDataCloud WGS84 Reverse Geocode + RestCountries v2 + Wikidata SPARQL (rank-agnostic P38).
+    Uses BigDataCloud WGS84 Reverse Geocode + Wikidata SPARQL (rank-agnostic P38) + RestCountries.
     """
     clean_cc = (country_code or "").strip().upper()
     c_name = ""
@@ -164,7 +169,7 @@ async def _resolve_live_country_metadata(
         if clean_cc in COUNTRY_METADATA_CACHE:
             return COUNTRY_METADATA_CACHE[clean_cc]
 
-        # Live Tier 3: Wikidata SPARQL with statement path `p:P38/ps:P38` (handles Thailand TH & multi-currency histories)
+        # Live Tier 3: Wikidata SPARQL with statement path `p:P38/ps:P38`
         try:
             sparql = (
                 f'SELECT ?countryLabel ?isoCurr WHERE {{ '
@@ -190,43 +195,26 @@ async def _resolve_live_country_metadata(
         except Exception as e:
             logger.debug(f"Wikidata sovereign currency lookup pivot for {clean_cc}: {e}")
 
-        # Live Tier 4: RestCountries (handles both dict response and 301 redirect to legacy.json list)
+        # Live Tier 4: JSDelivr World-Countries Official ISO-4217 CDN (Zero 301 Redirects, 100% Global Coverage)
         if not c_name or len(c_curr) != 3:
             try:
-                r_rc = await client.get(f"https://restcountries.com/v2/alpha/{clean_cc}")
-                if r_rc.status_code == 200:
-                    payload = r_rc.json()
-                    target_obj = None
-                    if isinstance(payload, list):
-                        for item in payload:
-                            if isinstance(item, dict):
-                                iso2 = (item.get("cca2") or item.get("alpha2Code") or "").strip().upper()
-                                if iso2 == clean_cc:
-                                    target_obj = item
-                                    break
-                    elif isinstance(payload, dict):
-                        target_obj = payload
+                if AbsolutePhysicalPricingEngine._world_countries_cache is None:
+                    r_cdn = await client.get("https://cdn.jsdelivr.net/npm/world-countries@latest/countries.json")
+                    if r_cdn.status_code == 200 and isinstance(r_cdn.json(), list):
+                        AbsolutePhysicalPricingEngine._world_countries_cache = r_cdn.json()
 
-                    if isinstance(target_obj, dict):
-                        name_field = target_obj.get("name")
-                        if isinstance(name_field, dict):
-                            c_name = c_name or str(name_field.get("common") or name_field.get("official") or "").strip()
-                        elif isinstance(name_field, str) and name_field.strip():
-                            c_name = c_name or name_field.strip()
-
-                        raw_curr = target_obj.get("currencies") or target_obj.get("currency")
-                        if isinstance(raw_curr, dict) and raw_curr:
-                            c_curr = c_curr or next(iter(raw_curr.keys()), "").strip().upper()
-                        elif isinstance(raw_curr, list) and raw_curr:
-                            first_c = raw_curr[0]
-                            if isinstance(first_c, str) and len(first_c.strip()) == 3:
-                                c_curr = c_curr or first_c.strip().upper()
-                            elif isinstance(first_c, dict):
-                                c_curr = c_curr or str(first_c.get("code") or "").strip().upper()
-                        elif isinstance(raw_curr, str) and len(raw_curr.strip()) == 3:
-                            c_curr = c_curr or raw_curr.strip().upper()
+                for item in AbsolutePhysicalPricingEngine._world_countries_cache or []:
+                    iso2 = str(item.get("cca2") or "").strip().upper()
+                    if iso2 == clean_cc:
+                        name_obj = item.get("name", {})
+                        if isinstance(name_obj, dict):
+                            c_name = c_name or str(name_obj.get("common") or name_obj.get("official") or "").strip()
+                        currencies = item.get("currencies", {})
+                        if isinstance(currencies, dict) and currencies:
+                            c_curr = c_curr or next(iter(currencies.keys()), "").strip().upper()
+                        break
             except Exception as e:
-                logger.debug(f"RestCountries lookup pivot for {clean_cc}: {e}")
+                logger.debug(f"World-Countries CDN lookup pivot for {clean_cc}: {e}")
 
     if not c_name or len(c_curr) != 3:
         raise RuntimeError(f"CRITICAL: Live sovereign currency lookup failed for ISO country '{clean_cc}'.")
@@ -238,8 +226,6 @@ async def _resolve_live_country_metadata(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global ACTIVE_GROQ_MODEL
-    ACTIVE_GROQ_MODEL = discover_active_groq_model(groq_api_key)
     logger.info(f"Intelligence Core operational with model: {ACTIVE_GROQ_MODEL}")
     yield
     spatial_resolver.close()
@@ -269,7 +255,7 @@ async def trigger_manual_pulse(lat: float, lon: float, commodity: str = "general
     req = UserPromptRequest(
         prompt=f"Map the live cashflow at {lat},{lon}",
         explicit_lat=lat,
-        explicit_lon=lon
+        explicit_lon=lon,
     )
     return await process_street_intelligence(req)
 
@@ -320,7 +306,7 @@ async def process_street_intelligence(request: UserPromptRequest):
         # Step 1: Prime the Single-Shot Coalesced Spatial Multiplexer & Live Sovereign Currency Metadata concurrently
         (country_code, country_name, local_currency), spatial_snapshot = await asyncio.gather(
             _resolve_live_country_metadata(country_code, lat_val, lon_val),
-            overture.get_coalesced_spatial_snapshot(lat_val, lon_val)
+            overture.get_coalesced_spatial_snapshot(lat_val, lon_val),
         )
         city_info["country_code"] = country_code
         city_name_str = (
@@ -329,29 +315,49 @@ async def process_street_intelligence(request: UserPromptRequest):
             or city_info.get("city_name", "")
         )
 
-        # Step 2: Resolve Multi-Sector Ecosystem Portfolio, Ground Truth Density, and Live FX Rate concurrently
-        resolved_sku_data, structural_multiplier, forex_payload = await asyncio.gather(
+        # Step 2: Resolve Multi-Sector Ecosystem Portfolio, Ground Truth Density, and Initial Spot Rate concurrently
+        resolved_sku_data, structural_multiplier, (spot_fx, _) = await asyncio.gather(
             product_resolver.resolve_market_ground_truth(
                 lat=lat_val, lon=lon_val, requested_commodity=commodity, spatial_snapshot=spatial_snapshot
             ),
             ground_truth.calculate_dynamic_multiplier(h3_token, lat_val, lon_val),
-            live_forex.get_realtime_rate(country_code, local_currency, lat_val, lon_val),
+            live_forex._fetch_institutional_spot_rate(local_currency),
         )
-        physical_poi_count = spatial_snapshot.get("verified_merchants_total", 0)
-        fx_rate_per_usd = float(forex_payload.get("street_rate") or forex_payload.get("clearing_price") or forex_payload.get("official_rate") or 1.0)
+        fx_rate_per_usd = float(spot_fx or 1.0)
 
-        # Step 3: Fire Macro, Port, FX-Anchored Multi-Sector Pricing, Telco, Capacity, MarketShare & Temporal CONCURRENTLY
+        # Step 2B: Lock Open-Eyes Empirical Web-Research Scope (buildings, stalls, economic units, footfall, spend)
+        empirical_scope = await empirical_scope_engine.resolve_empirical_scope(
+            lat=lat_val,
+            lon=lon_val,
+            target_name=target_loc,
+            city_name=city_name_str,
+            country_name=country_name,
+            local_currency=local_currency,
+            fx_rate_per_usd=fx_rate_per_usd,
+            commodity=commodity,
+            spatial_snapshot=spatial_snapshot,
+        )
+        physical_poi_count = int(
+            empirical_scope.get("scoped_economic_units")
+            or spatial_snapshot.get("verified_merchants_total", 0)
+        )
+
+        # Step 3: Fire Macro, Port, Working-Capital FX, Scope-Calibrated Pricing, Telco, Capacity, MarketShare & Temporal
         (
             macro_payload,
             nearest_port,
+            forex_payload,
             pricing_payload,
             gateway_payload,
             capacity_payload,
             market_share_data,
-            temporal_payload
+            temporal_payload,
         ) = await asyncio.gather(
             macro_engine.evaluate_systemic_friction(lat_val, lon_val),
             macro_engine.get_nearest_physical_port(lat_val, lon_val),
+            live_forex.get_realtime_rate(
+                country_code, local_currency, lat_val, lon_val, empirical_scope=empirical_scope
+            ),
             pricing_scraper.get_absolute_street_price(
                 lat_val,
                 lon_val,
@@ -360,15 +366,23 @@ async def process_street_intelligence(request: UserPromptRequest):
                 resolved_sku_data=resolved_sku_data,
                 country_code=country_code,
                 fx_rate_per_usd=fx_rate_per_usd,
+                empirical_scope=empirical_scope,
             ),
             telco_gateway.calculate_digital_liquidity_index(
-                lat_val, lon_val, country_code, country_name=country_name, spatial_snapshot=spatial_snapshot
+                lat_val,
+                lon_val,
+                country_code,
+                country_name=country_name,
+                currency_code=local_currency,
+                spatial_snapshot=spatial_snapshot,
             ),
-            zonal_capacity.calculate_mass_depletion_and_cap(lat_val, lon_val, commodity, city_name_str),
+            zonal_capacity.calculate_mass_depletion_and_cap(
+                lat_val, lon_val, commodity, city_name_str, empirical_scope=empirical_scope
+            ),
             market_share.calculate_market_share(lat_val, lon_val),
             temporal_engine.calculate_time_context(
                 lat_val, lon_val, venue_hint=target_loc, city_hint=city_name_str, spatial_snapshot=spatial_snapshot
-            )
+            ),
         )
 
         active_networks = forex_payload.get("active_networks_detected") or gateway_payload.get("discovered_local_rails", [])
@@ -383,10 +397,13 @@ async def process_street_intelligence(request: UserPromptRequest):
         dwell_mins = float(raw_crowd.get("device_dwell_time_minutes", 0.0))
         foot_kmh = float(raw_crowd.get("foot_velocity_kmh", 0.0))
 
-        temp_density = int(temporal_payload.get("mobile_device_telemetry", {}).get("live_device_density_index", 0))
-        is_day = bool(temporal_payload.get("planetary_physics", {}).get("is_day", True))
+        temp_density = int(temporal_payload.get("mobile_device_telemetry", {}).get("live_device_density_index", 65))
+        planet_phys = temporal_payload.get("planetary_physics", {})
+        is_day = bool(planet_phys.get("is_day", True))
+        local_hr = int(planet_phys.get("local_hour", 12))
+        rain_mm = float(planet_phys.get("precipitation_mm", 0.0))
 
-        # Step 5: Execute Multi-Sector Cash Velocity & Active Buyer Conversion Kinematics
+        # Step 5: Execute Real-Life Scoped Cash Velocity, Multi-Stall Buys/Hr & Little's Law Active Buyers
         metrics_payload = metrics_engine.execute_plan(
             exact_unit_price=unit_price,
             active_mpos_hardware=active_mpos_hardware,
@@ -396,7 +413,10 @@ async def process_street_intelligence(request: UserPromptRequest):
             structural_multiplier=structural_multiplier,
             temporal_density_index=temp_density,
             is_daylight=is_day,
-            sector_breakdown=sector_breakdown
+            sector_breakdown=sector_breakdown,
+            empirical_scope=empirical_scope,
+            local_hour=local_hr,
+            precipitation_mm=rain_mm,
         )
         current_velocity = float(metrics_payload.get("verified_velocity_floor_local", 0.0))
         active_buyers_now = int(metrics_payload.get("active_buyers_live", active_mpos_hardware))
@@ -421,11 +441,11 @@ async def process_street_intelligence(request: UserPromptRequest):
                 "active_buyers": active_buyers_now,
                 "conversion_rate_pct": metrics_payload.get("physical_conversion_rate_pct", 0.0),
                 "sector_breakdown": sector_breakdown,
-                "structural_limit_reached": False
+                "structural_limit_reached": False,
             },
             intent=intent_type,
             client=groq_client,
-            model=ACTIVE_GROQ_MODEL
+            model=ACTIVE_GROQ_MODEL,
         )
 
         elapsed_time = time.time() - start_time
@@ -446,19 +466,23 @@ async def process_street_intelligence(request: UserPromptRequest):
                 "forex_telemetry": forex_payload,
                 "pricing_matrix": pricing_payload,
                 "live_deterministic": metrics_payload,
-                "ml_projected": ml_projections
+                "ml_projected": ml_projections,
             },
             "structural_ground_truth": {
                 "density_multiplier": structural_multiplier,
                 "physical_merchants": physical_poi_count,
+                "permanent_buildings_count": empirical_scope.get("permanent_buildings_count", 1),
+                "registered_stalls_complex": empirical_scope.get("registered_stalls_complex", physical_poi_count),
+                "total_zone_economic_units": empirical_scope.get("total_zone_economic_units_complex", physical_poi_count),
+                "empirical_scope": empirical_scope,
                 "scope_mode": resolved_sku_data.get("scope_mode", "LOCATION_ECOSYSTEM"),
                 "resolved_sku": resolved_sku_data.get("resolved_sku", commodity),
-                "sector_portfolio": resolved_sku_data.get("sector_portfolio", [])
+                "sector_portfolio": resolved_sku_data.get("sector_portfolio", []),
             },
             "macro_logistics": macro_payload,
             "physical_funnel": crowd_payload,
             "digital_gateway": gateway_payload,
-            "zonal_capacity": capacity_payload
+            "zonal_capacity": capacity_payload,
         }
 
         db_ledger.commit_live_state(h3_token, commodity, final_payload)
@@ -479,7 +503,7 @@ async def stream_street_intelligence(websocket: WebSocket):
         commodity = str(init_data.get("commodity", "general_merchandise"))
         h3_token = spatial_resolver.get_h3_index(lat_val, lon_val)
 
-        _, local_currency = await _resolve_live_country_metadata("UNKNOWN", lat_val, lon_val)
+        _, _, local_currency = await _resolve_live_country_metadata("UNKNOWN", lat_val, lon_val)
         resolved_sku_data = await product_resolver.resolve_market_ground_truth(
             lat=lat_val, lon=lon_val, requested_commodity=commodity
         )
@@ -496,7 +520,7 @@ async def stream_street_intelligence(websocket: WebSocket):
                 crowd_payload, temporal_payload, structural_mult = await asyncio.gather(
                     crowd_engine.get_live_cluster_busyness(lat_val, lon_val, h3_token, []),
                     temporal_engine.calculate_time_context(lat_val, lon_val),
-                    ground_truth.calculate_dynamic_multiplier(h3_token, lat_val, lon_val)
+                    ground_truth.calculate_dynamic_multiplier(h3_token, lat_val, lon_val),
                 )
 
                 raw_crowd = crowd_payload.get("raw_physical_telemetry", {})
@@ -515,7 +539,7 @@ async def stream_street_intelligence(websocket: WebSocket):
                     foot_velocity_kmh=foot_kmh,
                     structural_multiplier=structural_mult,
                     temporal_density_index=temp_density,
-                    is_daylight=is_day
+                    is_daylight=is_day,
                 )
 
                 tick_payload = {
@@ -525,8 +549,8 @@ async def stream_street_intelligence(websocket: WebSocket):
                         "active_buyers_live": metrics.get("active_buyers_live", 0),
                         "active_mpos_hardware": active_mpos,
                         "device_dwell_time_minutes": dwell_mins,
-                        "temporal_context": temporal_payload
-                    }
+                        "temporal_context": temporal_payload,
+                    },
                 }
                 await websocket.send_json(tick_payload)
             except Exception as e:

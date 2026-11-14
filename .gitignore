@@ -10,3 +10,9 @@ __pycache__/
 git-setup.exe
 
 *.exe
+
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+**/__pycache__/

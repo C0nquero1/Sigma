@@ -161,7 +161,14 @@ class LiveStreetForex:
 
         return None, ""
 
-    async def get_realtime_rate(self, country_code: str, local_currency: str, lat: float, lon: float) -> Dict[str, Any]:
+    async def get_realtime_rate(
+        self,
+        country_code: str,
+        local_currency: str,
+        lat: float,
+        lon: float,
+        empirical_scope: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
         fiat = local_currency.upper().strip()
 
         (
@@ -176,10 +183,9 @@ class LiveStreetForex:
             LiveInfrastructureEngine.get_coalesced_spatial_snapshot(lat, lon),
         )
 
-        # Combine P2P rails with physical local bank/ATM/merchant settlement rails at (lat, lon)
         local_poi_rails = [
             p["title"]
-            for p in spatial_snapshot.get("gmaps_pois", [])
+            for p in spatial_snapshot.get("cico_pois", []) + spatial_snapshot.get("gmaps_pois", [])
             if any(w in str(p.get("type", "")).lower() for w in ("bank", "atm", "financial", "exchange"))
         ]
         discovered_methods = list(dict.fromkeys(bin_methods + byb_methods + local_poi_rails))
@@ -187,9 +193,6 @@ class LiveStreetForex:
         p2p_raw_price = bin_price or byb_price
         p2p_book_liquidity = round(bin_liq + byb_liq, 2)
 
-        # Determine true clearing rate:
-        # If P2P orderbook is deep (>= 6 ads) and within 18% of official interbank spot, use P2P street rate.
-        # If P2P book is thin (e.g. 2 stray ads quoting 172 JPY vs 154 spot), lock onto verified interbank spot.
         if spot_rate and spot_rate > 0:
             if p2p_raw_price and total_p2p_ads >= 6 and abs(p2p_raw_price - spot_rate) / spot_rate <= 0.18:
                 best_rate = round(p2p_raw_price, 2)
@@ -203,22 +206,31 @@ class LiveStreetForex:
         else:
             raise RuntimeError(f"CRITICAL LOSS OF TELEMETRY: All FX & OTC sensors unreachable for {fiat}. Halting.")
 
-        # Compute Zonal Commercial Settlement Liquidity in local currency
-        # Combines live OTC orderbook depth with verified local merchant & financial node settlement capacity
-        verified_merchants = max(1, int(spatial_snapshot.get("verified_merchants_total", 15) or 15))
-        cico_nodes = max(1, int(spatial_snapshot.get("osm_cico_count", 4) or 4))
-        total_reviews = sum(int(p.get("reviews", 20) or 20) for p in spatial_snapshot.get("gmaps_pois", []))
-        zonal_settlement_depth_usd = (verified_merchants * 4_200.0) + (cico_nodes * 18_500.0) + (total_reviews * 85.0)
-        zonal_settlement_local = round(zonal_settlement_depth_usd * best_rate, 2)
+        # Compute Zonal Working-Capital & Immediate Settlement Liquidity Pool in local currency
+        cico_nodes = max(1, int(spatial_snapshot.get("osm_cico_count", 6) or 6))
+        if empirical_scope:
+            active_units = int(empirical_scope.get("scoped_economic_units", 250))
+            hourly_visitors = int(empirical_scope.get("hourly_visitors_scoped_baseline", 800))
+            visitor_spend = float(empirical_scope.get("typical_visitor_spend_local", 15.0 * best_rate))
+            # 1. Merchant active till/safe working capital float (3.5 hours of stall cash turnover)
+            merchant_working_float = active_units * visitor_spend * 3.5
+            # 2. Active buyer-in-transit cash float across the market floor (2.5 hours of active flow)
+            floor_turnover_float = hourly_visitors * visitor_spend * 2.5
+            # 3. Local bank branch / CICO agent liquid vault float
+            cico_vault_float = cico_nodes * (14_500.0 * best_rate)
+            zonal_settlement_local = round(merchant_working_float + floor_turnover_float + cico_vault_float, 2)
+        else:
+            verified_merchants = max(1, int(spatial_snapshot.get("verified_merchants_total", 25) or 25))
+            zonal_settlement_local = round(((verified_merchants * 4_200.0) + (cico_nodes * 18_500.0)) * best_rate, 2)
+
         available_fiat_liquidity = round(p2p_book_liquidity + zonal_settlement_local, 2)
 
-        current_time = time.time()
-        self._rate_memory[fiat] = (current_time, best_rate)
+        self._rate_memory[fiat] = (time.time(), best_rate)
         total_rails_count = max(len(discovered_methods), cico_nodes)
 
         logger.info(
             f"💱 FX & Liquidity Locked: 1 USD = {best_rate:,.2f} {fiat} (Spot: {(spot_rate or best_rate):,.2f}) | "
-            f"Zonal Settlement & Orderbook Liquidity: {available_fiat_liquidity:,.2f} {fiat} | "
+            f"Zonal Working-Capital & Orderbook Liquidity: {available_fiat_liquidity:,.2f} {fiat} | "
             f"{provenance} | {total_rails_count} verified settlement rails"
         )
 
@@ -228,6 +240,8 @@ class LiveStreetForex:
             "street_rate": best_rate,
             "official_rate": round(spot_rate or best_rate, 2),
             "physical_liquidity_available": available_fiat_liquidity,
+            "zonal_working_capital_float_local": zonal_settlement_local,
+            "otc_orderbook_escrow_liquidity_local": p2p_book_liquidity,
             "active_networks_detected": discovered_methods,
             "provenance": provenance,
         }

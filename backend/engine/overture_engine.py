@@ -37,6 +37,7 @@ class LiveInfrastructureEngine:
     _cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
     _locks: Dict[str, asyncio.Lock] = {}
     _serpapi_exhausted: bool = False
+    _wigle_exhausted: bool = False
 
     def __init__(self):
         self.serpapi_key = os.getenv("SERPAPI_API_KEY", "")
@@ -95,6 +96,10 @@ class LiveInfrastructureEngine:
         if sum(1 for c in clean if c.isalpha()) < 3:
             return False
         return True
+        if any(bad in low for bad in ("closes ", "opens ", "affect these hours", "hours might", " Entrance ", "directions", "website", "call ")):
+            return False
+        if "·" in clean or len(clean.split()) == 1 and low in ("mexico", "brazil", "japan", "thailand", "vietnam", "morocco", "china", "india", "uk"):
+            return False
 
     async def _fetch_google_maps_direct_pb(self, lat: float, lon: float) -> List[Dict[str, Any]]:
         pois: List[Dict[str, Any]] = []
@@ -213,7 +218,7 @@ class LiveInfrastructureEngine:
     async def _fetch_photon_osm_pois(self, lat: float, lon: float) -> List[Dict[str, Any]]:
         photon_nodes: List[Dict[str, Any]] = []
         seen_ids = set()
-        search_terms = ["market", "mercado", "shop", "wholesale", "bank", "atm"]
+        search_terms = ["market", "bank"]
         async with httpx.AsyncClient(timeout=6.0, headers=self.headers) as client:
             tasks = [
                 client.get(

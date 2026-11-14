@@ -210,6 +210,30 @@ async def _pre_verify_physical_location(
         except Exception:
             pass
 
+    # Fallback Tier 1B: Esri ArcGIS World GeocodeServer (Immune to Photon 503 burst limits)
+        if verified_lat is None and subdistrict:
+            try:
+                arc_q = f"{subdistrict}, {city}" if city else subdistrict
+                r_arc = await http_client.get(
+                    "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates",
+                    params={"SingleLine": arc_q, "maxLocations": 5, "f": "json"},
+                    timeout=4.5,
+                )
+                if r_arc.status_code == 200:
+                    for cand in r_arc.json().get("candidates", []):
+                        loc = cand.get("location", {})
+                        c_lat, c_lon = loc.get("y"), loc.get("x")
+                        if c_lat is not None and c_lon is not None:
+                            c_lat_f, c_lon_f = float(c_lat), float(c_lon)
+                            if city_lat is None or _haversine_km(city_lat, city_lon, c_lat_f, c_lon_f) <= 65.0:
+                                verified_lat, verified_lon = round(c_lat_f, 6), round(c_lon_f, 6)
+                                logger.info(
+                                    f"📍 Physical Reality Locked: '{subdistrict}' -> ({verified_lat:.4f}, {verified_lon:.4f}) via Esri ArcGIS GeocodeServer"
+                                )
+                                break
+            except Exception as e:
+                logger.debug(f"ArcGIS landmark geocode pivot: {e}")
+
     # ------------------------------------------------------------------
     # LIVE TIER 2: Open-Meteo Global GeoNames Spatial Database
     # ------------------------------------------------------------------
