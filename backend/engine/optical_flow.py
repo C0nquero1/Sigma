@@ -7,21 +7,52 @@ import logging
 import asyncio
 from typing import Dict, Any, List, Tuple, Set, Optional
 import redis.asyncio as redis
-from engine.overture_engine import LiveInfrastructureEngine
+from engine.overture_engine import LiveInfrastructureEngine, GOOGLE_CONSENT_COOKIES
 from engine.temporal_engine import DynamicTemporalEngine
+from engine.llm_router import llm_router
 
 logger = logging.getLogger("StreetAI.PhysicalConversion")
 
+_NON_MARKET_WIKI_TOKENS = (
+    "metro station", "railway station", "train station", "bus station",
+    "subway station", "bombing", "massacre", "shooting", "attack", "coup",
+    "mosque", "masjid", "church", "cathedral", "cemetery", "graveyard",
+    "tomb", "memorial", "hospital", "school", "university", "museum", "palace",
+)
+
+
+def _clean_city_label(raw_city: str) -> str:
+    c = re.sub(
+        r"^(?:Special Capital Region of|Metropolitan City of|Federal Capital Territory|Province of|State of|Governorate of)\s+",
+        "",
+        (raw_city or "").strip(),
+        flags=re.IGNORECASE,
+    )
+    return c.split(",")[0].strip()
+
+
+def _ddgs_dwell_search_sync(query: str, max_results: int = 10) -> str:
+    """Queries DuckDuckGo (`ddgs`) for real published visitor stay durations (replaces broken Bing RSS)."""
+    try:
+        try:
+            from ddgs import DDGS
+        except ImportError:
+            from duckduckgo_search import DDGS
+
+        chunks: List[str] = []
+        with DDGS() as ddgs:
+            for r in ddgs.text(query, max_results=max_results) or []:
+                if isinstance(r, dict):
+                    chunks.append(f"{r.get('title', '')} {r.get('body', r.get('snippet', ''))}")
+        return " ".join(chunks)
+    except Exception:
+        return ""
+
 
 def _parse_duration_to_minutes(raw_text: str) -> List[float]:
-    """
-    Extracts real reported visit stay durations in minutes from Google Maps protobuf strings
-    ('People typically spend 45 min to 2 hr here', 'up to 1.5 hr', '20-45 min')
-    or open-web visitor guides.
-    """
+    """Extracts real reported visit stay durations in minutes from Google Maps or visitor travel guides."""
     durations_min: List[float] = []
 
-    # Pattern 1: Range in minutes or mixed min-to-hr (e.g. "30 min to 1.5 hr", "20 to 45 min", "1-2 hours")
     for m in re.finditer(
         r"\b(\d+(?:\.\d+)?)\s*(min(?:ute)?s?|hr|hrs|hours?)?\s*(?:to|-|–)\s*(\d+(?:\.\d+)?)\s*(min(?:ute)?s?|hr|hrs|hours?)\b",
         raw_text,
@@ -34,19 +65,18 @@ def _parse_duration_to_minutes(raw_text: str) -> List[float]:
         m1 = v1 * 60.0 if u1.startswith("h") else v1
         m2 = v2 * 60.0 if u2.startswith("h") else v2
         mid = (m1 + m2) / 2.0
-        if 5.0 <= mid <= 300.0:
+        if 10.0 <= mid <= 300.0:
             durations_min.append(round(mid, 1))
 
-    # Pattern 2: Explicit single visit duration ("spend 45 min", "spend up to 2 hours", "average visit 1.5 hours")
     for m in re.finditer(
-        r"\b(?:spend|stays?|visit|takes|about|around|up to)\s+(?:about\s+|around\s+|up to\s+)?(\d+(?:\.\d+)?)\s*(min(?:ute)?s?|hr|hrs|hours?)\b",
+        r"\b(?:typically spend|plan to spend|allow|average (?:visit|stay|time)|spend|stays?|visit|takes|up to)\s+(?:about\s+|around\s+|at least\s+|up to\s+)?(\d+(?:\.\d+)?)\s*(min(?:ute)?s?|hr|hrs|hours?)\b",
         raw_text,
         flags=re.IGNORECASE,
     ):
         val = float(m.group(1))
         unit = m.group(2).lower()
         mins = val * 60.0 if unit.startswith("h") else val
-        if 5.0 <= mins <= 300.0:
+        if 10.0 <= mins <= 300.0:
             durations_min.append(round(mins, 1))
 
     return durations_min
@@ -54,12 +84,12 @@ def _parse_duration_to_minutes(raw_text: str) -> List[float]:
 
 class LivePhysicalConversionEngine:
     """
-    100% Real-Life Dwell Time & Payment Infrastructure Engine (Zero Synthetic Formulas).
-    1. Live Edge Vision / BLE Dwell (Redis `iot:vision:{cell_id}:dwell_seconds` from Frigate/Supervision/ESP32).
-    2. Direct Google Maps Per-Venue Dwell-Time Extraction (`tbm=map` "People typically spend X min here").
-    3. Open-Web Visitor Stay-Duration Corpus Extraction (IQR median of published real visitor stay reports).
-    4. Physical Corridor Traversal Lower Bound (strictly `span_m / walking_speed`, explicitly tagged unverified).
-    5. Literal Observed Financial/CICO Terminals + WiGLE Co-Located BSSIDs (zero synthetic `rail_factor` formulas).
+    100% Empirical Dwell Time & Payment Infrastructure Engine (Zero Synthetic Formulas).
+    1. Live Edge Vision / BLE Dwell (`iot:vision:{cell_id}:dwell_seconds` in Redis).
+    2. Direct Google Maps Per-Venue Dwell Extraction (`tbm=map` with SOCS consent cookies).
+    3. Real-Web `ddgs` Visitor Stay-Duration Extraction (IQR median of published stay reports).
+    4. Pure Physical Corridor Traversal Lower Bound across ALL verified merchant nodes (GMaps + ArcGIS/Photon + Overture + OSM).
+    5. Literal Observed Financial/CICO Terminals + WiGLE Commercial BSSIDs + Redis Edge POS.
     """
 
     def __init__(self, redis_url: str = "redis://127.0.0.1:6379"):
@@ -80,9 +110,13 @@ class LivePhysicalConversionEngine:
         self, lat: float, lon: float
     ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
         snapshot = await LiveInfrastructureEngine.get_coalesced_spatial_snapshot(lat, lon)
-        gmaps_pois = snapshot.get("gmaps_pois", [])
+        all_raw_pois = (
+            list(snapshot.get("gmaps_pois", []))
+            + list(snapshot.get("photon_pois", []))
+            + list(snapshot.get("osm_merchant_coords", []))
+        )
         loc_meta = snapshot.get("location_meta", {})
-        city_label = loc_meta.get("city") or loc_meta.get("country") or ""
+        city_label = _clean_city_label(loc_meta.get("city") or loc_meta.get("country") or "")
         full_addr = (
             loc_meta.get("label")
             or loc_meta.get("display_name")
@@ -91,14 +125,19 @@ class LivePhysicalConversionEngine:
 
         dynamic_admins: Set[str] = {
             str(loc_meta.get("city") or "").strip().lower(),
+            city_label.lower(),
             str(loc_meta.get("country") or "").strip().lower(),
         }
 
         venues: List[Dict[str, Any]] = []
-        for p in gmaps_pois:
+        seen_names: Set[str] = set()
+        for p in all_raw_pois:
             name = str(p.get("title") or "").strip()
+            if not name or name.lower() in seen_names:
+                continue
             if not DynamicTemporalEngine.is_clean_venue_name(name, dynamic_admins):
                 continue
+            seen_names.add(name.lower())
             addr = str(p.get("address") or full_addr).strip()
             if city_label and city_label.lower() not in addr.lower():
                 addr = f"{addr}, {city_label}"
@@ -114,99 +153,118 @@ class LivePhysicalConversionEngine:
 
         return venues, snapshot
 
+    @staticmethod
+    def _select_market_anchor_name(
+        venues: List[Dict[str, Any]], snapshot: Dict[str, Any], venue_hint: Optional[str] = None
+    ) -> str:
+        """Prioritizes `venue_hint` from user query and blocks cemeteries, coups, mosques, and transit stops."""
+        if venue_hint and len(venue_hint.strip()) >= 3 and not re.match(r"^-?\d+\.\d+", venue_hint.strip()):
+            return venue_hint.strip()
+
+        wiki_entities = snapshot.get("wikidata_geo_entities", [])
+        for wg in wiki_entities:
+            title = str(wg.get("title") or "").strip()
+            t_low = title.lower()
+            if title and not any(bad in t_low for bad in _NON_MARKET_WIKI_TOKENS):
+                return title
+
+        if venues:
+            return venues[0]["name"]
+
+        loc_meta = snapshot.get("location_meta", {})
+        return str(loc_meta.get("suburb") or _clean_city_label(loc_meta.get("city") or "")).strip()
+
     async def _extract_google_and_web_dwell_minutes(
         self,
         lat: float,
         lon: float,
         venues: List[Dict[str, Any]],
         snapshot: Dict[str, Any],
-    ) -> Tuple[Optional[float], Optional[float]]:
-        """
-        Queries:
-          1. Direct Google Maps `tbm=map` PB-Stream for real "People typically spend X min here" strings.
-          2. Open-Web Bing RSS for real documented visitor stay durations at the target market.
-        """
+        venue_hint: Optional[str] = None,
+        city_hint: Optional[str] = None,
+    ) -> Tuple[Optional[float], Optional[float], str]:
         loc_meta = snapshot.get("location_meta", {})
-        city_label = str(loc_meta.get("city") or loc_meta.get("country") or "").strip()
-        wiki_entities = snapshot.get("wikidata_geo_entities", [])
-        anchor_name = (
-            wiki_entities[0]["title"]
-            if wiki_entities
-            else (venues[0]["name"] if venues else str(loc_meta.get("suburb") or city_label))
-        )
+        city_label = _clean_city_label(city_hint or loc_meta.get("city") or loc_meta.get("country") or "")
+        anchor_name = self._select_market_anchor_name(venues, snapshot, venue_hint=venue_hint)
 
         pb_param = (
             f"!4m12!1m3!1d1500.0!2d{lon}!3d{lat}"
             f"!2m3!1f0!2f0!3f0!3m2!1i1280!2i800!4f13.1!7i10!10b1"
         )
-        web_dwell_q = f'"{anchor_name}" {city_label} "spend" ("minutes" OR "hours") visit market'
+        web_dwell_q = f'"{anchor_name}" {city_label} how long to spend visit hours minutes'.strip()
 
         gmaps_dwells: List[float] = []
         web_dwells: List[float] = []
 
-        async with httpx.AsyncClient(timeout=4.5, follow_redirects=True, headers=self.browser_headers) as client:
-            tasks = [
+        async with httpx.AsyncClient(
+            timeout=5.0,
+            follow_redirects=True,
+            headers=self.browser_headers,
+            cookies=GOOGLE_CONSENT_COOKIES,
+        ) as client:
+            r_pb, ddgs_rows = await asyncio.gather(
                 client.get(
                     "https://www.google.com/search",
-                    params={"tbm": "map", "hl": "en", "pb": pb_param, "q": f"{anchor_name} {city_label}"},
+                    params={
+                        "tbm": "map",
+                        "hl": "en",
+                        "ucbcb": "1",
+                        "pb": pb_param,
+                        "q": f"{anchor_name} {city_label}".strip(),
+                    },
                 ),
-                client.get(
-                    "https://www.bing.com/search",
-                    params={"q": web_dwell_q, "format": "rss", "count": "15"},
-                ),
-            ]
-            res_list = await asyncio.gather(*tasks, return_exceptions=True)
+                llm_router.fast_ddgs_text(web_dwell_q, max_results=10),
+                return_exceptions=True,
+            )
 
-            # 1. Google Maps PB-Stream "People typically spend..."
-            r_pb = res_list[0]
-            if isinstance(r_pb, httpx.Response) and r_pb.status_code == 200 and r_pb.text:
+            if (
+                isinstance(r_pb, httpx.Response)
+                and r_pb.status_code == 200
+                and r_pb.text
+                and "consent.google.com" not in str(r_pb.url)
+            ):
                 for m_str in re.finditer(
-                    r"(?:typically spend|spend up to|spend)\s+[^\"\\]{3,36}(?:min|hr|hour)",
+                    r"(?:typically spend|spend up to|spend)\s+[^\"\\]{3,42}(?:min|hr|hour)",
                     r_pb.text,
                     flags=re.IGNORECASE,
                 ):
                     gmaps_dwells.extend(_parse_duration_to_minutes(m_str.group(0)))
 
-            # 2. Open-Web RSS visitor duration reports
-            r_web = res_list[1]
-            if isinstance(r_web, httpx.Response) and r_web.status_code == 200 and r_web.text:
-                items = re.findall(r"<item>.*?</item>", r_web.text, flags=re.DOTALL)[:12]
-                clean_txt = html.unescape(re.sub(r"<[^>]+>", " ", " ".join(items)))
-                web_dwells.extend(_parse_duration_to_minutes(clean_txt))
+            if isinstance(ddgs_rows, list) and ddgs_rows:
+                ddgs_txt = " ".join(f"{r.get('title', '')} {r.get('body', '')}" for r in ddgs_rows)
+                web_dwells.extend(_parse_duration_to_minutes(ddgs_txt))
 
         obs_gmaps = round(sorted(gmaps_dwells)[len(gmaps_dwells) // 2], 1) if gmaps_dwells else None
         obs_web = round(sorted(web_dwells)[len(web_dwells) // 2], 1) if web_dwells else None
-        return obs_gmaps, obs_web
+        return obs_gmaps, obs_web, anchor_name
 
     @staticmethod
     def _compute_physical_traversal_floor_minutes(
         venues: List[Dict[str, Any]], snapshot: Dict[str, Any], lat: float, lon: float
     ) -> float:
-        """
-        Pure physical lower bound: straight corridor walking time at 1.25 m/s (4.5 km/h) across
-        observed merchant coordinates or OSM footprint. Zero synthetic queue/review multipliers.
-        """
         osm_sqm = float(snapshot.get("total_osm_footprint_sqm", 0.0) or 0.0)
-        if len(venues) >= 2:
-            lats = [v["lat"] for v in venues if abs(v["lat"] - lat) <= 0.0045]
-            lons = [v["lon"] for v in venues if abs(v["lon"] - lon) <= 0.0045]
-            if len(lats) >= 2 and len(lons) >= 2:
-                lat_span_m = (max(lats) - min(lats)) * 111_139.0
-                lon_span_m = (max(lons) - min(lons)) * 111_139.0 * math.cos(math.radians(lat))
-                span_m = max(30.0, math.hypot(lat_span_m, lon_span_m))
-                return round((span_m / 1.25) / 60.0, 1)
+        nearby_coords = [
+            (float(v["lat"]), float(v["lon"]))
+            for v in venues
+            if abs(float(v["lat"]) - lat) <= 0.0065 and abs(float(v["lon"]) - lon) <= 0.0065
+        ]
+        if len(nearby_coords) >= 2:
+            lats = [c[0] for c in nearby_coords]
+            lons = [c[1] for c in nearby_coords]
+            lat_span_m = (max(lats) - min(lats)) * 111_139.0
+            lon_span_m = (max(lons) - min(lons)) * 111_139.0 * math.cos(math.radians(lat))
+            span_m = max(30.0, min(1800.0, math.hypot(lat_span_m, lon_span_m)))
+            return round((span_m / 1.25) / 60.0, 1)
+
         if osm_sqm > 0:
             span_m = math.sqrt(osm_sqm)
             return round(max(2.0, (span_m / 1.25) / 60.0), 1)
+
         return 0.0
 
     async def _intercept_observed_payment_terminals(
         self, lat: float, lon: float, snapshot: Dict[str, Any]
     ) -> Dict[str, int]:
-        """
-        Counts STRICTLY observed physical financial/CICO nodes (OSM banks/ATMs/exchanges + ArcGIS/GMaps)
-        and observed WiGLE commercial BSSIDs (if WiGLE is authenticated). Zero synthetic `rail_factor` formulas.
-        """
         observed_cico = int(snapshot.get("osm_cico_count", 0) or 0)
         wigle_commercial_bssids = 0
 
@@ -262,7 +320,6 @@ class LivePhysicalConversionEngine:
         }
 
     async def _check_redis_edge_telemetry(self, cell_id: str) -> Dict[str, Any]:
-        """Reads live edge-node vision dwell, POS receipts, and BLE handshakes from Redis if connected."""
         out: Dict[str, Any] = {
             "edge_pos_handshakes": 0,
             "edge_vision_dwell_minutes": None,
@@ -286,7 +343,13 @@ class LivePhysicalConversionEngine:
         return out
 
     async def calculate_physical_conversion(
-        self, lat: float, lon: float, cell_id: str, discovered_networks: List[str]
+        self,
+        lat: float,
+        lon: float,
+        cell_id: str,
+        discovered_networks: List[str],
+        venue_hint: Optional[str] = None,
+        city_hint: Optional[str] = None,
     ) -> Dict[str, Any]:
         (venues, snapshot), edge_data = await asyncio.gather(
             self._discover_real_venues(lat, lon),
@@ -294,12 +357,13 @@ class LivePhysicalConversionEngine:
         )
         venue_count = max(len(venues), int(snapshot.get("verified_merchants_total", 0) or 0))
 
-        (obs_gmaps_dwell, obs_web_dwell), pay_nodes = await asyncio.gather(
-            self._extract_google_and_web_dwell_minutes(lat, lon, venues, snapshot),
+        (obs_gmaps_dwell, obs_web_dwell, anchor_used), pay_nodes = await asyncio.gather(
+            self._extract_google_and_web_dwell_minutes(
+                lat, lon, venues, snapshot, venue_hint=venue_hint, city_hint=city_hint
+            ),
             self._intercept_observed_payment_terminals(lat, lon, snapshot),
         )
 
-        # Strict Empirical Dwell Precedence (Zero synthetic 40-min formula!)
         if edge_data["edge_vision_dwell_minutes"] is not None:
             dwell_time_min = edge_data["edge_vision_dwell_minutes"]
             dwell_source = "EDGE_VISION_POLYGON_ZONE"
@@ -310,7 +374,7 @@ class LivePhysicalConversionEngine:
             is_dwell_observed = True
         elif obs_web_dwell is not None:
             dwell_time_min = obs_web_dwell
-            dwell_source = "OPEN_WEB_VISITOR_DURATION_CORPUS"
+            dwell_source = "DDGS_VISITOR_DURATION_CORPUS"
             is_dwell_observed = True
         else:
             dwell_time_min = self._compute_physical_traversal_floor_minutes(venues, snapshot, lat, lon)
@@ -326,8 +390,8 @@ class LivePhysicalConversionEngine:
         )
 
         logger.info(
-            f"🤝 Empirical Conversion Telemetry Locked | Dwell Time: {dwell_time_min} mins "
-            f"(Source: {dwell_source}, Empirical={is_dwell_observed} | GMaps={obs_gmaps_dwell}m, Web={obs_web_dwell}m) | "
+            f"🤝 Empirical Conversion Telemetry Locked [{anchor_used}] | Dwell Time: {dwell_time_min} mins "
+            f"(Source: {dwell_source}, Empirical={is_dwell_observed} | GMaps={obs_gmaps_dwell}m, DDGS_Web={obs_web_dwell}m) | "
             f"Observed Payment/CICO Nodes: {pay_nodes['observed_cico_terminals']} CICO + "
             f"{pay_nodes['wigle_commercial_bssids']} WiGLE BSSIDs + {edge_data['edge_pos_handshakes']} Edge POS"
         )
@@ -335,6 +399,7 @@ class LivePhysicalConversionEngine:
         return {
             "status": "PHYSICAL_CONVERSION_LOCKED",
             "structural_conversion_state": conversion_state,
+            "dwell_anchor_name": anchor_used,
             "average_device_dwell_time_minutes": dwell_time_min,
             "dwell_source": dwell_source,
             "is_dwell_empirically_observed": is_dwell_observed,

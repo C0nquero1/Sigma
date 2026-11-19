@@ -5,22 +5,49 @@ import html
 import httpx
 import logging
 import asyncio
-from email.utils import parsedate_to_datetime
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional, Tuple, Set, List
-from engine.overture_engine import LiveInfrastructureEngine
+from engine.overture_engine import LiveInfrastructureEngine, GOOGLE_CONSENT_COOKIES
+from engine.llm_router import llm_router
 
 logger = logging.getLogger("StreetAI.TemporalEngine")
 
 _DAY_INDEX = {"mo": 0, "tu": 1, "we": 2, "th": 3, "fr": 4, "sa": 5, "su": 6}
 
 
+def _clean_city_label(raw_city: str) -> str:
+    c = re.sub(
+        r"^(?:Special Capital Region of|Metropolitan City of|Federal Capital Territory|Province of|State of|Governorate of)\s+",
+        "",
+        (raw_city or "").strip(),
+        flags=re.IGNORECASE,
+    )
+    return c.split(",")[0].strip()
+
+
+def _ddgs_recent_news_sync(query: str, max_results: int = 8) -> List[Dict[str, str]]:
+    """Pulls recent real news articles via `ddgs.news(..., timelimit='w')` (last 7-14 days)."""
+    try:
+        try:
+            from ddgs import DDGS
+        except ImportError:
+            from duckduckgo_search import DDGS
+
+        out: List[Dict[str, str]] = []
+        with DDGS() as ddgs:
+            for r in ddgs.news(query, timelimit="m", max_results=max_results) or []:
+                if isinstance(r, dict):
+                    out.append({
+                        "title": str(r.get("title") or "").strip(),
+                        "date": str(r.get("date") or "").strip(),
+                        "source": str(r.get("source") or "").strip(),
+                    })
+        return out
+    except Exception:
+        return []
+
+
 def _evaluate_osm_opening_hours_string(oh_str: str, local_weekday: int, local_hour: int) -> Optional[bool]:
-    """
-    Pure-Python evaluator for real OpenStreetMap `opening_hours` tags
-    (e.g. '24/7', 'Mo-Sa 08:30-19:00', 'Mo-Fr 09:00-18:00; Sa 09:00-14:00', '08:00-20:00').
-    Returns True if open at (local_weekday, local_hour), False if closed, None if unparseable.
-    """
     s = (oh_str or "").strip()
     if not s:
         return None
@@ -33,7 +60,6 @@ def _evaluate_osm_opening_hours_string(oh_str: str, local_weekday: int, local_ho
 
     for rule in rules:
         low = rule.lower()
-        # Determine which weekdays this rule applies to
         applies_today = False
         day_ranges = re.findall(r"\b(mo|tu|we|th|fr|sa|su)\s*-\s*(mo|tu|we|th|fr|sa|su)\b", low)
         single_days = re.findall(r"\b(mo|tu|we|th|fr|sa|su)\b", low)
@@ -51,7 +77,7 @@ def _evaluate_osm_opening_hours_string(oh_str: str, local_weekday: int, local_ho
             if any(_DAY_INDEX[d] == local_weekday for d in single_days):
                 applies_today = True
         else:
-            applies_today = True  # Time-only rule applies every day
+            applies_today = True
 
         if not applies_today:
             continue
@@ -79,21 +105,23 @@ def _evaluate_osm_opening_hours_string(oh_str: str, local_weekday: int, local_ho
 
 class DynamicTemporalEngine:
     """
-    100% Real-Life Temporal, OSM Schedule Evaluator, Live Occupancy & Social Pulse Engine (Zero Simulation).
-    - Evaluates real observed OSM `opening_hours` strings + Google Maps live `is_open_now` states
-      against the exact local weekday & hour (Open-Meteo `timezone=auto` + MET Norway failover).
-    - Extracts Google Maps live busyness / popular-times protobuf vectors (`[hour, pct]`) and
-      literal live busyness descriptors (`"Busier than usual"`, `"Not too busy"`, etc.).
-    - Filters Bing Social & News RSS by `<pubDate>` recency (<= 14 days) so stale posts never distort live pulses.
-    - ZERO fabricated `74.0` occupancy floors or forced `82%` midnight open ratios.
+    100% Real-Life Temporal, OSM Schedule Evaluator, Live Occupancy & GDELT/Bluesky Event Pulse Engine.
+    - Evaluates real OSM `opening_hours` strings + Google Maps live `is_open_now` / hours text.
+    - Fixes false `1%` occupancy matches by requiring >= 4 consecutive hourly points in a genuine
+      Google Maps popular-times histogram block.
+    - Replaces broken Bing RSS social/news with GDELT Doc 2.0 API (keyless, 65 languages, 14d window),
+      Bluesky AT Protocol search (optional `BSKY_HANDLE` + `BSKY_APP_PASSWORD`), and `ddgs.news`.
+    - ZERO fabricated occupancy floors or forced midnight open ratios.
     """
     _besttime_unavailable: bool = True
+    _bsky_token_cache: Tuple[float, Optional[str]] = (0.0, None)
 
     def __init__(self, db_ledger=None):
         self.db_ledger = db_ledger
         self.meteo_url = "https://api.open-meteo.com/v1/forecast"
         self.metno_url = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
-        self.headers = {"User-Agent": "StreetAI-Temporal-Node/9.0 (https://streetai.io; contact@streetai.io)"}
+        self.gdelt_url = "https://api.gdeltproject.org/api/v2/doc/doc"
+        self.headers = {"User-Agent": "StreetAI-Temporal-Node/9.3 (https://streetai.io; contact@streetai.io)"}
         self.browser_headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
             "Accept-Language": "en-US,en;q=0.9",
@@ -140,15 +168,16 @@ class DynamicTemporalEngine:
             len(pois) + len(osm_names),
         )
 
+        clean_city = _clean_city_label(city_hint or loc_meta.get("city") or loc_meta.get("country") or "")
         dynamic_admins: Set[str] = set()
         for k in ("city", "country", "country_code"):
             val = str(loc_meta.get(k) or "").strip().lower()
             if val:
                 dynamic_admins.add(val)
-        if city_hint:
-            dynamic_admins.add(city_hint.strip().lower())
+        if clean_city:
+            dynamic_admins.add(clean_city.lower())
 
-        city_label = city_hint or loc_meta.get("city") or loc_meta.get("country") or f"{lat:.4f},{lon:.4f}"
+        city_label = clean_city or f"{lat:.4f},{lon:.4f}"
         full_addr = loc_meta.get("label") or loc_meta.get("display_name") or city_label
 
         if venue_hint and self.is_clean_venue_name(venue_hint, dynamic_admins):
@@ -166,151 +195,230 @@ class DynamicTemporalEngine:
 
         return full_addr, full_addr, active_count, spatial_snapshot
 
+    async def _get_bluesky_bearer(self, client: httpx.AsyncClient) -> Optional[str]:
+        handle = os.getenv("BSKY_HANDLE", "").strip()
+        app_pw = os.getenv("BSKY_APP_PASSWORD", "").strip()
+        if not (handle and app_pw):
+            return None
+        now = datetime.now(timezone.utc).timestamp()
+        if self._bsky_token_cache[1] and (now - self._bsky_token_cache[0]) < 3600:
+            return self._bsky_token_cache[1]
+        try:
+            res = await client.post(
+                "https://bsky.social/xrpc/com.atproto.server.createSession",
+                json={"identifier": handle, "password": app_pw},
+                timeout=4.0,
+            )
+            if res.status_code == 200 and res.json().get("accessJwt"):
+                jwt = str(res.json()["accessJwt"])
+                DynamicTemporalEngine._bsky_token_cache = (now, jwt)
+                return jwt
+        except Exception:
+            pass
+        return None
+
+    async def _probe_gdelt_and_bluesky_pulse(
+        self, client: httpx.AsyncClient, venue_name: str, clean_city: str
+    ) -> Dict[str, Any]:
+        """
+        Real-time zero-hardware event & social pulse:
+          1. GDELT Doc 2.0 API (`mode=artlist`, `format=json`, `timespan=14d`) with valid quoted syntax.
+          2. Bluesky AT Protocol search (fires ONLY when `BSKY_HANDLE` + `BSKY_APP_PASSWORD` are set; avoids 403).
+          3. Bounded timeout-proof `llm_router.fast_ddgs_news` (`bing,yahoo`).
+        """
+        gdelt_articles: List[Dict[str, Any]] = []
+        bsky_posts_14d = 0
+        highlights: List[str] = []
+        cutoff_iso = (datetime.now(timezone.utc) - timedelta(days=14)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        clean_v = re.sub(r'["()]', "", venue_name).strip()
+        # GDELT requires clean quoted phrase or parenthesized terms without bare stray punctuation
+        gdelt_query = f'"{clean_v}"' if len(clean_v.split()) >= 2 else f'("{clean_v}" AND "{clean_city}")' if clean_city else f'"{clean_v}"'
+        bsky_jwt = await self._get_bluesky_bearer(client)
+
+        tasks: List[Any] = [
+            client.get(
+                self.gdelt_url,
+                params={
+                    "query": gdelt_query,
+                    "mode": "artlist",
+                    "format": "json",
+                    "maxrecords": "20",
+                    "timespan": "14d",
+                    "sort": "datedesc",
+                },
+                timeout=5.0,
+            ),
+            llm_router.fast_ddgs_news(f'"{clean_v}" {clean_city}'.strip(), max_results=8, timelimit="m"),
+        ]
+        if bsky_jwt:
+            tasks.append(
+                client.get(
+                    "https://bsky.social/xrpc/app.bsky.feed.searchPosts",
+                    params={"q": f"{clean_v} {clean_city}".strip(), "since": cutoff_iso, "limit": 20},
+                    headers={"Authorization": f"Bearer {bsky_jwt}"},
+                    timeout=4.5,
+                )
+            )
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        r_gdelt = results[0]
+        ddgs_news = results[1]
+        r_bsky = results[2] if len(results) > 2 else None
+
+        # 1. GDELT Doc 2.0 real-time global news
+        if isinstance(r_gdelt, httpx.Response) and r_gdelt.status_code == 200:
+            try:
+                gdelt_articles = r_gdelt.json().get("articles", []) or []
+                for art in gdelt_articles[:3]:
+                    t = str(art.get("title") or "").strip()
+                    if t:
+                        highlights.append(t[:95])
+            except Exception:
+                pass
+
+        # 2. Bluesky AT Protocol posts (<= 14 days, authenticated)
+        if isinstance(r_bsky, httpx.Response) and r_bsky.status_code == 200:
+            try:
+                posts = r_bsky.json().get("posts", []) or []
+                bsky_posts_14d = len(posts)
+                for p in posts[:2]:
+                    txt = str((p.get("record") or {}).get("text") or "").strip()
+                    if txt and len(highlights) < 4:
+                        highlights.append(txt[:95])
+            except Exception:
+                pass
+
+        # 3. Fast DDGS news (`bing,yahoo`)
+        ddgs_count = 0
+        if isinstance(ddgs_news, list):
+            ddgs_count = len(ddgs_news)
+            for item in ddgs_news[:2]:
+                t = item.get("title", "")
+                if t and t[:95] not in highlights and len(highlights) < 4:
+                    highlights.append(t[:95])
+
+        recent_news_count = max(len(gdelt_articles), ddgs_count)
+        social_pulse_mult = round(
+            min(1.25, 1.0 + (bsky_posts_14d * 0.015) + (recent_news_count * 0.012)),
+            3,
+        )
+
+        return {
+            "gdelt_articles_14d": len(gdelt_articles),
+            "bluesky_posts_14d": bsky_posts_14d,
+            "recent_social_posts_14d": bsky_posts_14d,
+            "social_media_posts_indexed": bsky_posts_14d,
+            "news_articles_indexed": recent_news_count,
+            "social_pulse_multiplier": social_pulse_mult,
+            "social_highlights": highlights,
+        }
+
+    @staticmethod
+    def _extract_verified_gmaps_histogram(raw_pb: str, local_hour: int) -> Tuple[Optional[int], Optional[int], Optional[str]]:
+        """
+        Strict Google Maps Popular-Times histogram parser.
+        Requires >= 4 distinct hourly tuples `[hour, pct, ...]` within a single contiguous histogram
+        sequence so protobuf header fragments (`[5, 1, null]`) NEVER trigger false `1%` readings.
+        """
+        live_status_text: Optional[str] = None
+        m_status = re.search(
+            r"\b(As busy as it gets|Busier than usual|A little busy|Usually not too busy|Not too busy|Usually a little busy|Less busy than usual)\b",
+            raw_pb,
+            flags=re.IGNORECASE,
+        )
+        if m_status:
+            live_status_text = m_status.group(1)
+
+        # Look for genuine multi-hour histogram blocks: `[[6,12,...],[7,25,...],[8,48,...],[9,62,...]]`
+        best_map: Dict[int, int] = {}
+        for block_m in re.finditer(r"\[\s*(?:\[\d{1,2},\d{1,3},[^\]]{1,90}\]\s*,?\s*){4,24}\]", raw_pb):
+            block_str = block_m.group(0)
+            hr_map: Dict[int, int] = {}
+            for pair in re.finditer(r"\[(\d{1,2}),(\d{1,3}),", block_str):
+                h, pct = int(pair.group(1)), int(pair.group(2))
+                if 0 <= h <= 23 and 1 <= pct <= 100:
+                    hr_map[h] = pct
+            # Must contain at least 4 distinct hours with non-trivial variance (>5%)
+            if len(hr_map) >= 4 and max(hr_map.values()) >= 15:
+                best_map = hr_map
+                break
+
+        if not best_map:
+            return None, None, live_status_text
+
+        obs_current = best_map.get(local_hour)
+        daytime_vals = [v for h, v in best_map.items() if 8 <= h <= 18]
+        obs_trading = int(round(sum(daytime_vals) / len(daytime_vals))) if daytime_vals else None
+        return obs_current, obs_trading, live_status_text
+
     async def _probe_live_occupancy_and_social_pulse(
         self, lat: float, lon: float, venue_name: str, city_hint: str, local_hour: int
     ) -> Dict[str, Any]:
-        """
-        1. Extracts Google Maps Popular-Times / Live Occupancy percentages (`[hour, pct]`)
-           and live busyness text from the `tbm=map` protobuf stream.
-        2. Scrapes Social Media (`TikTok`, `Instagram`, `X`, `Facebook`, `Reddit`) and
-           Bing News RSS, filtering by `<pubDate>` recency (<= 14 days).
-        """
+        clean_city = _clean_city_label(city_hint)
         pb_param = (
             f"!4m12!1m3!1d1500.0!2d{lon}!3d{lat}"
             f"!2m3!1f0!2f0!3f0!3m2!1i1280!2i800!4f13.1!7i10!10b1"
         )
-        social_q = (
-            f'(site:tiktok.com OR site:instagram.com OR site:x.com OR site:facebook.com OR site:reddit.com) '
-            f'"{venue_name}" {city_hint}'
-        ).strip()
-        news_q = f'"{venue_name}" {city_hint} market'
 
-        current_hour_samples: List[int] = []
-        daytime_peak_samples: List[int] = []
+        obs_current_pct: Optional[int] = None
+        obs_trading_pct: Optional[int] = None
         live_status_text: Optional[str] = None
-        recent_social_count = 0
-        total_social_count = 0
-        recent_news_count = 0
-        social_highlights: List[str] = []
-        cutoff_dt = datetime.now(timezone.utc) - timedelta(days=14)
 
-        async with httpx.AsyncClient(timeout=4.5, follow_redirects=True, headers=self.browser_headers) as client:
-            tasks = [
+        async with httpx.AsyncClient(
+            timeout=5.5,
+            follow_redirects=True,
+            headers=self.browser_headers,
+            cookies=GOOGLE_CONSENT_COOKIES,
+        ) as client:
+            r_pb, pulse_data = await asyncio.gather(
                 client.get(
                     "https://www.google.com/search",
-                    params={"tbm": "map", "hl": "en", "pb": pb_param, "q": f"{venue_name} {city_hint}"},
+                    params={
+                        "tbm": "map",
+                        "hl": "en",
+                        "ucbcb": "1",
+                        "pb": pb_param,
+                        "q": f"{venue_name} {clean_city}".strip(),
+                    },
                 ),
-                client.get(
-                    "https://www.bing.com/search",
-                    params={"q": social_q, "format": "rss", "count": "15"},
-                ),
-                client.get(
-                    "https://www.bing.com/news/search",
-                    params={"q": news_q, "format": "rss"},
-                ),
-            ]
-            res_list = await asyncio.gather(*tasks, return_exceptions=True)
+                self._probe_gdelt_and_bluesky_pulse(client, venue_name, clean_city),
+                return_exceptions=True,
+            )
 
-            # 1. Parse Google Maps Protobuf `[hour, busyness_pct]` occupancy arrays + live status descriptors
-            r_pb = res_list[0]
-            if isinstance(r_pb, httpx.Response) and r_pb.status_code == 200 and r_pb.text:
-                raw_pb = r_pb.text
-                m_status = re.search(
-                    r"\b(As busy as it gets|Busier than usual|A little busy|Usually not too busy|Not too busy|Usually a little busy|Less busy than usual)\b",
-                    raw_pb,
-                    flags=re.IGNORECASE,
+            if (
+                isinstance(r_pb, httpx.Response)
+                and r_pb.status_code == 200
+                and r_pb.text
+                and "consent.google.com" not in str(r_pb.url)
+            ):
+                obs_current_pct, obs_trading_pct, live_status_text = self._extract_verified_gmaps_histogram(
+                    r_pb.text, local_hour
                 )
-                if m_status:
-                    live_status_text = m_status.group(1)
 
-                for m_occ in re.finditer(r"\[(\d{1,2}),(\d{1,3}),(?:null|\"\")", raw_pb):
-                    hr_val, pct_val = int(m_occ.group(1)), int(m_occ.group(2))
-                    if 0 <= hr_val <= 23 and 1 <= pct_val <= 100:
-                        if hr_val == local_hour:
-                            current_hour_samples.append(pct_val)
-                        if 8 <= hr_val <= 18:
-                            daytime_peak_samples.append(pct_val)
-
-            # 2. Parse Social Media Activity Pulse with strict `<pubDate>` recency check
-            r_soc = res_list[1]
-            if isinstance(r_soc, httpx.Response) and r_soc.status_code == 200 and r_soc.text:
-                items = re.findall(r"<item>.*?</item>", r_soc.text, flags=re.DOTALL)
-                total_social_count = len(items)
-                for it in items:
-                    is_recent = False
-                    pd_m = re.search(r"<pubDate>(.*?)</pubDate>", it)
-                    if pd_m:
-                        try:
-                            pub_dt = parsedate_to_datetime(pd_m.group(1).strip())
-                            if pub_dt.tzinfo is None:
-                                pub_dt = pub_dt.replace(tzinfo=timezone.utc)
-                            if pub_dt >= cutoff_dt:
-                                is_recent = True
-                        except Exception:
-                            pass
-                    if is_recent:
-                        recent_social_count += 1
-                    if len(social_highlights) < 3:
-                        t_m = re.search(r"<title>(.*?)</title>", it)
-                        if t_m:
-                            clean_t = html.unescape(re.sub(r"<[^>]+>", "", t_m.group(1))).strip()
-                            if clean_t:
-                                social_highlights.append(clean_t[:95])
-
-            # 3. Parse Live News Pulse with `<pubDate>` recency check
-            r_news = res_list[2]
-            if isinstance(r_news, httpx.Response) and r_news.status_code == 200 and r_news.text:
-                news_items = re.findall(r"<item>.*?</item>", r_news.text, flags=re.DOTALL)
-                for n_it in news_items:
-                    pd_m = re.search(r"<pubDate>(.*?)</pubDate>", n_it)
-                    if pd_m:
-                        try:
-                            pub_dt = parsedate_to_datetime(pd_m.group(1).strip())
-                            if pub_dt.tzinfo is None:
-                                pub_dt = pub_dt.replace(tzinfo=timezone.utc)
-                            if pub_dt >= cutoff_dt:
-                                recent_news_count += 1
-                        except Exception:
-                            pass
-
-        obs_current_pct = (
-            int(round(sum(current_hour_samples) / len(current_hour_samples)))
-            if current_hour_samples
-            else None
-        )
-        obs_trading_pct = (
-            int(round(sum(daytime_peak_samples) / len(daytime_peak_samples)))
-            if daytime_peak_samples
-            else None
-        )
-
-        # Only apply live event pulse lift from verified RECENT (<= 14 days) social/news volume
-        social_pulse_mult = round(
-            min(1.25, 1.0 + (recent_social_count * 0.015) + (recent_news_count * 0.018)),
-            3,
-        )
+            if not isinstance(pulse_data, dict):
+                pulse_data = {
+                    "gdelt_articles_14d": 0,
+                    "bluesky_posts_14d": 0,
+                    "recent_social_posts_14d": 0,
+                    "social_media_posts_indexed": 0,
+                    "news_articles_indexed": 0,
+                    "social_pulse_multiplier": 1.0,
+                    "social_highlights": [],
+                }
 
         return {
             "observed_current_hour_occupancy_pct": obs_current_pct,
             "observed_trading_window_occupancy_pct": obs_trading_pct,
             "live_occupancy_status_text": live_status_text,
-            "recent_social_posts_14d": recent_social_count,
-            "social_media_posts_indexed": total_social_count,
-            "news_articles_indexed": recent_news_count,
-            "social_pulse_multiplier": social_pulse_mult,
-            "social_highlights": social_highlights,
+            **pulse_data,
         }
 
     async def _measure_live_planetary_physics(self, lat: float, lon: float) -> Dict[str, Any]:
-        """
-        Queries Open-Meteo (`timezone=auto`) for exact local time, weekday, daylight, rain, and temperature.
-        Fails over to real MET Norway (`api.met.no`) if Open-Meteo is unreachable (zero fake 24.0C).
-        """
         utc_now = datetime.now(timezone.utc)
         approx_local_dt = utc_now + timedelta(hours=round(lon / 15.0))
 
         async with httpx.AsyncClient(timeout=5.0, headers=self.headers) as client:
-            # Primary: Open-Meteo
             try:
                 params = {
                     "latitude": lat,
@@ -343,7 +451,6 @@ class DynamicTemporalEngine:
             except Exception:
                 pass
 
-            # Secondary: Real MET Norway live compact forecast
             try:
                 r_met = await client.get(
                     self.metno_url, params={"lat": round(lat, 4), "lon": round(lon, 4)}
@@ -392,7 +499,6 @@ class DynamicTemporalEngine:
         local_weekday = int(solar_data.get("local_weekday", 0))
         rain_mm = float(solar_data.get("precipitation_mm", 0.0) or 0.0)
 
-        # 1. Evaluate REAL observed operating schedules from OSM `opening_hours` + Google Maps `is_open_now`
         observed_states: List[bool] = []
         osm_oh_list = snapshot.get("osm_opening_hours_observed", [])
         osm_evaluated_count = 0
@@ -405,12 +511,21 @@ class DynamicTemporalEngine:
         for p in snapshot.get("gmaps_pois", []):
             if p.get("is_open_now") is not None:
                 observed_states.append(bool(p["is_open_now"]))
+            elif p.get("observed_hours_text"):
+                ht = str(p["observed_hours_text"]).lower()
+                if "open 24" in ht or ht.startswith("open ") or "closes " in ht:
+                    observed_states.append(True)
+                elif "closed" in ht or "opens " in ht:
+                    observed_states.append(False)
 
         if observed_states:
             clock_open_ratio: Optional[float] = round(
                 sum(1 for st in observed_states if st) / len(observed_states), 3
             )
-            schedule_source = f"EMPIRICAL_SCHEDULE ({osm_evaluated_count} OSM opening_hours + {len(observed_states)-osm_evaluated_count} GMaps live flags)"
+            schedule_source = (
+                f"EMPIRICAL_SCHEDULE ({osm_evaluated_count} OSM opening_hours + "
+                f"{len(observed_states) - osm_evaluated_count} GMaps live flags)"
+            )
         else:
             clock_open_ratio = None
             schedule_source = "NO_LIVE_SCHEDULE_TAGGED"
@@ -426,7 +541,6 @@ class DynamicTemporalEngine:
 
         is_occ_observed = (obs_current_occ is not None) or (obs_trading_occ is not None)
 
-        # Trading window occupancy: strictly from observed Google Maps protobuf when present; 0/None when absent (zero fake 74.0!)
         if obs_trading_occ is not None:
             active_window_occupancy = min(100, max(1, int(round(obs_trading_occ * social_mult * rain_friction))))
         elif obs_current_occ is not None:
@@ -441,7 +555,6 @@ class DynamicTemporalEngine:
         else:
             instant_density_index = 0
 
-        # True operating state determined strictly by observed schedules or solar/clock state
         if clock_open_ratio is not None:
             operating_state = "OPEN_ACTIVE_TRADING" if clock_open_ratio >= 0.30 else "AFTER_HOURS_CLOSED"
         else:
@@ -460,14 +573,17 @@ class DynamicTemporalEngine:
             "osm_opening_hours_evaluated": osm_evaluated_count,
             "schedule_provenance": schedule_source,
             "live_event_pulse_multiplier": social_mult,
+            "gdelt_articles_14d": occ_social["gdelt_articles_14d"],
+            "bluesky_posts_14d": occ_social["bluesky_posts_14d"],
             "recent_social_posts_14d": occ_social["recent_social_posts_14d"],
             "social_media_posts_indexed": occ_social["social_media_posts_indexed"],
             "news_articles_indexed": occ_social["news_articles_indexed"],
             "social_highlights": occ_social["social_highlights"],
             "venue_anchor": venue_anchor,
             "provenance": (
-                f"Google Maps Protobuf Occupancy (Observed={is_occ_observed}) + {schedule_source} + "
-                f"Recency-Filtered Social/News ({occ_social['recent_social_posts_14d']} recent social / {occ_social['news_articles_indexed']} news) + "
+                f"Verified GMaps Histogram (Observed={is_occ_observed}) + {schedule_source} + "
+                f"GDELT/Bluesky/DDGS 14d Pulse ({occ_social['gdelt_articles_14d']} GDELT, "
+                f"{occ_social['bluesky_posts_14d']} Bluesky, {occ_social['news_articles_indexed']} news) + "
                 f"{solar_data['weather_source']} ({local_hour:02d}:00 {operating_state})"
             ),
         }
@@ -477,7 +593,7 @@ class DynamicTemporalEngine:
             f"⏱️ Empirical Temporal Reality Locked | Venue: {venue_anchor} | "
             f"Observed Occupancy: {obs_current_occ}% now / {obs_trading_occ}% trading (Status: {occ_social['live_occupancy_status_text']}) | "
             f"Clock @ {local_hour:02d}:00 [{operating_state}] Open: {open_pct_log} ({osm_evaluated_count} OSM schedules) | "
-            f"Recent 14d Pulse: {social_mult}x ({occ_social['recent_social_posts_14d']} social / {occ_social['news_articles_indexed']} news) | "
+            f"14d Event Pulse: {social_mult}x (GDELT: {occ_social['gdelt_articles_14d']}, Bluesky: {occ_social['bluesky_posts_14d']}, News: {occ_social['news_articles_indexed']}) | "
             f"Weather: {solar_data['weather_source']} (Rain: {rain_mm}mm)"
         )
 

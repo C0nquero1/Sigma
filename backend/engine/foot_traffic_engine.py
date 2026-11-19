@@ -2,7 +2,7 @@ import os
 import logging
 import asyncio
 from dotenv import load_dotenv
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 logger = logging.getLogger("StreetAI.FootTraffic")
 
@@ -10,8 +10,8 @@ logger = logging.getLogger("StreetAI.FootTraffic")
 class LiveCrowdPatternEngine:
     """
     100% Empirical Orchestration Engine.
-    Fuses Batch 2 Mobility Telemetry (Waze, TomTom, OSRM, Telraam, Webcam CV, WiGLE/Edge RF)
-    and Empirical Physical Conversion Telemetry (Google Maps Dwell, Web Duration, CICO/Edge POS)
+    Forwards `venue_hint` and `city_hint` into both Mobility (Waze, TomTom, FOSSGIS OSRM Foot,
+    GBFS, Telraam, Public Webcam CV) and Physical Conversion (Google Maps + DDGS Dwell, CICO/Edge POS)
     with zero dropped keys and zero synthetic defaults.
     """
     def __init__(self, mobility_engine, conversion_engine):
@@ -21,12 +21,22 @@ class LiveCrowdPatternEngine:
         self.conversion = conversion_engine
 
     async def get_live_cluster_busyness(
-        self, lat: float, lon: float, cell_id: str, discovered_networks: List[str]
+        self,
+        lat: float,
+        lon: float,
+        cell_id: str,
+        discovered_networks: List[str],
+        venue_hint: Optional[str] = None,
+        city_hint: Optional[str] = None,
     ) -> Dict[str, Any]:
-        logger.info(f"Fusing live empirical telemetry sensors for coordinate {lat},{lon}...")
+        logger.info(f"Fusing live empirical telemetry sensors for coordinate {lat},{lon} ({venue_hint or city_hint or 'coord'})...")
 
-        mobility_task = self.mobility.get_live_pedestrian_density(lat, lon, cell_id=cell_id)
-        conversion_task = self.conversion.calculate_physical_conversion(lat, lon, cell_id, discovered_networks)
+        mobility_task = self.mobility.get_live_pedestrian_density(
+            lat, lon, cell_id=cell_id, venue_hint=venue_hint, city_hint=city_hint
+        )
+        conversion_task = self.conversion.calculate_physical_conversion(
+            lat, lon, cell_id, discovered_networks, venue_hint=venue_hint, city_hint=city_hint
+        )
 
         results = await asyncio.gather(mobility_task, conversion_task, return_exceptions=True)
 
@@ -42,7 +52,6 @@ class LiveCrowdPatternEngine:
             "structural_mobility_state": mobility_data.get("status", "UNKNOWN"),
             "structural_conversion_state": conversion_data.get("structural_conversion_state", "UNKNOWN"),
             "raw_physical_telemetry": {
-                # Exact 1:1 mapping from Batch 2 mobility_telemetry.py
                 "rf_devices_detected": int(mobility_data.get("rf_devices_detected", 0) or 0),
                 "is_live_rf_verified": bool(mobility_data.get("is_live_rf_verified", False)),
                 "wigle_bssids_observed": int(mobility_data.get("wigle_bssids_observed", 0) or 0),
@@ -51,12 +60,18 @@ class LiveCrowdPatternEngine:
                 "free_flow_speed_kmh": float(mobility_data.get("free_flow_vehicular_velocity_kmh", 0.0) or 0.0),
                 "live_perimeter_congestion_ratio": float(mobility_data.get("live_perimeter_congestion_ratio", 1.0) or 1.0),
                 "is_live_traffic_verified": bool(mobility_data.get("is_live_traffic_verified", False)),
+                "traffic_source": str(mobility_data.get("traffic_source") or "UNVERIFIED"),
                 "foot_velocity_kmh": float(mobility_data.get("foot_velocity_kmh", 0.0) or 0.0),
                 "drive_velocity_kmh": float(mobility_data.get("structural_drive_velocity_kmh", 0.0) or 0.0),
+                "waze_live_verified": bool(mobility_data.get("waze_live_verified", False)),
                 "waze_live_jams_count": int(mobility_data.get("waze_live_jams_count", 0) or 0),
                 "waze_live_alerts_count": int(mobility_data.get("waze_live_alerts_count", 0) or 0),
                 "waze_jam_queue_meters": int(mobility_data.get("waze_jam_queue_meters", 0) or 0),
                 "waze_total_delay_seconds": int(mobility_data.get("waze_total_delay_seconds", 0) or 0),
+                "gbfs_system_name": mobility_data.get("gbfs_system_name"),
+                "gbfs_stations_within_1200m": int(mobility_data.get("gbfs_stations_within_1200m", 0) or 0),
+                "gbfs_bikes_available_nearby": mobility_data.get("gbfs_bikes_available_nearby"),
+                "gbfs_docks_available_nearby": mobility_data.get("gbfs_docks_available_nearby"),
                 "telraam_pedestrians_hr": mobility_data.get("telraam_pedestrians_hr"),
                 "telraam_vehicles_hr": mobility_data.get("telraam_vehicles_hr"),
                 "public_webcam_person_count": mobility_data.get("public_webcam_person_count"),
@@ -65,7 +80,7 @@ class LiveCrowdPatternEngine:
                 "transit_hubs_in_catchment": int(mobility_data.get("transit_hubs_in_catchment", 0) or 0),
                 "pedestrian_crossings_in_catchment": int(mobility_data.get("pedestrian_crossings_in_catchment", 0) or 0),
                 "pedestrian_catchment_5m_10m_15m_meters": mobility_data.get("pedestrian_catchment_5m_10m_15m_meters", {}),
-                # Exact 1:1 mapping from Batch 2 optical_flow.py
+                "dwell_anchor_name": conversion_data.get("dwell_anchor_name"),
                 "device_dwell_time_minutes": float(conversion_data.get("average_device_dwell_time_minutes", 0.0) or 0.0),
                 "dwell_source": conversion_data.get("dwell_source", "UNKNOWN"),
                 "is_dwell_empirically_observed": bool(conversion_data.get("is_dwell_empirically_observed", False)),

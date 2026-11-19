@@ -6,17 +6,16 @@ import logging
 from typing import Optional, Dict, Any, List, Tuple
 import httpx
 from pydantic import BaseModel, ConfigDict
+from engine.llm_router import llm_router
 
 logger = logging.getLogger("StreetAI.QueryCompiler")
 
-SERPAPI_KEY = os.getenv("SERPAPI_API_KEY", "").strip()
 NOMINATIM_LOCK = asyncio.Lock()
-GROQ_SEMAPHORE = asyncio.Semaphore(3)
 CITY_ANCHOR_CACHE: Dict[str, Tuple[float, float]] = {}
 LOCATION_CACHE: Dict[str, Tuple[float, float, Optional[str]]] = {}
 
 HEADERS = {
-    "User-Agent": "StreetAI-QueryCompiler/7.0 (contact@streetai.io)",
+    "User-Agent": "StreetAI-QueryCompiler/9.4 (https://streetai.io; contact@streetai.io)",
     "Accept-Language": "en-US,en;q=0.9",
 }
 
@@ -62,13 +61,19 @@ async def _resolve_city_anchor(
 ) -> Optional[Tuple[float, float]]:
     if not city_name:
         return None
-    key = f"{city_name.strip().lower()}_{(country_iso2 or '').strip().lower()}"
+    key = f"city_anchor_v1:{city_name.strip().lower()}_{(country_iso2 or '').strip().lower()}"
     if key in CITY_ANCHOR_CACHE:
         return CITY_ANCHOR_CACHE[key]
 
-    # Live Tier 1: Open-Meteo Global GeoNames City Anchor
+    persisted = llm_router.get_cached(key)
+    if isinstance(persisted, list) and len(persisted) == 2:
+        anchor = (float(persisted[0]), float(persisted[1]))
+        CITY_ANCHOR_CACHE[key] = anchor
+        return anchor
+
+    # Tier 1: Open-Meteo Global GeoNames City Anchor
     try:
-        async with httpx.AsyncClient(timeout=8.0, headers=HEADERS) as client:
+        async with httpx.AsyncClient(timeout=6.0, headers=HEADERS) as client:
             r_om = await client.get(
                 "https://geocoding-api.open-meteo.com/v1/search",
                 params={"name": city_name, "count": 5, "language": "en", "format": "json"},
@@ -80,14 +85,15 @@ async def _resolve_city_anchor(
                         continue
                     anchor = (float(item["latitude"]), float(item["longitude"]))
                     CITY_ANCHOR_CACHE[key] = anchor
+                    llm_router.set_cached(key, list(anchor), ttl_seconds=2592000)
                     return anchor
     except Exception:
         pass
 
-    # Live Tier 2: Photon Komoot OSM
+    # Tier 2: Photon Komoot OSM
     try:
         q_str = f"{city_name}, {country_iso2}" if country_iso2 else city_name
-        async with httpx.AsyncClient(timeout=8.0, headers=HEADERS) as client:
+        async with httpx.AsyncClient(timeout=6.0, headers=HEADERS) as client:
             r = await client.get("https://photon.komoot.io/api/", params={"q": q_str, "limit": 1})
             if r.status_code == 200:
                 feats = r.json().get("features", [])
@@ -96,23 +102,25 @@ async def _resolve_city_anchor(
                     if len(coords) >= 2:
                         anchor = (float(coords[1]), float(coords[0]))
                         CITY_ANCHOR_CACHE[key] = anchor
+                        llm_router.set_cached(key, list(anchor), ttl_seconds=2592000)
                         return anchor
     except Exception:
         pass
 
-    # Live Tier 3: Nominatim OSM
+    # Tier 3: Nominatim OSM
     async with NOMINATIM_LOCK:
         try:
             params: Dict[str, Any] = {"q": city_name, "format": "json", "addressdetails": 1, "limit": 1}
             if country_iso2 and len(country_iso2) == 2:
                 params["countrycodes"] = country_iso2.lower()
-            async with httpx.AsyncClient(timeout=8.0, headers=HEADERS) as client:
+            async with httpx.AsyncClient(timeout=6.5, headers=HEADERS) as client:
                 r = await client.get("https://nominatim.openstreetmap.org/search", params=params)
                 await asyncio.sleep(1.0)
                 if r.status_code == 200 and r.json():
                     top = r.json()[0]
                     anchor = (float(top["lat"]), float(top["lon"]))
                     CITY_ANCHOR_CACHE[key] = anchor
+                    llm_router.set_cached(key, list(anchor), ttl_seconds=2592000)
                     return anchor
         except Exception:
             pass
@@ -124,13 +132,26 @@ async def _pre_verify_physical_location(
     city_hint: Optional[str] = None,
     country_iso2: Optional[str] = None,
 ) -> Optional[Tuple[float, float, Optional[str]]]:
+    """
+    100% Zero-SerpAPI 4-Tier Live Physical Geocoder (30-day SQLite cached):
+      Tier 1: Photon Komoot OSM
+      Tier 2: Esri ArcGIS World GeocodeServer (immune to Photon 503 bursts)
+      Tier 3: Open-Meteo Global GeoNames
+      Tier 4: OpenStreetMap Nominatim
+    """
     clean_q = (target_query or "").strip()
     if not clean_q:
         return None
 
-    cache_key = f"{clean_q.lower()}_{(city_hint or '').lower()}_{(country_iso2 or '').lower()}"
+    cache_key = f"geo_v2:{clean_q.lower()}_{(city_hint or '').lower()}_{(country_iso2 or '').lower()}"
     if cache_key in LOCATION_CACHE:
         return LOCATION_CACHE[cache_key]
+
+    persisted = llm_router.get_cached(cache_key)
+    if isinstance(persisted, list) and len(persisted) == 3:
+        res_tuple = (float(persisted[0]), float(persisted[1]), persisted[2])
+        LOCATION_CACHE[cache_key] = res_tuple
+        return res_tuple
 
     city_anchor = await _resolve_city_anchor(city_hint or clean_q, country_iso2)
 
@@ -144,52 +165,14 @@ async def _pre_verify_physical_location(
         full_q = f"{clean_q}, {city_hint}"
     full_q_cc = f"{full_q}, {country_iso2.upper()}" if (country_iso2 and len(country_iso2) == 2) else full_q
 
-    # ------------------------------------------------------------------
-    # LIVE TIER 0: SerpAPI Google Maps (place_results + local_results)
-    # ------------------------------------------------------------------
-    if SERPAPI_KEY:
-        try:
-            async with httpx.AsyncClient(timeout=12.0) as client:
-                r = await client.get(
-                    "https://serpapi.com/search",
-                    params={
-                        "engine": "google_maps",
-                        "type": "search",
-                        "q": full_q_cc,
-                        "api_key": SERPAPI_KEY,
-                    },
-                )
-                if r.status_code == 200:
-                    data = r.json()
-                    candidates: List[Dict[str, Any]] = []
-                    if isinstance(data.get("place_results"), dict):
-                        candidates.append(data["place_results"])
-                    if isinstance(data.get("local_results"), list):
-                        candidates.extend(data["local_results"])
-
-                    for item in candidates:
-                        gps = item.get("gps_coordinates") or {}
-                        lat_v, lon_v = gps.get("latitude"), gps.get("longitude")
-                        if lat_v is not None and lon_v is not None:
-                            lat_f, lon_f = float(lat_v), float(lon_v)
-                            if _within_city(lat_f, lon_f):
-                                res_tuple = (lat_f, lon_f, country_iso2)
-                                LOCATION_CACHE[cache_key] = res_tuple
-                                logger.info(
-                                    f"📍 Physical Reality Locked: '{clean_q}' -> ({lat_f:.4f}, {lon_f:.4f}) via Google Maps OSINT"
-                                )
-                                return res_tuple
-        except Exception as e:
-            logger.debug(f"SerpAPI Tier-0 pivot for '{clean_q}': {e}")
-
-    # ------------------------------------------------------------------
-    # LIVE TIER 1: Photon Komoot OpenStreetMap API
-    # ------------------------------------------------------------------
-    for variant in [full_q, clean_q, city_hint]:
-        if not variant:
-            continue
-        try:
-            async with httpx.AsyncClient(timeout=8.0, headers=HEADERS) as client:
+    async with httpx.AsyncClient(timeout=6.5, headers=HEADERS) as client:
+        # ------------------------------------------------------------------
+        # TIER 1: Photon Komoot OpenStreetMap API
+        # ------------------------------------------------------------------
+        for variant in [full_q, clean_q, city_hint]:
+            if not variant:
+                continue
+            try:
                 r = await client.get("https://photon.komoot.io/api/", params={"q": variant, "limit": 5})
                 if r.status_code == 200:
                     for feat in r.json().get("features", []):
@@ -201,47 +184,59 @@ async def _pre_verify_physical_location(
                             if country_iso2 and len(country_iso2) == 2 and cc_feat and cc_feat != country_iso2.upper():
                                 continue
                             if _within_city(lat_f, lon_f):
-                                res_tuple = (lat_f, lon_f, cc_feat)
+                                res_tuple = (round(lat_f, 6), round(lon_f, 6), cc_feat)
                                 LOCATION_CACHE[cache_key] = res_tuple
+                                llm_router.set_cached(cache_key, list(res_tuple), ttl_seconds=2592000)
                                 logger.info(
                                     f"📍 Physical Reality Locked: '{clean_q}' -> ({lat_f:.4f}, {lon_f:.4f}) via Photon OSM"
                                 )
                                 return res_tuple
-        except Exception:
-            pass
+            except Exception as e:
+                logger.debug(f"Photon geocode pivot ({variant}): {e}")
 
-    # Fallback Tier 1B: Esri ArcGIS World GeocodeServer (Immune to Photon 503 burst limits)
-        if verified_lat is None and subdistrict:
+        # ------------------------------------------------------------------
+        # TIER 2: Esri ArcGIS World GeocodeServer (Fixed UnboundLocalError!)
+        # ------------------------------------------------------------------
+        for variant in [full_q_cc, full_q, clean_q]:
+            if not variant:
+                continue
             try:
-                arc_q = f"{subdistrict}, {city}" if city else subdistrict
-                r_arc = await http_client.get(
+                arc_params: Dict[str, Any] = {
+                    "SingleLine": variant,
+                    "maxLocations": 5,
+                    "outFields": "Country",
+                    "f": "json",
+                }
+                if city_anchor:
+                    arc_params["location"] = f"{city_anchor[1]},{city_anchor[0]}"
+                r_arc = await client.get(
                     "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates",
-                    params={"SingleLine": arc_q, "maxLocations": 5, "f": "json"},
-                    timeout=4.5,
+                    params=arc_params,
                 )
                 if r_arc.status_code == 200:
                     for cand in r_arc.json().get("candidates", []):
                         loc = cand.get("location", {})
                         c_lat, c_lon = loc.get("y"), loc.get("x")
                         if c_lat is not None and c_lon is not None:
-                            c_lat_f, c_lon_f = float(c_lat), float(c_lon)
-                            if city_lat is None or _haversine_km(city_lat, city_lon, c_lat_f, c_lon_f) <= 65.0:
-                                verified_lat, verified_lon = round(c_lat_f, 6), round(c_lon_f, 6)
+                            lat_f, lon_f = float(c_lat), float(c_lon)
+                            if _within_city(lat_f, lon_f):
+                                res_tuple = (round(lat_f, 6), round(lon_f, 6), country_iso2)
+                                LOCATION_CACHE[cache_key] = res_tuple
+                                llm_router.set_cached(cache_key, list(res_tuple), ttl_seconds=2592000)
                                 logger.info(
-                                    f"📍 Physical Reality Locked: '{subdistrict}' -> ({verified_lat:.4f}, {verified_lon:.4f}) via Esri ArcGIS GeocodeServer"
+                                    f"📍 Physical Reality Locked: '{clean_q}' -> ({lat_f:.4f}, {lon_f:.4f}) via Esri ArcGIS"
                                 )
-                                break
+                                return res_tuple
             except Exception as e:
-                logger.debug(f"ArcGIS landmark geocode pivot: {e}")
+                logger.debug(f"ArcGIS geocode pivot ({variant}): {e}")
 
-    # ------------------------------------------------------------------
-    # LIVE TIER 2: Open-Meteo Global GeoNames Spatial Database
-    # ------------------------------------------------------------------
-    for variant in [clean_q, city_hint]:
-        if not variant:
-            continue
-        try:
-            async with httpx.AsyncClient(timeout=8.0, headers=HEADERS) as client:
+        # ------------------------------------------------------------------
+        # TIER 3: Open-Meteo Global GeoNames Spatial Database
+        # ------------------------------------------------------------------
+        for variant in [clean_q, city_hint]:
+            if not variant:
+                continue
+            try:
                 r_om = await client.get(
                     "https://geocoding-api.open-meteo.com/v1/search",
                     params={"name": variant, "count": 5, "language": "en", "format": "json"},
@@ -253,27 +248,28 @@ async def _pre_verify_physical_location(
                         if country_iso2 and len(country_iso2) == 2 and cc_item and cc_item != country_iso2.upper():
                             continue
                         if _within_city(lat_f, lon_f):
-                            res_tuple = (lat_f, lon_f, cc_item)
+                            res_tuple = (round(lat_f, 6), round(lon_f, 6), cc_item)
                             LOCATION_CACHE[cache_key] = res_tuple
+                            llm_router.set_cached(cache_key, list(res_tuple), ttl_seconds=2592000)
                             logger.info(
                                 f"📍 Physical Reality Locked: '{clean_q}' -> ({lat_f:.4f}, {lon_f:.4f}) via GeoNames OSINT"
                             )
                             return res_tuple
-        except Exception:
-            pass
+            except Exception:
+                pass
 
     # ------------------------------------------------------------------
-    # LIVE TIER 3: OpenStreetMap Nominatim API
+    # TIER 4: OpenStreetMap Nominatim API
     # ------------------------------------------------------------------
     async with NOMINATIM_LOCK:
-        for variant in [full_q, clean_q, city_hint]:
-            if not variant:
-                continue
-            try:
-                params: Dict[str, Any] = {"q": variant, "format": "json", "addressdetails": 1, "limit": 3}
-                if country_iso2 and len(country_iso2) == 2:
-                    params["countrycodes"] = country_iso2.lower()
-                async with httpx.AsyncClient(timeout=8.0, headers=HEADERS) as client:
+        async with httpx.AsyncClient(timeout=7.0, headers=HEADERS) as client:
+            for variant in [full_q, clean_q, city_hint]:
+                if not variant:
+                    continue
+                try:
+                    params: Dict[str, Any] = {"q": variant, "format": "json", "addressdetails": 1, "limit": 3}
+                    if country_iso2 and len(country_iso2) == 2:
+                        params["countrycodes"] = country_iso2.lower()
                     r = await client.get("https://nominatim.openstreetmap.org/search", params=params)
                     await asyncio.sleep(1.0)
                     if r.status_code == 200 and isinstance(r.json(), list):
@@ -281,79 +277,48 @@ async def _pre_verify_physical_location(
                             lat_f, lon_f = float(item["lat"]), float(item["lon"])
                             cc_item = (item.get("address", {}).get("country_code") or country_iso2 or "").upper() or None
                             if _within_city(lat_f, lon_f):
-                                res_tuple = (lat_f, lon_f, cc_item)
+                                res_tuple = (round(lat_f, 6), round(lon_f, 6), cc_item)
                                 LOCATION_CACHE[cache_key] = res_tuple
+                                llm_router.set_cached(cache_key, list(res_tuple), ttl_seconds=2592000)
                                 logger.info(
                                     f"📍 Physical Reality Locked: '{clean_q}' -> ({lat_f:.4f}, {lon_f:.4f}) via Nominatim OSM"
                                 )
                                 return res_tuple
-            except Exception:
-                pass
+                except Exception:
+                    pass
 
     logger.warning(f"📍 Physical Pre-Verification FAILED: '{clean_q}' could not be resolved across live OSINT tiers.")
     return None
 
 
-def _sync_groq_call(client: Any, model_name: str, system_msg: str, user_msg: str) -> str:
-    resp = client.chat.completions.create(
-        model=model_name,
-        messages=[
-            {"role": "system", "content": system_msg},
-            {"role": "user", "content": user_msg},
-        ],
-        temperature=0.0,
-        response_format={"type": "json_object"},
-    )
-    return resp.choices[0].message.content or "{}"
-
-
 async def compile_user_prompt(
-    raw_prompt: str, groq_client: Any, active_model: str = "qwen/qwen3.8-27b"
+    raw_prompt: str, groq_client: Any = None, active_model: str = "llama-3.3-70b-versatile"
 ) -> ExecutionPlan:
     """
-    Compiles a user prompt into a physically verified ExecutionPlan via live Groq
-    models and 4-tier live OSINT coordinate verification.
+    Compiles a user prompt into a physically verified ExecutionPlan via `llm_router`
+    (cached 24h in SQLite, multi-provider free failover) + 4-tier zero-SerpAPI OSINT geocoding.
     """
-    if groq_client is None:
-        raise RuntimeError("CRITICAL: Groq client is uninitialized.")
-
-    system_prompt = (
-        "Extract the physical target location and economic commodity from the user prompt. "
-        "Return strictly valid JSON with these keys:\n"
+    prompt = (
+        "Extract the physical target location and economic commodity from the user prompt below.\n"
+        f"User Prompt: {raw_prompt}\n\n"
+        "Return strictly valid JSON with these exact keys:\n"
         "{\n"
         '  "raw_location_query": "Full market or street location string",\n'
         '  "inferred_subdistrict": "Specific market, neighborhood, or street name",\n'
         '  "inferred_city": "City name",\n'
-        '  "country_hint_iso2": "2-letter ISO country code (e.g. MX, JP, TH, VN, KR, LK, MA, CN, BR, GB, NG)",\n'
+        '  "country_hint_iso2": "2-letter ISO country code (e.g. TR, NG, AE, IT, IN, KE, EG, ID, ET, PE)",\n'
         '  "primary_commodity": "Specific product requested, or general_merchandise if broad market scan",\n'
         '  "intent_type": "cashflow_location or commodity_pricing"\n'
         "}"
     )
 
-    model_chain: List[str] = []
-    for m in [active_model, "llama-3.3-70b-versatile", "openai/gpt-oss-120b", "llama-3.1-8b-instant"]:
-        if m and m not in model_chain:
-            model_chain.append(m)
-
-    parsed: Dict[str, Any] = {}
-    async with GROQ_SEMAPHORE:
-        for model_id in model_chain:
-            try:
-                raw_json = await asyncio.to_thread(
-                    _sync_groq_call, groq_client, model_id, system_prompt, raw_prompt
-                )
-                parsed = json.loads(raw_json)
-                if isinstance(parsed, dict) and (
-                    parsed.get("inferred_subdistrict")
-                    or parsed.get("raw_location_query")
-                    or parsed.get("inferred_city")
-                ):
-                    break
-            except Exception as e:
-                logger.warning(f"Compiler pivoted from '{model_id}': {e}")
-
-    if not parsed:
-        raise RuntimeError(f"CRITICAL: All live Groq models failed to parse prompt: '{raw_prompt}'")
+    parsed = await llm_router.complete_json(prompt, max_tokens=260, cache_ttl_seconds=86400)
+    if not parsed or not (
+        parsed.get("inferred_subdistrict")
+        or parsed.get("raw_location_query")
+        or parsed.get("inferred_city")
+    ):
+        raise RuntimeError(f"CRITICAL: All live LLM providers failed to parse prompt: '{raw_prompt}'")
 
     subdistrict = str(parsed.get("inferred_subdistrict") or parsed.get("raw_location_query") or raw_prompt).strip()
     city = str(parsed.get("inferred_city") or subdistrict).strip()

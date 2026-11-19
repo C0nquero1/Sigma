@@ -6,8 +6,14 @@ import httpx
 import logging
 import asyncio
 from typing import Dict, Any, List, Tuple, Optional
+from engine.llm_router import llm_router
 
 logger = logging.getLogger("StreetAI.OvertureMultiplexer")
+
+GOOGLE_CONSENT_COOKIES = {
+    "SOCS": "CAESEwgDEgk0ODE3Nzk3MjQaAmVuIAEaBgiA_LyaBg",
+    "CONSENT": "PENDING+987",
+}
 
 
 def _shoelace_area_sqm(coords: List[Tuple[float, float]]) -> float:
@@ -35,7 +41,6 @@ def _haversine_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> flo
 
 
 def _parse_osm_levels(raw_levels: Any) -> Tuple[int, bool]:
-    """Extracts literal OSM building:levels integer. Returns (levels, was_explicitly_tagged)."""
     if raw_levels is None:
         return 1, False
     m = re.search(r"(\d+(?:\.\d+)?)", str(raw_levels))
@@ -47,16 +52,146 @@ def _parse_osm_levels(raw_levels: Any) -> Tuple[int, bool]:
     return 1, False
 
 
+def _query_overture_duckdb_sync(
+    release: str, lat: float, lon: float, d_deg: float = 0.0022
+) -> Dict[str, Any]:
+    """
+    Zero-API-Key Overture Maps Foundation GeoParquet query via DuckDB (`httpfs` + `spatial`).
+    Extracts real 3D building footprints (`num_floors`, `height`, exact area) and informal POIs
+    directly from Overture's public AWS S3 GeoParquet release using row-group bbox pruning.
+    """
+    try:
+        import duckdb
+    except ImportError:
+        return {}
+
+    xmin, xmax = lon - d_deg, lon + d_deg
+    ymin, ymax = lat - d_deg, lat + d_deg
+    m_per_deg_lat = 111139.0
+    m_per_deg_lon = 111139.0 * math.cos(math.radians(lat))
+
+    bldg_s3 = f"s3://overturemaps-us-west-2/release/{release}/theme=buildings/type=building/*"
+    place_s3 = f"s3://overturemaps-us-west-2/release/{release}/theme=places/type=place/*"
+
+    con = duckdb.connect(":memory:")
+    try:
+        con.execute("INSTALL httpfs; LOAD httpfs;")
+        con.execute("INSTALL spatial; LOAD spatial;")
+        con.execute("SET s3_region='us-west-2';")
+        con.execute("SET s3_access_key_id=''; SET s3_secret_access_key='';")
+        con.execute("SET http_timeout=7000;")
+
+        # 1. Real 3D Building Polygons (`num_floors`, `height`, bbox/geometry area)
+        b_rows = con.execute(
+            f"""
+            SELECT
+                bbox.xmin, bbox.xmax, bbox.ymin, bbox.ymax,
+                num_floors, height,
+                ST_Area(geometry) AS deg2_area
+            FROM read_parquet('{bldg_s3}', filename=false, hive_partitioning=1)
+            WHERE bbox.xmin <= {xmax} AND bbox.xmax >= {xmin}
+              AND bbox.ymin <= {ymax} AND bbox.ymax >= {ymin}
+            LIMIT 250
+            """
+        ).fetchall()
+
+        bldg_count = 0
+        levels_tagged = 0
+        total_2d = 0.0
+        total_3d = 0.0
+        polygons: List[Dict[str, float]] = []
+
+        for r in b_rows:
+            bx1, bx2, by1, by2, n_floors, height_m, deg2_area = r
+            if deg2_area is not None and float(deg2_area) > 0:
+                area_sqm = round(float(deg2_area) * m_per_deg_lat * m_per_deg_lon, 2)
+            else:
+                area_sqm = round(abs(float(bx2) - float(bx1)) * m_per_deg_lon * abs(float(by2) - float(by1)) * m_per_deg_lat, 2)
+            if not (15.0 <= area_sqm <= 180_000.0):
+                continue
+
+            if n_floors is not None and int(n_floors) >= 1:
+                floors = min(80, int(n_floors))
+                levels_tagged += 1
+            elif height_m is not None and float(height_m) >= 3.2:
+                floors = max(1, min(80, int(round(float(height_m) / 3.4))))
+                levels_tagged += 1
+            else:
+                floors = 1
+
+            bldg_count += 1
+            total_2d += area_sqm
+            total_3d += area_sqm * floors
+            polygons.append({
+                "lat": round((float(by1) + float(by2)) / 2.0, 6),
+                "lon": round((float(bx1) + float(bx2)) / 2.0, 6),
+                "area_sqm": area_sqm,
+            })
+
+        # 2. Overture Informal & Formal Commercial Places (catches micro-stalls Google/OSM miss)
+        p_rows = con.execute(
+            f"""
+            SELECT
+                names.primary AS primary_name,
+                categories.primary AS primary_cat,
+                (bbox.ymin + bbox.ymax) / 2.0 AS plat,
+                (bbox.xmin + bbox.xmax) / 2.0 AS plon
+            FROM read_parquet('{place_s3}', filename=false, hive_partitioning=1)
+            WHERE bbox.xmin <= {xmax} AND bbox.xmax >= {xmin}
+              AND bbox.ymin <= {ymax} AND bbox.ymax >= {ymin}
+              AND names.primary IS NOT NULL
+            LIMIT 120
+            """
+        ).fetchall()
+
+        overture_places: List[Dict[str, Any]] = []
+        overture_names: List[str] = []
+        for pname, pcat, plat, plon in p_rows:
+            title = str(pname or "").strip()
+            cat = str(pcat or "commercial").strip().lower()
+            if title and plat is not None and plon is not None:
+                overture_places.append({
+                    "title": title,
+                    "type": cat,
+                    "lat": round(float(plat), 6),
+                    "lon": round(float(plon), 6),
+                    "reviews": 0,
+                })
+                if title not in overture_names and len(overture_names) < 25:
+                    overture_names.append(title)
+
+        return {
+            "overture_release": release,
+            "osm_buildings_count": bldg_count,
+            "osm_levels_tagged_count": levels_tagged,
+            "total_osm_footprint_sqm": round(total_2d, 2),
+            "total_osm_3d_gross_floor_sqm": round(total_3d, 2),
+            "polygons": polygons[:80],
+            "overture_places": overture_places,
+            "overture_venue_names": overture_names,
+        }
+    except Exception as e:
+        logger.debug(f"Overture DuckDB GeoParquet query pivot ({release}): {e}")
+        return {}
+    finally:
+        try:
+            con.close()
+        except Exception:
+            pass
+
+
 class LiveInfrastructureEngine:
     """
     100% Empirical Coalesced Spatial Multiplexer (Zero Fabricated Counts/Ratings).
-    Fuses 5 independent global open infrastructure feeds in a single coalesced burst:
-      1. OpenStreetMap Overpass (3D building:levels, indoor units, addr:unit, craft/shop/marketplace,
-         exact OSM opening_hours, surveillance cameras, public webcams, pedestrian crossings, transit stops).
-      2. Google Maps Direct PB-Stream (verified local merchants, literal observed reviews/open states).
-      3. Esri ArcGIS World GeocodeServer (commercial + financial/CICO nodes within 800m-1000m).
-      4. Photon Komoot OSM + Nominatim Reverse Geocoding (exact street/district topology).
-      5. Wikimedia Geosearch API (real documented market halls & landmarks within 500m).
+    Fuses 6 independent zero-hardware global open datasets:
+      1. Overture Maps Foundation GeoParquet via DuckDB (real 3D building footprints, `num_floors`,
+         `height`, and 100M+ formal/informal commercial POIs with dynamic STAC release discovery).
+      2. Lightweight Split Overpass Queries (compact `160m` buildings + fast `260m` `out center` POIs,
+         `opening_hours`, `man_made=surveillance`, `contact:webcam`, `bus_stop`, `crossing`, `subway_entrance`)
+         cached 7 days in SQLite (`osm3d_v2:`).
+      3. Esri ArcGIS World GeocodeServer + Photon Komoot OSM + Nominatim Reverse Geocoding.
+      4. Google Maps Direct PB-Stream (with SOCS consent cookies).
+      5. Wikimedia Geosearch API (documented landmarks within 500m).
     """
     _cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
     _locks: Dict[str, asyncio.Lock] = {}
@@ -65,14 +200,14 @@ class LiveInfrastructureEngine:
 
     OVERPASS_MIRRORS = [
         "https://overpass.private.coffee/api/interpreter",
-        "https://overpass.kumi.systems/api/interpreter",
         "https://overpass-api.de/api/interpreter",
+        "https://lz4.overpass-api.de/api/interpreter",
+        "https://overpass.osm.jp/api/interpreter",
     ]
 
     def __init__(self):
-        self.serpapi_key = os.getenv("SERPAPI_API_KEY", "")
         self.headers = {
-            "User-Agent": "StreetAI-OvertureMultiplexer/9.0 (https://streetai.io; contact@streetai.io) httpx/0.27"
+            "User-Agent": "StreetAI-OvertureMultiplexer/9.2 (https://streetai.io; contact@streetai.io) httpx/0.27"
         }
         self.browser_headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -81,7 +216,6 @@ class LiveInfrastructureEngine:
 
     @staticmethod
     def _is_valid_merchant_title(title: str) -> bool:
-        """Rejects street addresses, postal codes, Plus Codes ('PR6H+GJH'), opening hours, and review counts."""
         t = (title or "").strip()
         if len(t) < 3 or len(t) > 55:
             return False
@@ -101,64 +235,124 @@ class LiveInfrastructureEngine:
             return False
         return True
 
+    async def _discover_latest_overture_release(self) -> Optional[str]:
+        """Dynamically resolves the latest Overture Maps release string from STAC catalog (cached 7 days)."""
+        cached_rel = llm_router.get_cached("overture_latest_release")
+        if isinstance(cached_rel, str) and len(cached_rel) >= 10:
+            return cached_rel
+        try:
+            async with httpx.AsyncClient(timeout=4.5, headers=self.headers) as client:
+                res = await client.get("https://stac.overturemaps.org/catalog.json")
+                if res.status_code == 200:
+                    data = res.json()
+                    latest = data.get("latest")
+                    if isinstance(latest, str) and re.match(r"^\d{4}-\d{2}-\d{2}\.\d+$", latest):
+                        llm_router.set_cached("overture_latest_release", latest, ttl_seconds=604800)
+                        return latest
+                    for lk in reversed(data.get("links", [])):
+                        href = str(lk.get("href") or "")
+                        m = re.search(r"(\d{4}-\d{2}-\d{2}\.\d+)", href)
+                        if m:
+                            rel = m.group(1)
+                            llm_router.set_cached("overture_latest_release", rel, ttl_seconds=604800)
+                            return rel
+        except Exception as e:
+            logger.debug(f"Overture STAC release discovery pivot: {e}")
+        return None
+
+    async def _fetch_overture_geoparquet(self, lat: float, lon: float) -> Dict[str, Any]:
+        ov_cache_key = f"ov_parquet_v1:{round(lat, 4)}:{round(lon, 4)}"
+        cached_ov = llm_router.get_cached(ov_cache_key)
+        if isinstance(cached_ov, dict) and (
+            cached_ov.get("osm_buildings_count", 0) > 0 or len(cached_ov.get("overture_places", [])) > 0
+        ):
+            return cached_ov
+
+        release = await self._discover_latest_overture_release()
+        if not release:
+            return {}
+
+        try:
+            res = await asyncio.wait_for(
+                asyncio.to_thread(_query_overture_duckdb_sync, release, lat, lon, 0.0022),
+                timeout=9.0,
+            )
+            if isinstance(res, dict) and (
+                res.get("osm_buildings_count", 0) > 0 or len(res.get("overture_places", [])) > 0
+            ):
+                llm_router.set_cached(ov_cache_key, res, ttl_seconds=604800)  # 7 days
+                logger.info(
+                    f"🗺️ Overture GeoParquet ({release}) Locked: {res.get('osm_buildings_count', 0)} 3D buildings "
+                    f"({res.get('total_osm_3d_gross_floor_sqm', 0.0):,.1f} sqm) + {len(res.get('overture_places', []))} places."
+                )
+                return res
+        except Exception as e:
+            logger.debug(f"Overture GeoParquet timeout/skip: {e}")
+        return {}
+
+    async def _post_overpass_with_failover(
+        self, client: httpx.AsyncClient, ql: str
+    ) -> Optional[List[Dict[str, Any]]]:
+        for mirror_url in self.OVERPASS_MIRRORS:
+            try:
+                res = await client.post(mirror_url, data={"data": ql})
+                if res.status_code == 200:
+                    els = res.json().get("elements", [])
+                    if isinstance(els, list):
+                        return els
+            except Exception as e:
+                logger.debug(f"Overpass mirror pivot ({mirror_url}): {e}")
+        return None
+
     async def _fetch_coalesced_overpass(self, lat: float, lon: float) -> Dict[str, Any]:
         """
-        Queries a 320m market-core bounding box across fast Overpass mirrors for:
-        - 3D building polygons (`building` + `building:levels`)
-        - Formal & informal retail/stall nodes (`shop`, `craft`, `amenity=marketplace`, `indoor=room|area`, `addr:unit`)
-        - Financial CICO nodes (`bank`, `atm`, `bureau_de_change`, `money_transfer`)
-        - Physical observation & inflow infrastructure (`man_made=surveillance`, `contact:webcam`,
-          `highway=crossing`, `public_transport`, `highway=bus_stop`, `railway=subway_entrance`)
-        - Exact OSM `opening_hours` strings
+        Splits Overpass into TWO fast, lightweight parallel queries so public mirrors respond in <2s
+        instead of timing out with 504:
+          - Query A (`260m`): Nodes/POIs/transit/crossings/surveillance/webcams/opening_hours using fast `out center tags`.
+          - Query B (`160m`): Immediate core building ways using `out geom qt 65`.
+        Cached 7 days in SQLite under `osm3d_v2:`.
         """
-        d = 0.0029  # ~320m core box
-        bbox = f"{lat - d:.5f},{lon - d:.5f},{lat + d:.5f},{lon + d:.5f}"
-        query = (
-            f"[out:json][timeout:5];("
-            f"way[\"building\"]({bbox});"
-            f"way[\"shop\"]({bbox});"
-            f"way[\"amenity\"=\"marketplace\"]({bbox});"
-            f"way[\"indoor\"~\"room|area\"]({bbox});"
-            f"node[\"shop\"]({bbox});"
-            f"node[\"craft\"]({bbox});"
-            f"node[\"addr:unit\"]({bbox});"
-            f"node[\"amenity\"~\"bank|atm|bureau_de_change|marketplace|money_transfer|pharmacy|restaurant|cafe|fast_food\"]({bbox});"
-            f"node[\"man_made\"=\"surveillance\"]({bbox});"
-            f"node[\"contact:webcam\"]({bbox});"
-            f"node[\"highway\"~\"crossing|bus_stop\"]({bbox});"
-            f"node[\"public_transport\"~\"station|stop_position|platform\"]({bbox});"
-            f"node[\"railway\"=\"subway_entrance\"]({bbox});"
-            f");out body geom qt 320;"
+        osm_cache_key = f"osm3d_v2:{round(lat, 4)}:{round(lon, 4)}"
+        cached_osm = llm_router.get_cached(osm_cache_key)
+        if isinstance(cached_osm, dict) and (
+            cached_osm.get("osm_buildings_count", 0) > 0
+            or cached_osm.get("osm_shops_count", 0) > 0
+            or cached_osm.get("osm_transit_hubs_count", 0) > 0
+        ):
+            return cached_osm
+
+        d_poi = 0.0024  # ~265m
+        bbox_poi = f"{lat - d_poi:.5f},{lon - d_poi:.5f},{lat + d_poi:.5f},{lon + d_poi:.5f}"
+        q_pois = (
+            f"[out:json][timeout:6];("
+            f'node["shop"]({bbox_poi});'
+            f'node["amenity"~"marketplace|bank|atm|bureau_de_change|money_transfer|pharmacy|restaurant|cafe"]({bbox_poi});'
+            f'node["man_made"="surveillance"]({bbox_poi});'
+            f'node["contact:webcam"]({bbox_poi});'
+            f'node["highway"~"crossing|bus_stop"]({bbox_poi});'
+            f'node["railway"="subway_entrance"]({bbox_poi});'
+            f");out body qt 160;"
         )
 
-        async with httpx.AsyncClient(timeout=5.5, headers=self.headers) as client:
-            for mirror_url in self.OVERPASS_MIRRORS:
-                try:
-                    res = await client.post(mirror_url, data={"data": query})
-                    if res.status_code == 200:
-                        elements = res.json().get("elements", [])
-                        if elements is not None:
-                            return self._parse_overpass_elements(elements)
-                except Exception as e:
-                    logger.debug(f"Overpass mirror pivot ({mirror_url}): {e}")
+        d_bldg = 0.00145  # ~160m core buildings (small enough to never 504 even in dense megacities)
+        bbox_bldg = f"{lat - d_bldg:.5f},{lon - d_bldg:.5f},{lat + d_bldg:.5f},{lon + d_bldg:.5f}"
+        q_bldgs = f'[out:json][timeout:6];way["building"]({bbox_bldg});out geom qt 65;'
 
-        return {
-            "osm_buildings_count": 0,
-            "osm_levels_tagged_count": 0,
-            "total_osm_footprint_sqm": 0.0,
-            "total_osm_3d_gross_floor_sqm": 0.0,
-            "osm_shops_count": 0,
-            "osm_indoor_units_count": 0,
-            "osm_cico_count": 0,
-            "osm_surveillance_nodes_count": 0,
-            "osm_webcam_urls": [],
-            "osm_transit_hubs_count": 0,
-            "osm_pedestrian_crossings_count": 0,
-            "osm_opening_hours_observed": [],
-            "osm_venue_names": [],
-            "cico_domains": [],
-            "osm_merchant_coords": [],
-        }
+        async with httpx.AsyncClient(timeout=7.5, headers=self.headers) as client:
+            poi_els, bldg_els = await asyncio.gather(
+                self._post_overpass_with_failover(client, q_pois),
+                self._post_overpass_with_failover(client, q_bldgs),
+            )
+
+        combined_els = (poi_els or []) + (bldg_els or [])
+        parsed = self._parse_overpass_elements(combined_els)
+        if (
+            parsed["osm_buildings_count"] > 0
+            or parsed["osm_shops_count"] > 0
+            or parsed["osm_transit_hubs_count"] > 0
+        ):
+            llm_router.set_cached(osm_cache_key, parsed, ttl_seconds=604800)  # 7 days
+        return parsed
 
     @staticmethod
     def _parse_overpass_elements(elements: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -173,6 +367,7 @@ class LiveInfrastructureEngine:
         transit_count = 0
         crossing_count = 0
 
+        polygons: List[Dict[str, float]] = []
         webcam_urls: List[str] = []
         opening_hours_list: List[str] = []
         venue_names: List[str] = []
@@ -185,11 +380,9 @@ class LiveInfrastructureEngine:
             name = str(tags.get("name") or tags.get("name:en") or "").strip()
             amenity = str(tags.get("amenity") or "").lower()
             shop = str(tags.get("shop") or "").lower()
-            craft = str(tags.get("craft") or "").lower()
             bldg = str(tags.get("building") or "").lower()
             indoor = str(tags.get("indoor") or "").lower()
             highway = str(tags.get("highway") or "").lower()
-            pub_trans = str(tags.get("public_transport") or "").lower()
             railway = str(tags.get("railway") or "").lower()
             man_made = str(tags.get("man_made") or "").lower()
 
@@ -205,10 +398,9 @@ class LiveInfrastructureEngine:
                 surveillance_count += 1
             if highway == "crossing":
                 crossing_count += 1
-            if highway == "bus_stop" or pub_trans in ("station", "stop_position", "platform") or railway == "subway_entrance":
+            if highway == "bus_stop" or railway == "subway_entrance":
                 transit_count += 1
 
-            # 2D & 3D Building Polygons
             if el_type == "way" and (bldg or shop or amenity == "marketplace"):
                 geom = el.get("geometry", [])
                 coords = [(float(pt["lon"]), float(pt["lat"])) for pt in geom if "lat" in pt and "lon" in pt]
@@ -221,26 +413,26 @@ class LiveInfrastructureEngine:
                         bldg_count += 1
                         total_2d_sqm += poly_sqm
                         total_3d_sqm += poly_sqm * levels
+                        c_lon = sum(c[0] for c in coords) / len(coords)
+                        c_lat = sum(c[1] for c in coords) / len(coords)
+                        polygons.append({"lat": round(c_lat, 6), "lon": round(c_lon, 6), "area_sqm": poly_sqm})
 
-            # Indoor room/unit mapping
             if indoor in ("room", "area") or tags.get("addr:unit"):
                 indoor_units_count += 1
 
-            # Commercial & craft merchant nodes
-            if shop or craft or amenity in ("marketplace", "pharmacy", "restaurant", "cafe", "fast_food"):
+            if shop or amenity in ("marketplace", "pharmacy", "restaurant", "cafe"):
                 shops_count += 1
                 if name and len(name) >= 3 and name not in venue_names:
                     venue_names.append(name)
                 if el_type == "node" and "lat" in el and "lon" in el:
                     merchant_coords.append({
-                        "title": name or shop or craft or amenity,
-                        "type": shop or craft or amenity,
+                        "title": name or shop or amenity,
+                        "type": shop or amenity,
                         "lat": float(el["lat"]),
                         "lon": float(el["lon"]),
                         "opening_hours": oh or None,
                     })
 
-            # Financial / CICO nodes
             if amenity in ("bank", "atm", "bureau_de_change", "money_transfer"):
                 cico_count += 1
                 website = str(tags.get("website") or tags.get("contact:website") or "").strip()
@@ -255,6 +447,7 @@ class LiveInfrastructureEngine:
             "osm_levels_tagged_count": levels_tagged_count,
             "total_osm_footprint_sqm": round(total_2d_sqm, 2),
             "total_osm_3d_gross_floor_sqm": round(total_3d_sqm, 2),
+            "polygons": polygons[:80],
             "osm_shops_count": shops_count,
             "osm_indoor_units_count": indoor_units_count,
             "osm_cico_count": cico_count,
@@ -269,10 +462,9 @@ class LiveInfrastructureEngine:
         }
 
     async def _fetch_wikimedia_geosearch(self, lat: float, lon: float) -> List[Dict[str, Any]]:
-        """Fetches real documented landmarks & market halls within 500m via Wikimedia Geosearch API."""
         entities: List[Dict[str, Any]] = []
         try:
-            async with httpx.AsyncClient(timeout=4.0, headers=self.headers) as client:
+            async with httpx.AsyncClient(timeout=4.5, headers=self.headers) as client:
                 res = await client.get(
                     "https://en.wikipedia.org/w/api.php",
                     params={
@@ -300,23 +492,24 @@ class LiveInfrastructureEngine:
     async def _fetch_google_maps_direct_pb(
         self, lat: float, lon: float, query_str: str, default_type: str
     ) -> List[Dict[str, Any]]:
-        """
-        Direct Google Maps `tbm=map` PB-Stream extractor.
-        ZERO fabricated review counts or ratings: records exact observed values (`None` / `0` if absent).
-        """
         pb_param = (
             f"!4m12!1m3!1d2200.0!2d{lon}!3d{lat}"
             f"!2m3!1f0!2f0!3f0!3m2!1i1280!2i800!4f13.1!7i20!10b1"
         )
         url = "https://www.google.com/search"
-        params = {"tbm": "map", "authuser": "0", "hl": "en", "pb": pb_param, "q": query_str}
+        params = {"tbm": "map", "authuser": "0", "hl": "en", "ucbcb": "1", "pb": pb_param, "q": query_str}
         pois: List[Dict[str, Any]] = []
         seen_titles = set()
 
         try:
-            async with httpx.AsyncClient(timeout=5.5, follow_redirects=True, headers=self.browser_headers) as client:
+            async with httpx.AsyncClient(
+                timeout=6.0,
+                follow_redirects=True,
+                headers=self.browser_headers,
+                cookies=GOOGLE_CONSENT_COOKIES,
+            ) as client:
                 res = await client.get(url, params=params)
-                if res.status_code == 200 and res.text:
+                if res.status_code == 200 and res.text and "consent.google.com" not in str(res.url):
                     raw_text = res.text
                     coord_matches = list(
                         re.finditer(r"\[null,null,(-?\d+\.\d{4,8}),(-?\d+\.\d{4,8})\]", raw_text)
@@ -338,18 +531,14 @@ class LiveInfrastructureEngine:
 
                         if chosen_title and chosen_title.lower() not in seen_titles:
                             seen_titles.add(chosen_title.lower())
-
-                            # Only extract literal observed review counts (zero synthetic default like 18)
                             rev_m = re.search(r"\b(\d{1,6})\s+reviews?\b", window, flags=re.IGNORECASE)
                             reviews_cnt = int(rev_m.group(1)) if rev_m else 0
 
-                            # Only extract literal observed star rating (zero synthetic default like 4.3)
                             rat_m = re.search(r",([1-5]\.\d),(\d{1,6})\]", window)
                             observed_rating = float(rat_m.group(1)) if rat_m else None
                             if not reviews_cnt and rat_m:
                                 reviews_cnt = int(rat_m.group(2))
 
-                            # Extract literal observed hours string if present (e.g., "Closes 6 pm")
                             hr_m = re.search(
                                 r"\b((?:Open|Opens|Closes|Closed)[^\"\\]{0,28}(?:am|pm|24 hours))\b",
                                 window,
@@ -358,15 +547,9 @@ class LiveInfrastructureEngine:
                             observed_hours_text = hr_m.group(1).strip() if hr_m else None
 
                             win_low = window.lower()
-                            explicit_open = bool(
-                                re.search(r"\b(open now|open 24 hours|closes soon)\b", win_low)
-                            )
-                            explicit_closed = bool(
-                                re.search(r"\b(closed|opens at|opens soon|temporarily closed)\b", win_low)
-                            )
-                            is_busy_surge = bool(
-                                re.search(r"\b(busier than usual|as busy as it gets)\b", win_low)
-                            )
+                            explicit_open = bool(re.search(r"\b(open now|open 24 hours|closes soon)\b", win_low))
+                            explicit_closed = bool(re.search(r"\b(closed|opens at|opens soon|temporarily closed)\b", win_low))
+                            is_busy_surge = bool(re.search(r"\b(busier than usual|as busy as it gets)\b", win_low))
 
                             pois.append({
                                 "title": chosen_title,
@@ -393,7 +576,7 @@ class LiveInfrastructureEngine:
         cico_pois: List[Dict[str, Any]] = []
         loc_meta: Dict[str, Any] = {"lat": lat, "lon": lon}
 
-        async with httpx.AsyncClient(timeout=5.0, headers=self.headers) as client:
+        async with httpx.AsyncClient(timeout=8.5, headers=self.headers) as client:
             tasks = [
                 client.get(
                     "https://nominatim.openstreetmap.org/reverse",
@@ -405,7 +588,7 @@ class LiveInfrastructureEngine:
                         "SingleLine": "",
                         "category": "Market,Shopping Center,Shop,Food Store",
                         "location": f"{lon},{lat}",
-                        "distance": 800,
+                        "distance": 850,
                         "maxLocations": 25,
                         "outFields": "PlaceName,Place_addr,Type,URL",
                         "f": "json",
@@ -430,7 +613,6 @@ class LiveInfrastructureEngine:
             ]
             res_list = await asyncio.gather(*tasks, return_exceptions=True)
 
-            # 1. Nominatim Reverse Metadata
             r_nom = res_list[0]
             if isinstance(r_nom, httpx.Response) and r_nom.status_code == 200:
                 nom_data = r_nom.json()
@@ -457,7 +639,6 @@ class LiveInfrastructureEngine:
                     "display_name": nom_data.get("display_name", ""),
                 }
 
-            # 2. Esri ArcGIS Commercial POIs (reviews=0 because ArcGIS does not provide reviews—no fake 22!)
             r_arc_shop = res_list[1]
             if isinstance(r_arc_shop, httpx.Response) and r_arc_shop.status_code == 200:
                 for cand in r_arc_shop.json().get("candidates", []):
@@ -474,7 +655,6 @@ class LiveInfrastructureEngine:
                             "reviews": 0,
                         })
 
-            # 3. Esri ArcGIS Bank/ATM CICO POIs
             r_arc_bank = res_list[2]
             if isinstance(r_arc_bank, httpx.Response) and r_arc_bank.status_code == 200:
                 for cand in r_arc_bank.json().get("candidates", []):
@@ -490,7 +670,6 @@ class LiveInfrastructureEngine:
                             "lon": float(loc["x"]),
                         })
 
-            # 4. Photon Local Market Nodes (strictly within <= 700m; reviews=0—no fake 15!)
             r_phot = res_list[3]
             if isinstance(r_phot, httpx.Response) and r_phot.status_code == 200:
                 for feat in r_phot.json().get("features", []):
@@ -500,7 +679,7 @@ class LiveInfrastructureEngine:
                     p_name = str(props.get("name") or "").strip()
                     if len(coords) >= 2 and self._is_valid_merchant_title(p_name):
                         p_lon, p_lat = float(coords[0]), float(coords[1])
-                        if _haversine_meters(lat, lon, p_lat, p_lon) <= 700.0:
+                        if _haversine_meters(lat, lon, p_lat, p_lon) <= 750.0:
                             shop_pois.append({
                                 "title": p_name,
                                 "type": str(props.get("osm_value") or "market").lower(),
@@ -515,10 +694,6 @@ class LiveInfrastructureEngine:
     def _cluster_spatial_sub_blocks(
         merchant_nodes: List[Dict[str, Any]], cluster_radius_m: float = 140.0
     ) -> List[Dict[str, Any]]:
-        """
-        Pure-Python Haversine spatial clustering of verified merchant coordinates into
-        real physical market sub-blocks (e.g., distinct plazas, wings, or alleys).
-        """
         clusters: List[List[Dict[str, Any]]] = []
         for node in merchant_nodes:
             n_lat, n_lon = node.get("lat"), node.get("lon")
@@ -564,12 +739,14 @@ class LiveInfrastructureEngine:
 
             inst = cls()
             (
+                overture_data,
                 overpass_data,
                 (arc_shops, arc_cico, loc_meta),
                 gmaps_shops,
                 gmaps_banks,
                 wiki_geo,
             ) = await asyncio.gather(
+                inst._fetch_overture_geoparquet(lat, lon),
                 inst._fetch_coalesced_overpass(lat, lon),
                 inst._fetch_arcgis_and_photon_pois(lat, lon),
                 inst._fetch_google_maps_direct_pb(lat, lon, "market wholesale shop store", "shop"),
@@ -577,28 +754,61 @@ class LiveInfrastructureEngine:
                 inst._fetch_wikimedia_geosearch(lat, lon),
             )
 
+            # Fuse Overture 3D GeoParquet buildings with Overpass buildings (prefer richer 3D coverage)
+            ov_bldgs = int(overture_data.get("osm_buildings_count", 0) or 0)
+            op_bldgs = int(overpass_data.get("osm_buildings_count", 0) or 0)
+            if ov_bldgs >= op_bldgs and ov_bldgs > 0:
+                bldg_count = ov_bldgs
+                levels_tagged = int(overture_data.get("osm_levels_tagged_count", 0) or 0)
+                footprint_2d = float(overture_data.get("total_osm_footprint_sqm", 0.0) or 0.0)
+                footprint_3d = float(overture_data.get("total_osm_3d_gross_floor_sqm", 0.0) or 0.0)
+                polygons = list(overture_data.get("polygons", []))
+                geometry_source = f"OVERTURE_GEOPARQUET_{overture_data.get('overture_release', 'LIVE')}"
+            else:
+                bldg_count = op_bldgs
+                levels_tagged = int(overpass_data.get("osm_levels_tagged_count", 0) or 0)
+                footprint_2d = float(overpass_data.get("total_osm_footprint_sqm", 0.0) or 0.0)
+                footprint_3d = float(overpass_data.get("total_osm_3d_gross_floor_sqm", 0.0) or 0.0)
+                polygons = list(overpass_data.get("polygons", []))
+                geometry_source = "OVERPASS_OSM_3D" if op_bldgs > 0 else "POI_ONLY_NO_POLYGON"
+
+            overture_places = list(overture_data.get("overture_places", []))
             all_gmaps = gmaps_shops + gmaps_banks
             cico_domains = list(overpass_data.get("cico_domains", []))
             for c_item in arc_cico:
                 if c_item.get("url") and c_item["url"] not in cico_domains:
                     cico_domains.append(c_item["url"])
 
-            # Deduplicate verified merchant nodes by normalized name + ~25m proximity
-            combined_merchants = gmaps_shops + arc_shops + overpass_data.get("osm_merchant_coords", [])
+            combined_merchants = (
+                gmaps_shops + arc_shops + overture_places + overpass_data.get("osm_merchant_coords", [])
+            )
             sub_blocks = inst._cluster_spatial_sub_blocks(combined_merchants, cluster_radius_m=140.0)
 
-            total_merchants = len(gmaps_shops) + len(arc_shops) + int(overpass_data.get("osm_shops_count", 0))
+            venue_names = list(
+                dict.fromkeys(
+                    overpass_data.get("osm_venue_names", []) + overture_data.get("overture_venue_names", [])
+                )
+            )[:30]
+
+            total_merchants = (
+                len(gmaps_shops)
+                + len(arc_shops)
+                + len(overture_places)
+                + int(overpass_data.get("osm_shops_count", 0))
+            )
             total_cico = len(gmaps_banks) + len(arc_cico) + int(overpass_data.get("osm_cico_count", 0))
 
             snapshot = {
                 "lat": lat,
                 "lon": lon,
                 "location_meta": loc_meta,
-                "osm_buildings_count": int(overpass_data.get("osm_buildings_count", 0)),
-                "osm_levels_tagged_count": int(overpass_data.get("osm_levels_tagged_count", 0)),
-                "total_osm_footprint_sqm": float(overpass_data.get("total_osm_footprint_sqm", 0.0)),
-                "total_osm_3d_gross_floor_sqm": float(overpass_data.get("total_osm_3d_gross_floor_sqm", 0.0)),
-                "osm_shops_count": int(overpass_data.get("osm_shops_count", 0)) + len(arc_shops),
+                "geometry_source": geometry_source,
+                "osm_buildings_count": bldg_count,
+                "osm_levels_tagged_count": levels_tagged,
+                "total_osm_footprint_sqm": footprint_2d,
+                "total_osm_3d_gross_floor_sqm": footprint_3d,
+                "polygons": polygons,
+                "osm_shops_count": int(overpass_data.get("osm_shops_count", 0)) + len(arc_shops) + len(overture_places),
                 "osm_indoor_units_count": int(overpass_data.get("osm_indoor_units_count", 0)),
                 "osm_cico_count": total_cico,
                 "osm_surveillance_nodes_count": int(overpass_data.get("osm_surveillance_nodes_count", 0)),
@@ -606,7 +816,9 @@ class LiveInfrastructureEngine:
                 "osm_transit_hubs_count": int(overpass_data.get("osm_transit_hubs_count", 0)),
                 "osm_pedestrian_crossings_count": int(overpass_data.get("osm_pedestrian_crossings_count", 0)),
                 "osm_opening_hours_observed": overpass_data.get("osm_opening_hours_observed", []),
-                "osm_venue_names": overpass_data.get("osm_venue_names", []),
+                "osm_venue_names": venue_names,
+                "osm_merchant_coords": overpass_data.get("osm_merchant_coords", []) + overture_places[:40],
+                "overture_places_count": len(overture_places),
                 "gmaps_pois": all_gmaps,
                 "photon_pois": arc_shops,
                 "cico_pois": arc_cico + gmaps_banks,
@@ -617,19 +829,21 @@ class LiveInfrastructureEngine:
                 "data_integrity_audit": {
                     "synthetic_reviews_injected": False,
                     "synthetic_ratings_injected": False,
-                    "levels_explicitly_observed": int(overpass_data.get("osm_levels_tagged_count", 0)),
+                    "geometry_source": geometry_source,
+                    "levels_explicitly_observed": levels_tagged,
                     "sub_blocks_detected": len(sub_blocks),
                 },
             }
 
             logger.info(
-                f"🛰️ Coalesced Spatial Multiplexer Locked ({lat:.4f},{lon:.4f}) | "
-                f"OSM Polygons: {snapshot['osm_buildings_count']} "
-                f"(2D: {snapshot['total_osm_footprint_sqm']:,.1f} sqm | 3D Gross: {snapshot['total_osm_3d_gross_floor_sqm']:,.1f} sqm | "
+                f"🛰️ Coalesced Spatial Multiplexer Locked ({lat:.4f},{lon:.4f}) [{geometry_source}] | "
+                f"3D Polygons: {bldg_count} (2D: {footprint_2d:,.1f} sqm | 3D Gross: {footprint_3d:,.1f} sqm | "
                 f"Indoor Units: {snapshot['osm_indoor_units_count']}) | "
-                f"Merchants: {len(all_gmaps)} GMaps + {len(arc_shops)} ArcGIS/Photon + {overpass_data.get('osm_shops_count', 0)} OSM | "
-                f"Transit Stops: {snapshot['osm_transit_hubs_count']} | Crossings: {snapshot['osm_pedestrian_crossings_count']} | "
-                f"Surveillance Nodes: {snapshot['osm_surveillance_nodes_count']} | Sub-Blocks: {len(sub_blocks)}"
+                f"Merchants: {len(all_gmaps)} GMaps + {len(arc_shops)} ArcGIS/Photon + {len(overture_places)} Overture + "
+                f"{overpass_data.get('osm_shops_count', 0)} OSM | "
+                f"Transit: {snapshot['osm_transit_hubs_count']} | Crossings: {snapshot['osm_pedestrian_crossings_count']} | "
+                f"Cameras: {snapshot['osm_surveillance_nodes_count']} | Schedules: {len(snapshot['osm_opening_hours_observed'])} | "
+                f"Sub-Blocks: {len(sub_blocks)}"
             )
 
             cls._cache[key] = (time.time(), snapshot)

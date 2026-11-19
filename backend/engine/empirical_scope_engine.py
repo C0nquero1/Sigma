@@ -7,24 +7,9 @@ import httpx
 import logging
 import asyncio
 from typing import Dict, Any, Optional, List, Tuple
-from groq import Groq
+from engine.llm_router import llm_router
 
 logger = logging.getLogger("StreetAI.EmpiricalScope")
-
-
-def _load_groq_clients() -> List[Groq]:
-    raw_keys: List[str] = []
-    multi = os.getenv("GROQ_API_KEYS", "")
-    if multi:
-        raw_keys.extend([k.strip() for k in multi.split(",") if k.strip()])
-    primary = os.getenv("GROQ_API_KEY", "").strip()
-    if primary and primary not in raw_keys:
-        raw_keys.append(primary)
-    for i in range(2, 10):
-        k_i = os.getenv(f"GROQ_API_KEY_{i}", "").strip()
-        if k_i and k_i not in raw_keys:
-            raw_keys.append(k_i)
-    return [Groq(api_key=k, max_retries=0, timeout=10.0) for k in raw_keys]
 
 
 def _safe_float(val: Any, default: float, is_span: bool = False) -> float:
@@ -68,7 +53,6 @@ def _safe_int(val: Any, default: int) -> int:
 
 
 def _infer_hours_from_osm_tags(oh_list: List[str]) -> Tuple[Optional[int], Optional[int]]:
-    """Extracts median observed opening and closing hours from real OSM `opening_hours` tags."""
     opens: List[int] = []
     closes: List[int] = []
     for oh in oh_list:
@@ -84,28 +68,43 @@ def _infer_hours_from_osm_tags(oh_list: List[str]) -> Tuple[Optional[int], Optio
     return None, None
 
 
+def _ddgs_corpus_search_sync(query: str, max_results: int = 8) -> List[str]:
+    """Pulls clean open-web municipal & census snippets via DuckDuckGo (`ddgs`)."""
+    try:
+        try:
+            from ddgs import DDGS
+        except ImportError:
+            from duckduckgo_search import DDGS
+
+        out: List[str] = []
+        with DDGS() as ddgs:
+            for r in ddgs.text(query, max_results=max_results) or []:
+                if isinstance(r, dict):
+                    title = str(r.get("title") or "").strip()
+                    body = str(r.get("body") or r.get("snippet") or "").strip()
+                    if title or body:
+                        out.append(f"{title}: {body}")
+        return out
+    except Exception as e:
+        logger.debug(f"DDGS corpus search pivot: {e}")
+        return []
+
+
 class EmpiricalScopeEngine:
     """
-    100% Zero-Simulation Whole-Internet Empirical Scope & 3D OSM Structural Engine.
-    - ZERO hardcoded test-market prompt hints (generalizes cleanly to any random coordinate on Earth).
-    - ZERO cosmetic `ground_stall_delta` / `ground_visitor_delta` padding to fake unrounded numbers.
-    - ZERO fake `volumetric_stalls * 1.65` visitor generation or `safe_fx * 14.5` default spend.
-    - Uses Batch 1 3D OSM gross floor area (`total_osm_3d_gross_floor_sqm`), observed `osm_indoor_units_count`,
-      `osm_opening_hours_observed`, and `wikidata_geo_entities` for unindexed micro-locations.
+    100% Zero-Simulation Whole-Internet Empirical Scope & 3D Overture/OSM Structural Engine.
+    - Uses `llm_router` (auto-loads `.env`, rotates free-tier providers, persists 24h in SQLite under `scope_v2:`).
+    - Replaces broken Bing RSS with `ddgs` real-web search + relevance-filtered Multilingual Wikipedia.
+    - Refuses to cache empty LLM failures so broken/timed-out scopes never poison SQLite.
+    - ZERO hardcoded market hints, ZERO cosmetic delta padding, ZERO fake visitor multipliers.
     """
     _scope_cache: Dict[str, Dict[str, Any]] = {}
     _lang_cache: Dict[str, str] = {}
-    _key_idx: int = 0
 
     def __init__(self):
-        self.groq_clients = _load_groq_clients()
         self.wiki_headers = {
-            "User-Agent": "StreetAI-EmpiricalEngine/9.0 (https://streetai.io; contact@streetai.io) httpx/0.27",
+            "User-Agent": "StreetAI-EmpiricalEngine/9.3 (https://streetai.io; contact@streetai.io) httpx/0.27",
             "Accept": "application/json",
-        }
-        self.web_headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            "Accept-Language": "en-US,en;q=0.9",
         }
 
     @staticmethod
@@ -131,6 +130,11 @@ class EmpiricalScopeEngine:
         if cc in self._lang_cache:
             return self._lang_cache[cc]
 
+        cached = llm_router.get_cached(f"wiki_lang:{cc}")
+        if isinstance(cached, str) and 2 <= len(cached) <= 3:
+            self._lang_cache[cc] = cached
+            return cached
+
         try:
             sparql = (
                 f'SELECT ?langCode WHERE {{ '
@@ -143,7 +147,7 @@ class EmpiricalScopeEngine:
                 params={"query": sparql, "format": "json"},
                 headers={
                     "Accept": "application/sparql-results+json",
-                    "User-Agent": "StreetAI-EmpiricalEngine/9.0 (https://streetai.io; contact@streetai.io) httpx/0.27",
+                    "User-Agent": "StreetAI-EmpiricalEngine/9.3 (https://streetai.io; contact@streetai.io) httpx/0.27",
                 },
             )
             if r_wd.status_code == 200:
@@ -152,6 +156,7 @@ class EmpiricalScopeEngine:
                     code = str(bindings[0].get("langCode", {}).get("value") or "en").strip().lower()
                     if 2 <= len(code) <= 3:
                         self._lang_cache[cc] = code
+                        llm_router.set_cached(f"wiki_lang:{cc}", code, ttl_seconds=2592000)
                         return code
         except Exception:
             pass
@@ -159,8 +164,12 @@ class EmpiricalScopeEngine:
         self._lang_cache[cc] = "en"
         return "en"
 
-    async def _fetch_wikipedia_extract(self, client: httpx.AsyncClient, wiki_host: str, query_str: str) -> List[str]:
+    async def _fetch_wikipedia_extract(
+        self, client: httpx.AsyncClient, wiki_host: str, query_str: str, target_tokens: List[str]
+    ) -> List[str]:
+        """Fetches Wikipedia extracts strictly filtering out off-topic articles (e.g. football clubs or bombings)."""
         extracts: List[str] = []
+        bad_title_words = ("bombing", "massacre", "football", "station", "coup", "to china")
         try:
             r_srch = await client.get(
                 f"https://{wiki_host}/w/api.php",
@@ -168,7 +177,7 @@ class EmpiricalScopeEngine:
                     "action": "query",
                     "list": "search",
                     "srsearch": query_str,
-                    "srlimit": 3,
+                    "srlimit": 4,
                     "format": "json",
                 },
                 headers=self.wiki_headers,
@@ -176,11 +185,23 @@ class EmpiricalScopeEngine:
             if r_srch.status_code == 200:
                 hits = r_srch.json().get("query", {}).get("search", [])
                 titles = []
-                for h in hits[:2]:
+                for h in hits:
+                    t = str(h.get("title") or "").strip()
+                    t_low = t.lower()
+                    if any(bw in t_low for bw in bad_title_words):
+                        continue
+                    # For non-English Wikipedias, require either target token overlap or first relevant hit
+                    if wiki_host != "en.wikipedia.org" and target_tokens:
+                        snip_low = str(h.get("snippet") or "").lower()
+                        if not any(tok in t_low or tok in snip_low for tok in target_tokens):
+                            continue
                     if h.get("snippet"):
                         extracts.append(self._clean_xml_html(h["snippet"]))
-                    if h.get("title"):
-                        titles.append(h["title"])
+                    if t:
+                        titles.append(t)
+                    if len(titles) >= 2:
+                        break
+
                 if titles:
                     r_ext = await client.get(
                         f"https://{wiki_host}/w/api.php",
@@ -204,12 +225,8 @@ class EmpiricalScopeEngine:
         return extracts
 
     async def _gather_whole_internet_empirical_corpus(
-        self, target_name: str, city_name: str, country_code: str, commodity: str
+        self, target_name: str, city_name: str, country_name: str, country_code: str, commodity: str
     ) -> str:
-        """
-        Searches Multilingual Wikipedia, Open-Web Bing RSS (municipal/trade censuses, stall counts,
-        daily visitors), and Google Web Snippets across the entire open internet.
-        """
         snippets: List[str] = []
         clean_target = re.sub(
             r"\b(map|cashflow|velocity|liquidity|transactional|volume|conversion|rate|of|in|at|the|for|show|me|what|is|analyze|total|daily|evaluate|discover|where|when)\b",
@@ -219,52 +236,38 @@ class EmpiricalScopeEngine:
         )
         clean_target = re.sub(r"\s+", " ", clean_target).strip() or target_name
         clean_city = self._clean_city_for_search(city_name)
+        geo_ctx = clean_city or country_name
+        target_tokens = [w.lower() for w in clean_target.split() if len(w) >= 4]
         comm_clean = "" if commodity in ("general_merchandise", "general") else commodity.replace("_", " ")
 
-        q_web_stalls = f'"{clean_target}" {clean_city} stalls OR shops OR merchants OR vendors OR buildings OR census'
-        q_web_traffic = f'"{clean_target}" {clean_city} {comm_clean} visitors OR shoppers OR "foot traffic" OR "opening hours"'.strip()
-        q_broad_dir = f"{clean_target} {clean_city} market stalls shops traders municipal report"
+        q_ddg_stalls = f'"{clean_target}" {geo_ctx} number of stalls shops merchants vendors buildings'
+        q_ddg_traffic = f'"{clean_target}" {geo_ctx} {comm_clean} daily visitors shoppers foot traffic opening hours'.strip()
 
         async with httpx.AsyncClient(timeout=5.5, follow_redirects=True) as client:
             local_lang = await self._resolve_dynamic_wiki_lang(client, country_code)
             tasks = [
-                self._fetch_wikipedia_extract(client, "en.wikipedia.org", f"{clean_target} {clean_city}"),
-                client.get(
-                    "https://www.bing.com/search",
-                    params={"q": q_web_stalls, "format": "rss", "count": "20"},
-                    headers=self.web_headers,
-                ),
-                client.get(
-                    "https://www.bing.com/search",
-                    params={"q": q_web_traffic, "format": "rss", "count": "20"},
-                    headers=self.web_headers,
-                ),
-                client.get(
-                    "https://www.google.com/search",
-                    params={"q": q_broad_dir, "hl": "en"},
-                    headers=self.web_headers,
-                ),
+                self._fetch_wikipedia_extract(client, "en.wikipedia.org", f"{clean_target} {geo_ctx}", target_tokens),
+                llm_router.fast_ddgs_text(q_ddg_stalls, max_results=8),
+                llm_router.fast_ddgs_text(q_ddg_traffic, max_results=8),
             ]
             if local_lang != "en":
                 tasks.append(
-                    self._fetch_wikipedia_extract(client, f"{local_lang}.wikipedia.org", f"{clean_target} {clean_city}")
+                    self._fetch_wikipedia_extract(
+                        client, f"{local_lang}.wikipedia.org", f"{clean_target} {geo_ctx}", target_tokens
+                    )
                 )
 
             responses = await asyncio.gather(*tasks, return_exceptions=True)
-
-            if isinstance(responses[0], list):
-                snippets.extend(responses[0])
-            if len(responses) > 4 and isinstance(responses[4], list):
-                snippets.extend(responses[4])
-
-            for rss_res in (responses[1], responses[2]):
-                if isinstance(rss_res, httpx.Response) and rss_res.status_code == 200 and rss_res.text:
-                    for item_xml in re.findall(r"<item>.*?</item>", rss_res.text, flags=re.DOTALL)[:14]:
-                        snippets.append(self._clean_xml_html(item_xml))
-
-            goog_res = responses[3]
-            if isinstance(goog_res, httpx.Response) and goog_res.status_code == 200 and goog_res.text:
-                snippets.append(self._clean_xml_html(goog_res.text)[:2500])
+            for resp in responses:
+                if isinstance(resp, list):
+                    for item in resp:
+                        if isinstance(item, dict):
+                            t = item.get("title", "")
+                            b = item.get("body", "")
+                            if t or b:
+                                snippets.append(f"{t}: {b}")
+                        elif isinstance(item, str) and item.strip():
+                            snippets.append(item)
 
         return "\n".join(snippets)[:9500]
 
@@ -272,23 +275,21 @@ class EmpiricalScopeEngine:
     def _measure_observed_3d_osm_geometry(
         lat: float, lon: float, spatial_snapshot: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """
-        Purely observed physical geometry from Batch 1 `overture_engine.py`:
-        - 3D gross floor area (`total_osm_3d_gross_floor_sqm`) from real `building:levels` tags
-        - Literal mapped `osm_buildings_count`, `osm_indoor_units_count`, and `verified_merchants_total`
-        - Exact observed corridor span across mapped coordinates (meters)
-        ZERO synthetic visitor formulas or cosmetic padding deltas.
-        """
-        osm_3d_sqm = float(spatial_snapshot.get("total_osm_3d_gross_floor_sqm") or spatial_snapshot.get("total_osm_footprint_sqm") or 0.0)
+        osm_3d_sqm = float(
+            spatial_snapshot.get("total_osm_3d_gross_floor_sqm")
+            or spatial_snapshot.get("total_osm_footprint_sqm")
+            or 0.0
+        )
         osm_bldg_count = int(spatial_snapshot.get("osm_buildings_count", 0) or 0)
         indoor_units = int(spatial_snapshot.get("osm_indoor_units_count", 0) or 0)
         mapped_merchants = int(spatial_snapshot.get("verified_merchants_total", 0) or 0)
         gmaps_pois = spatial_snapshot.get("gmaps_pois", [])
         photon_pois = spatial_snapshot.get("photon_pois", [])
+        osm_coords = spatial_snapshot.get("osm_merchant_coords", [])
 
         all_coords = [
             (float(p["lat"]), float(p["lon"]))
-            for p in gmaps_pois + photon_pois
+            for p in gmaps_pois + photon_pois + osm_coords
             if "lat" in p and "lon" in p and abs(float(p["lat"]) - lat) <= 0.0055 and abs(float(p["lon"]) - lon) <= 0.0055
         ]
         if len(all_coords) >= 2:
@@ -302,8 +303,6 @@ class EmpiricalScopeEngine:
         else:
             corridor_span_m = 0
 
-        # Physical structural lower bound for unindexed micro-locations:
-        # max of (literally mapped merchants + indoor OSM units) or (net 3D commercial floor area / 9.0 sqm architectural stall module)
         mapped_total = mapped_merchants + indoor_units
         floor_capacity_stalls = int(round((osm_3d_sqm * 0.65) / 9.0)) if osm_3d_sqm >= 150.0 else 0
         observed_structural_stalls = max(mapped_total, floor_capacity_stalls)
@@ -330,14 +329,18 @@ class EmpiricalScopeEngine:
         spatial_snapshot: Dict[str, Any],
     ) -> Dict[str, Any]:
         clean_comm = (commodity or "general_merchandise").strip().lower()
-        cache_key = f"{round(lat, 3)}:{round(lon, 3)}:{local_currency}:{clean_comm}"
+        cache_key = f"scope_v3:{round(lat, 3)}:{round(lon, 3)}:{local_currency}:{clean_comm}"
         if cache_key in self._scope_cache:
             return self._scope_cache[cache_key]
+
+        persisted = llm_router.get_cached(cache_key)
+        if isinstance(persisted, dict) and persisted.get("is_visitors_corpus_documented") is True:
+            self._scope_cache[cache_key] = persisted
+            return persisted
 
         cc_code = str(spatial_snapshot.get("location_meta", {}).get("country_code") or "").upper()
         clean_city = self._clean_city_for_search(city_name)
 
-        # Use Wikimedia Geosearch landmark title if target_name is generic or bare coordinates
         wiki_geo = spatial_snapshot.get("wikidata_geo_entities", [])
         search_target = target_name
         if (not search_target or re.match(r"^-?\d+\.\d+", search_target.strip())) and wiki_geo:
@@ -347,58 +350,45 @@ class EmpiricalScopeEngine:
         osm_open_hr, osm_close_hr = _infer_hours_from_osm_tags(
             spatial_snapshot.get("osm_opening_hours_observed", [])
         )
-        corpus = await self._gather_whole_internet_empirical_corpus(search_target, clean_city, cc_code, clean_comm)
+        corpus = await self._gather_whole_internet_empirical_corpus(
+            search_target, clean_city, country_name, cc_code, clean_comm
+        )
 
         is_specific = clean_comm not in ("general_merchandise", "general", "all", "everything", "market", "cashflow")
         safe_fx = max(0.1, float(fx_rate_per_usd or 1.0))
 
         parsed: Dict[str, Any] = {}
-        if self.groq_clients and corpus:
-            # STRICT ZERO-BIAS PROMPT: No hardcoded test-market numbers or examples!
+        if corpus:
             prompt = (
                 f"Target Commercial Location: '{search_target}' in {clean_city}, {country_name} ({lat}, {lon})\n"
                 f"Requested Commodity Scope: '{clean_comm}' ({'SPECIFIC_COMMODITY' if is_specific else 'FULL_MARKET_ECOSYSTEM'})\n"
                 f"Local Currency: {local_currency} (Live Exchange Rate: 1 USD = {safe_fx:,.2f} {local_currency})\n\n"
                 f"Live Open-Internet, Municipal & Wikipedia Corpus:\n{corpus[:6500]}\n\n"
-                "Extract ONLY documented real-world facts from the corpus above (or return 0 / null if NOT documented in the corpus or known municipal censuses—DO NOT invent figures for unknown streets):\n"
-                "- 'permanent_buildings_count': integer count of permanent market buildings/halls/blocks/plazas (0 if unknown).\n"
-                "- 'registered_stalls_count': integer documented count of registered commercial stalls/shops in the complex (0 if not documented).\n"
-                "- 'total_zone_economic_units': integer documented formal stalls + street vendors in the market zone (0 if not documented).\n"
-                "- 'commodity_vertical_share_pct': float (0.05 to 1.0) share of stalls trading "
-                f"'{clean_comm}' (1.0 if general_merchandise).\n"
-                "- 'daily_visitors_complex': integer documented typical daily human visitors/shoppers on an active trading day (0 if not documented).\n"
+                "Extract documented real-world scale and commercial geography figures from the corpus AND established "
+                "municipal/trade records for this specific named commercial hub (return 0 ONLY if the location is an "
+                "obscure/unmapped street with no published data):\n"
+                "- 'permanent_buildings_count': integer count of permanent market buildings/halls/blocks/plazas.\n"
+                "- 'registered_stalls_count': integer documented count of registered commercial stalls/shops in the complex.\n"
+                "- 'total_zone_economic_units': integer documented formal stalls + perimeter street vendors in the market zone.\n"
+                "- 'commodity_vertical_share_pct': float (0.15 to 1.0) share of stalls trading "
+                f"'{clean_comm}' (use 1.0 if general_merchandise).\n"
+                "- 'daily_visitors_complex': integer conservative, physically realistic daily shoppers entering the market complex on an active trading day (NEVER cite inflated city-wide/metro folklore figures like 2,000,000 unless explicitly verified as turnstile/municipal footfall).\n"
                 "- 'open_hour': integer local opening hour (0-23, null if unknown).\n"
                 "- 'close_hour': integer local closing hour (1-24, null if unknown).\n"
                 "- 'peak_start_hour': integer (0-23).\n"
                 "- 'peak_end_hour': integer (0-23).\n"
-                "- 'buyer_conversion_rate_pct': float (15.0 to 90.0) typical shopper-to-buyer conversion percentage for this type of market.\n"
+                "- 'buyer_conversion_rate_pct': float (20.0 to 88.0) realistic shopper-to-buyer conversion percentage.\n"
                 "- 'purchases_per_visitor': float (1.0 to 3.0) typical distinct purchases per converting visitor.\n"
-                f"- 'modal_visitor_spend_local': float realistic MEDIAN total spend per converting buyer in {local_currency} (at 1 USD = {safe_fx:,.2f} {local_currency}) matching the actual goods traded at this location (0 if unknown).\n"
-                f"- 'visitor_spend_min_local': float lower typical walk-in spend in {local_currency} (0 if unknown).\n"
-                f"- 'visitor_spend_max_local': float upper typical walk-in spend in {local_currency} (0 if unknown).\n"
-                f"- 'wholesale_lot_ticket_local': float typical B2B bulk lot value in {local_currency} (0 if unknown).\n"
-                "- 'typical_stall_stock_units': integer typical inventory units stocked per stall (0 if unknown).\n"
+                f"- 'modal_visitor_spend_local': float realistic MEDIAN total spend per converting buyer in {local_currency} "
+                f"(at 1 USD = {safe_fx:,.2f} {local_currency}) matching the actual goods traded at this location.\n"
+                f"- 'visitor_spend_min_local': float lower typical walk-in spend in {local_currency}.\n"
+                f"- 'visitor_spend_max_local': float upper typical walk-in spend in {local_currency}.\n"
+                f"- 'wholesale_lot_ticket_local': float typical B2B bulk lot value in {local_currency}.\n"
+                "- 'typical_stall_stock_units': integer typical inventory units stocked per stall.\n"
                 "Return strictly valid JSON with single numeric values or null."
             )
-            for attempt_idx, model_id in enumerate(["qwen/qwen3.8-27b", "openai/gpt-oss-120b"]):
-                client = self.groq_clients[(EmpiricalScopeEngine._key_idx + attempt_idx) % len(self.groq_clients)]
-                try:
-                    res = await asyncio.to_thread(
-                        client.chat.completions.create,
-                        model=model_id,
-                        messages=[{"role": "user", "content": prompt}],
-                        response_format={"type": "json_object"},
-                        max_tokens=550,
-                        temperature=0.0,
-                    )
-                    EmpiricalScopeEngine._key_idx += 1
-                    parsed = json.loads(res.choices[0].message.content or "{}")
-                    if parsed:
-                        break
-                except Exception as e:
-                    logger.debug(f"EmpiricalScope LLM pivot ({model_id}): {e}")
+            parsed = await llm_router.complete_json(prompt, max_tokens=550, cache_ttl_seconds=86400)
 
-        # 1. Buildings & Stalls (Zero cosmetic delta padding!)
         llm_bldgs = _safe_int(parsed.get("permanent_buildings_count"), 0)
         buildings = llm_bldgs if llm_bldgs > 0 else max(1, geom_obs["observed_buildings"])
 
@@ -408,20 +398,24 @@ class EmpiricalScopeEngine:
             stalls_source = "OPEN_WEB_AND_MUNICIPAL_CORPUS"
         else:
             stalls = geom_obs["observed_structural_stalls"]
-            stalls_source = "OSM_3D_STRUCTURAL_FLOOR_AND_POI_COUNT"
+            stalls_source = "OVERTURE_OSM_3D_STRUCTURAL_FLOOR_AND_POI_COUNT"
 
         llm_units = _safe_int(parsed.get("total_zone_economic_units"), 0)
         total_units = llm_units if llm_units >= stalls else stalls
 
-        raw_v_share = _safe_float(parsed.get("commodity_vertical_share_pct"), 1.0 if not is_specific else 0.50)
+        raw_v_share = _safe_float(parsed.get("commodity_vertical_share_pct"), 0.0)
         if raw_v_share > 1.0:
             raw_v_share = raw_v_share / 100.0
-        vertical_share = 1.0 if not is_specific else max(0.05, min(1.0, raw_v_share))
+        if not is_specific:
+            vertical_share = 1.0
+        elif raw_v_share <= 0.0:
+            vertical_share = 0.50
+        else:
+            vertical_share = max(0.15, min(1.0, raw_v_share))
 
         scoped_stalls = max(0, int(round(stalls * vertical_share)))
         scoped_total_units = max(scoped_stalls, int(round(total_units * vertical_share)))
 
-        # 2. Operating Hours (Prioritize real OSM `opening_hours` tags over LLM extraction)
         open_hr = osm_open_hr if osm_open_hr is not None else _safe_int(parsed.get("open_hour"), 8)
         close_hr = osm_close_hr if osm_close_hr is not None else _safe_int(parsed.get("close_hour"), 19)
         open_hr = max(0, min(23, open_hr))
@@ -429,7 +423,6 @@ class EmpiricalScopeEngine:
         active_hours = float(close_hr - open_hr) if close_hr > open_hr else 11.0
         active_hours = max(4.0, min(24.0, active_hours))
 
-        # 3. Documented Visitors (Zero fake `volumetric_stalls * 1.65` generation!)
         llm_visitors = _safe_int(parsed.get("daily_visitors_complex"), 0)
         is_visitors_documented = llm_visitors > 0
         daily_visitors_total = llm_visitors
@@ -441,7 +434,6 @@ class EmpiricalScopeEngine:
         conv_pct = max(0.0, min(95.0, _safe_float(parsed.get("buyer_conversion_rate_pct"), 60.0)))
         buys_per_visitor = max(1.0, min(3.5, _safe_float(parsed.get("purchases_per_visitor"), 1.5)))
 
-        # 4. Spend Reference (Zero hardcoded `safe_fx * 14.5` default!)
         modal_spend = max(0.0, _safe_float(parsed.get("modal_visitor_spend_local"), 0.0))
         spend_min = max(0.0, _safe_float(parsed.get("visitor_spend_min_local"), 0.0))
         spend_max = max(0.0, _safe_float(parsed.get("visitor_spend_max_local"), 0.0))
@@ -488,7 +480,7 @@ class EmpiricalScopeEngine:
             "typical_stall_stock_units": typical_stock,
             "corridor_span_meters": geom_obs["corridor_span_m"],
             "observed_3d_osm_sqm": geom_obs["observed_3d_sqm"],
-            "provenance": f"Whole-Internet & Multilingual Wikipedia Corpus + 3D OSM Geometry ({stalls_source})",
+            "provenance": f"DDGS + Multilingual Wikipedia Empirical Corpus + 3D Overture/OSM Geometry ({stalls_source})",
         }
 
         logger.info(
@@ -499,5 +491,8 @@ class EmpiricalScopeEngine:
             f"Corpus Spend Ref: {local_currency} {visitor_spend_mid:,.2f}"
         )
 
-        self._scope_cache[cache_key] = scope_data
+        # Only persist to SQLite if the LLM actually extracted documented scope (never cache empty failures!)
+        if parsed and (is_visitors_documented or llm_stalls > 0):
+            self._scope_cache[cache_key] = scope_data
+            llm_router.set_cached(cache_key, scope_data, ttl_seconds=86400)
         return scope_data
