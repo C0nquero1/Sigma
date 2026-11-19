@@ -1,9 +1,11 @@
 import os
+import re
 import math
+import html
 import httpx
 import logging
 import asyncio
-from typing import Dict, Any, List, Tuple, Set
+from typing import Dict, Any, List, Tuple, Set, Optional
 import redis.asyncio as redis
 from engine.overture_engine import LiveInfrastructureEngine
 from engine.temporal_engine import DynamicTemporalEngine
@@ -11,31 +13,81 @@ from engine.temporal_engine import DynamicTemporalEngine
 logger = logging.getLogger("StreetAI.PhysicalConversion")
 
 
+def _parse_duration_to_minutes(raw_text: str) -> List[float]:
+    """
+    Extracts real reported visit stay durations in minutes from Google Maps protobuf strings
+    ('People typically spend 45 min to 2 hr here', 'up to 1.5 hr', '20-45 min')
+    or open-web visitor guides.
+    """
+    durations_min: List[float] = []
+
+    # Pattern 1: Range in minutes or mixed min-to-hr (e.g. "30 min to 1.5 hr", "20 to 45 min", "1-2 hours")
+    for m in re.finditer(
+        r"\b(\d+(?:\.\d+)?)\s*(min(?:ute)?s?|hr|hrs|hours?)?\s*(?:to|-|–)\s*(\d+(?:\.\d+)?)\s*(min(?:ute)?s?|hr|hrs|hours?)\b",
+        raw_text,
+        flags=re.IGNORECASE,
+    ):
+        v1 = float(m.group(1))
+        u1 = (m.group(2) or m.group(4) or "").lower()
+        v2 = float(m.group(3))
+        u2 = (m.group(4) or "").lower()
+        m1 = v1 * 60.0 if u1.startswith("h") else v1
+        m2 = v2 * 60.0 if u2.startswith("h") else v2
+        mid = (m1 + m2) / 2.0
+        if 5.0 <= mid <= 300.0:
+            durations_min.append(round(mid, 1))
+
+    # Pattern 2: Explicit single visit duration ("spend 45 min", "spend up to 2 hours", "average visit 1.5 hours")
+    for m in re.finditer(
+        r"\b(?:spend|stays?|visit|takes|about|around|up to)\s+(?:about\s+|around\s+|up to\s+)?(\d+(?:\.\d+)?)\s*(min(?:ute)?s?|hr|hrs|hours?)\b",
+        raw_text,
+        flags=re.IGNORECASE,
+    ):
+        val = float(m.group(1))
+        unit = m.group(2).lower()
+        mins = val * 60.0 if unit.startswith("h") else val
+        if 5.0 <= mins <= 300.0:
+            durations_min.append(round(mins, 1))
+
+    return durations_min
+
+
 class LivePhysicalConversionEngine:
     """
-    100% Globally Dynamic Physical Conversion Engine.
-    - ZERO hardcoded SSID word lists: classifies commercial mPOS/enterprise BSSIDs via
-      spatial co-location clustering (<35m multi-BSSID density) and hardware QoS telemetry.
-    - Uses shared BestTime (`_besttime_unavailable`) and WiGLE (`_wigle_exhausted`) circuit breakers.
+    100% Real-Life Dwell Time & Payment Infrastructure Engine (Zero Synthetic Formulas).
+    1. Live Edge Vision / BLE Dwell (Redis `iot:vision:{cell_id}:dwell_seconds` from Frigate/Supervision/ESP32).
+    2. Direct Google Maps Per-Venue Dwell-Time Extraction (`tbm=map` "People typically spend X min here").
+    3. Open-Web Visitor Stay-Duration Corpus Extraction (IQR median of published real visitor stay reports).
+    4. Physical Corridor Traversal Lower Bound (strictly `span_m / walking_speed`, explicitly tagged unverified).
+    5. Literal Observed Financial/CICO Terminals + WiGLE Co-Located BSSIDs (zero synthetic `rail_factor` formulas).
     """
-    def __init__(self, redis_url="redis://localhost:6379"):
-        self.venue_telemetry_key = (
-            os.getenv("VENUE_TELEMETRY_API_KEY")
-            or os.getenv("BESTTIME_API_KEY_PRIVATE")
-            or os.getenv("BESTTIME_API_KEY")
-            or ""
-        )
-        self.wigle_api_token = os.getenv("WIGLE_API_TOKEN", "")
-        self.cache = redis.from_url(redis_url)
-        self.besttime_url = "https://besttime.app/api/v1/forecasts/live"
-        self.headers = {"User-Agent": "StreetAI-Conversion-Node/7.0 (https://streetai.io; contact@streetai.io)"}
 
-    async def _discover_real_venues(self, lat: float, lon: float) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    def __init__(self, redis_url: str = "redis://127.0.0.1:6379"):
+        self.wigle_api_token = os.getenv("WIGLE_API_TOKEN", "").strip()
+        clean_redis_url = redis_url.replace("localhost", "127.0.0.1")
+        self.cache = redis.from_url(
+            clean_redis_url,
+            socket_connect_timeout=2.0,
+            socket_timeout=2.0,
+            retry_on_timeout=True,
+        )
+        self.browser_headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Accept-Language": "en-US,en;q=0.9",
+        }
+
+    async def _discover_real_venues(
+        self, lat: float, lon: float
+    ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
         snapshot = await LiveInfrastructureEngine.get_coalesced_spatial_snapshot(lat, lon)
         gmaps_pois = snapshot.get("gmaps_pois", [])
         loc_meta = snapshot.get("location_meta", {})
         city_label = loc_meta.get("city") or loc_meta.get("country") or ""
-        full_addr = loc_meta.get("label") or loc_meta.get("display_name") or f"{lat:.5f},{lon:.5f}"
+        full_addr = (
+            loc_meta.get("label")
+            or loc_meta.get("display_name")
+            or f"{lat:.5f},{lon:.5f}"
+        )
 
         dynamic_admins: Set[str] = {
             str(loc_meta.get("city") or "").strip().lower(),
@@ -53,8 +105,8 @@ class LivePhysicalConversionEngine:
             venues.append({
                 "name": name,
                 "address": addr,
-                "reviews": max(1, int(p.get("reviews", 1) or 1)),
-                "rating": float(p.get("rating", 4.2) or 4.2),
+                "reviews": int(p.get("reviews") or 0),
+                "rating": p.get("rating"),
                 "type": str(p.get("type", "shop")).lower(),
                 "lat": float(p.get("lat", lat)),
                 "lon": float(p.get("lon", lon)),
@@ -62,122 +114,111 @@ class LivePhysicalConversionEngine:
 
         return venues, snapshot
 
-    @staticmethod
-    def _compute_spatial_kinematic_dwell(
-        venues: List[Dict[str, Any]], snapshot: Dict[str, Any], lat: float, lon: float
-    ) -> float:
-        osm_sqm = float(snapshot.get("total_osm_footprint_sqm", 0.0) or 0.0)
-        merchants_total = max(len(venues), int(snapshot.get("verified_merchants_total", 1) or 1))
-        cico_count = int(snapshot.get("osm_cico_count", 0) or 0)
-
-        if len(venues) >= 2:
-            lats = [v["lat"] for v in venues]
-            lons = [v["lon"] for v in venues]
-            lat_span_m = (max(lats) - min(lats)) * 111_139.0
-            lon_span_m = (max(lons) - min(lons)) * 111_139.0 * math.cos(math.radians(lat))
-            corridor_span_m = max(45.0, min(1800.0, math.hypot(lat_span_m, lon_span_m)))
-        elif osm_sqm > 0:
-            corridor_span_m = max(45.0, min(1800.0, math.sqrt(osm_sqm) * 1.6))
-        else:
-            corridor_span_m = 120.0
-
-        traversal_mins = (corridor_span_m / 1.35) / 60.0
-        structural_area_factor = (
-            math.log1p(osm_sqm / 450.0) * 2.15 if osm_sqm > 0 else math.log1p(merchants_total) * 1.45
-        )
-        merchant_cluster_mins = min(22.0, structural_area_factor + (math.sqrt(merchants_total) * 0.85))
-
-        if venues:
-            total_reviews = sum(v["reviews"] for v in venues)
-            review_variance = max(v["reviews"] for v in venues) - min(v["reviews"] for v in venues)
-            queue_mins = (
-                math.log1p(total_reviews / max(1, len(venues))) * 1.65
-                + math.log1p(review_variance) * 0.45
-            )
-        else:
-            queue_mins = 4.2
-
-        cico_efficiency = min(2.5, cico_count * 0.08)
-        return round(
-            max(6.5, min(58.0, 4.5 + traversal_mins + merchant_cluster_mins + queue_mins - cico_efficiency)),
-            1,
-        )
-
-    async def _measure_physical_dwell_time(self, lat: float, lon: float) -> Tuple[float, int, Dict[str, Any]]:
-        venues, snapshot = await self._discover_real_venues(lat, lon)
-        venue_count = max(len(venues), int(snapshot.get("verified_merchants_total", 0) or 0))
-
-        if (
-            self.venue_telemetry_key
-            and not getattr(DynamicTemporalEngine, "_besttime_unavailable", False)
-            and venues
-        ):
-            async with httpx.AsyncClient(timeout=4.5) as client:
-                for v in venues[:2]:
-                    payload = {
-                        "api_key_private": self.venue_telemetry_key,
-                        "venue_name": v["name"],
-                        "venue_address": v["address"],
-                    }
-                    try:
-                        res = await client.post(self.besttime_url, params=payload)
-                        if res.status_code in (401, 404, 409, 429):
-                            DynamicTemporalEngine._besttime_unavailable = True
-                            break
-                        elif res.status_code == 200:
-                            body = res.json()
-                            analysis = body.get("analysis", {})
-                            venue_info = body.get("venue_info", {})
-                            exact_dwell = float(
-                                analysis.get("dwell_time_minutes")
-                                or venue_info.get("venue_dwell_time_avg")
-                                or 0.0
-                            )
-                            if exact_dwell > 0.0:
-                                return round(exact_dwell, 1), venue_count, snapshot
-                            d_min = float(
-                                venue_info.get("venue_dwell_time_min")
-                                or analysis.get("venue_dwell_time_min")
-                                or 0.0
-                            )
-                            d_max = float(
-                                venue_info.get("venue_dwell_time_max")
-                                or analysis.get("venue_dwell_time_max")
-                                or 0.0
-                            )
-                            if d_max > 0.0:
-                                return round((d_min + d_max) / 2.0, 1), venue_count, snapshot
-                    except Exception:
-                        pass
-
-        if venue_count > 0 or float(snapshot.get("total_osm_footprint_sqm", 0.0) or 0.0) > 0:
-            kinematic_dwell = self._compute_spatial_kinematic_dwell(venues, snapshot, lat, lon)
-            return kinematic_dwell, max(1, venue_count), snapshot
-
-        raise RuntimeError(f"CRITICAL: Dwell time telemetry unreachable for {lat},{lon}. Halting.")
-
-    async def _intercept_dynamic_mpos_terminals(
+    async def _extract_google_and_web_dwell_minutes(
         self,
         lat: float,
         lon: float,
-        active_local_networks: List[str],
-        verified_venues_count: int,
+        venues: List[Dict[str, Any]],
         snapshot: Dict[str, Any],
-    ) -> int:
+    ) -> Tuple[Optional[float], Optional[float]]:
         """
-        Language-agnostic commercial mPOS classification via Spatial BSSID Co-location Physics & QoS.
+        Queries:
+          1. Direct Google Maps `tbm=map` PB-Stream for real "People typically spend X min here" strings.
+          2. Open-Web Bing RSS for real documented visitor stay durations at the target market.
         """
-        delta = 0.002
-        high_qos_bssids = set()
-        all_recent_coords: List[Tuple[str, float, float]] = []
-        wigle_total_recent = 0
+        loc_meta = snapshot.get("location_meta", {})
+        city_label = str(loc_meta.get("city") or loc_meta.get("country") or "").strip()
+        wiki_entities = snapshot.get("wikidata_geo_entities", [])
+        anchor_name = (
+            wiki_entities[0]["title"]
+            if wiki_entities
+            else (venues[0]["name"] if venues else str(loc_meta.get("suburb") or city_label))
+        )
+
+        pb_param = (
+            f"!4m12!1m3!1d1500.0!2d{lon}!3d{lat}"
+            f"!2m3!1f0!2f0!3f0!3m2!1i1280!2i800!4f13.1!7i10!10b1"
+        )
+        web_dwell_q = f'"{anchor_name}" {city_label} "spend" ("minutes" OR "hours") visit market'
+
+        gmaps_dwells: List[float] = []
+        web_dwells: List[float] = []
+
+        async with httpx.AsyncClient(timeout=4.5, follow_redirects=True, headers=self.browser_headers) as client:
+            tasks = [
+                client.get(
+                    "https://www.google.com/search",
+                    params={"tbm": "map", "hl": "en", "pb": pb_param, "q": f"{anchor_name} {city_label}"},
+                ),
+                client.get(
+                    "https://www.bing.com/search",
+                    params={"q": web_dwell_q, "format": "rss", "count": "15"},
+                ),
+            ]
+            res_list = await asyncio.gather(*tasks, return_exceptions=True)
+
+            # 1. Google Maps PB-Stream "People typically spend..."
+            r_pb = res_list[0]
+            if isinstance(r_pb, httpx.Response) and r_pb.status_code == 200 and r_pb.text:
+                for m_str in re.finditer(
+                    r"(?:typically spend|spend up to|spend)\s+[^\"\\]{3,36}(?:min|hr|hour)",
+                    r_pb.text,
+                    flags=re.IGNORECASE,
+                ):
+                    gmaps_dwells.extend(_parse_duration_to_minutes(m_str.group(0)))
+
+            # 2. Open-Web RSS visitor duration reports
+            r_web = res_list[1]
+            if isinstance(r_web, httpx.Response) and r_web.status_code == 200 and r_web.text:
+                items = re.findall(r"<item>.*?</item>", r_web.text, flags=re.DOTALL)[:12]
+                clean_txt = html.unescape(re.sub(r"<[^>]+>", " ", " ".join(items)))
+                web_dwells.extend(_parse_duration_to_minutes(clean_txt))
+
+        obs_gmaps = round(sorted(gmaps_dwells)[len(gmaps_dwells) // 2], 1) if gmaps_dwells else None
+        obs_web = round(sorted(web_dwells)[len(web_dwells) // 2], 1) if web_dwells else None
+        return obs_gmaps, obs_web
+
+    @staticmethod
+    def _compute_physical_traversal_floor_minutes(
+        venues: List[Dict[str, Any]], snapshot: Dict[str, Any], lat: float, lon: float
+    ) -> float:
+        """
+        Pure physical lower bound: straight corridor walking time at 1.25 m/s (4.5 km/h) across
+        observed merchant coordinates or OSM footprint. Zero synthetic queue/review multipliers.
+        """
+        osm_sqm = float(snapshot.get("total_osm_footprint_sqm", 0.0) or 0.0)
+        if len(venues) >= 2:
+            lats = [v["lat"] for v in venues if abs(v["lat"] - lat) <= 0.0045]
+            lons = [v["lon"] for v in venues if abs(v["lon"] - lon) <= 0.0045]
+            if len(lats) >= 2 and len(lons) >= 2:
+                lat_span_m = (max(lats) - min(lats)) * 111_139.0
+                lon_span_m = (max(lons) - min(lons)) * 111_139.0 * math.cos(math.radians(lat))
+                span_m = max(30.0, math.hypot(lat_span_m, lon_span_m))
+                return round((span_m / 1.25) / 60.0, 1)
+        if osm_sqm > 0:
+            span_m = math.sqrt(osm_sqm)
+            return round(max(2.0, (span_m / 1.25) / 60.0), 1)
+        return 0.0
+
+    async def _intercept_observed_payment_terminals(
+        self, lat: float, lon: float, snapshot: Dict[str, Any]
+    ) -> Dict[str, int]:
+        """
+        Counts STRICTLY observed physical financial/CICO nodes (OSM banks/ATMs/exchanges + ArcGIS/GMaps)
+        and observed WiGLE commercial BSSIDs (if WiGLE is authenticated). Zero synthetic `rail_factor` formulas.
+        """
+        observed_cico = int(snapshot.get("osm_cico_count", 0) or 0)
+        wigle_commercial_bssids = 0
 
         if self.wigle_api_token and not getattr(LiveInfrastructureEngine, "_wigle_exhausted", False):
+            delta = 0.002
             headers = {
                 "Authorization": f"Basic {self.wigle_api_token}",
                 "Accept": "application/json",
             }
-            async with httpx.AsyncClient(timeout=5.0, headers=headers) as client:
+            high_qos_bssids: Set[str] = set()
+            all_recent_coords: List[Tuple[str, float, float]] = []
+            async with httpx.AsyncClient(timeout=4.5, headers=headers) as client:
                 try:
                     params = {
                         "latrange1": lat - delta,
@@ -194,7 +235,6 @@ class LivePhysicalConversionEngine:
                     elif res.status_code == 200:
                         data = res.json()
                         if data.get("success") is True:
-                            wigle_total_recent = int(data.get("totalResults", 0) or 0)
                             for net in data.get("results", []):
                                 netid = str(net.get("netid") or "")
                                 qos = int(net.get("qos", 0) or 0)
@@ -207,64 +247,105 @@ class LivePhysicalConversionEngine:
                 except Exception:
                     pass
 
-        # Identify spatially co-located BSSIDs (<35m apart = multi-stall commercial density)
-        for i, (id_a, lat_a, lon_a) in enumerate(all_recent_coords):
-            for j in range(i + 1, len(all_recent_coords)):
-                id_b, lat_b, lon_b = all_recent_coords[j]
-                if math.hypot(lat_a - lat_b, lon_a - lon_b) <= 0.00032:
-                    high_qos_bssids.add(id_a)
-                    high_qos_bssids.add(id_b)
+            for i, (id_a, lat_a, lon_a) in enumerate(all_recent_coords):
+                for j in range(i + 1, len(all_recent_coords)):
+                    id_b, lat_b, lon_b = all_recent_coords[j]
+                    if math.hypot(lat_a - lat_b, lon_a - lon_b) <= 0.00032:
+                        high_qos_bssids.add(id_a)
+                        high_qos_bssids.add(id_b)
+            wigle_commercial_bssids = len(high_qos_bssids)
 
-        cico_nodes = int(snapshot.get("osm_cico_count", 0) or 0) + len(snapshot.get("cico_pois", []))
-        osm_sqm = float(snapshot.get("total_osm_footprint_sqm", 0.0) or 0.0)
-        rail_factor = max(1.2, min(3.8, 1.0 + math.log1p(len(active_local_networks)) * 0.58))
-        area_pos_nodes = int(round(math.sqrt(osm_sqm) * 0.45)) if osm_sqm > 500.0 else 0
-        ground_pos_baseline = int(round((verified_venues_count * rail_factor) + (cico_nodes * 1.8) + area_pos_nodes))
+        return {
+            "observed_cico_terminals": observed_cico,
+            "wigle_commercial_bssids": wigle_commercial_bssids,
+            "total_observed_payment_nodes": observed_cico + wigle_commercial_bssids,
+        }
 
-        if high_qos_bssids or wigle_total_recent > 0:
-            sample_ratio = max(0.35, len(high_qos_bssids) / max(1, len(all_recent_coords)))
-            estimated_rf_pos = int(round(len(high_qos_bssids) + math.sqrt(wigle_total_recent) * sample_ratio * 2.2))
-            return max(12, int(round((estimated_rf_pos * 0.55) + (ground_pos_baseline * 0.45))))
-
-        return max(10, ground_pos_baseline)
-
-    async def _check_redis_hardware_ledger(self, cell_id: str) -> int:
+    async def _check_redis_edge_telemetry(self, cell_id: str) -> Dict[str, Any]:
+        """Reads live edge-node vision dwell, POS receipts, and BLE handshakes from Redis if connected."""
+        out: Dict[str, Any] = {
+            "edge_pos_handshakes": 0,
+            "edge_vision_dwell_minutes": None,
+            "edge_pos_receipts": 0,
+        }
         try:
-            data = await self.cache.get(f"iot:ble:{cell_id}:pos_handshakes")
-            if data:
-                return int(data)
+            raw_hs, raw_dw, raw_rc = await asyncio.gather(
+                self.cache.get(f"iot:ble:{cell_id}:pos_handshakes"),
+                self.cache.get(f"iot:vision:{cell_id}:dwell_seconds"),
+                self.cache.get(f"iot:pos:{cell_id}:receipts"),
+                return_exceptions=True,
+            )
+            if isinstance(raw_hs, (bytes, str)) and raw_hs:
+                out["edge_pos_handshakes"] = int(raw_hs)
+            if isinstance(raw_dw, (bytes, str)) and raw_dw:
+                out["edge_vision_dwell_minutes"] = round(float(raw_dw) / 60.0, 1)
+            if isinstance(raw_rc, (bytes, str)) and raw_rc:
+                out["edge_pos_receipts"] = int(raw_rc)
         except Exception:
             pass
-        return 0
+        return out
 
     async def calculate_physical_conversion(
         self, lat: float, lon: float, cell_id: str, discovered_networks: List[str]
     ) -> Dict[str, Any]:
-        (dwell_time_min, venue_count, snapshot), verified_iot_handshakes = await asyncio.gather(
-            self._measure_physical_dwell_time(lat, lon),
-            self._check_redis_hardware_ledger(cell_id),
+        (venues, snapshot), edge_data = await asyncio.gather(
+            self._discover_real_venues(lat, lon),
+            self._check_redis_edge_telemetry(cell_id),
         )
-        active_mpos_terminals = await self._intercept_dynamic_mpos_terminals(
-            lat, lon, discovered_networks, venue_count, snapshot
+        venue_count = max(len(venues), int(snapshot.get("verified_merchants_total", 0) or 0))
+
+        (obs_gmaps_dwell, obs_web_dwell), pay_nodes = await asyncio.gather(
+            self._extract_google_and_web_dwell_minutes(lat, lon, venues, snapshot),
+            self._intercept_observed_payment_terminals(lat, lon, snapshot),
         )
 
+        # Strict Empirical Dwell Precedence (Zero synthetic 40-min formula!)
+        if edge_data["edge_vision_dwell_minutes"] is not None:
+            dwell_time_min = edge_data["edge_vision_dwell_minutes"]
+            dwell_source = "EDGE_VISION_POLYGON_ZONE"
+            is_dwell_observed = True
+        elif obs_gmaps_dwell is not None:
+            dwell_time_min = obs_gmaps_dwell
+            dwell_source = "GOOGLE_MAPS_PB_DWELL"
+            is_dwell_observed = True
+        elif obs_web_dwell is not None:
+            dwell_time_min = obs_web_dwell
+            dwell_source = "OPEN_WEB_VISITOR_DURATION_CORPUS"
+            is_dwell_observed = True
+        else:
+            dwell_time_min = self._compute_physical_traversal_floor_minutes(venues, snapshot, lat, lon)
+            dwell_source = "PHYSICAL_CORRIDOR_TRAVERSAL_FLOOR"
+            is_dwell_observed = False
+
+        total_observed_pay = pay_nodes["total_observed_payment_nodes"] + edge_data["edge_pos_handshakes"]
+
         conversion_state = (
-            "HIGH_DWELL_COMMERCIAL_CONVERSION" if dwell_time_min >= 12.0
-            else "RAPID_TRANSIT_MICRO_CONVERSION"
+            "HIGH_DWELL_COMMERCIAL_CONVERSION"
+            if dwell_time_min >= 15.0
+            else ("RAPID_TRANSIT_MICRO_CONVERSION" if dwell_time_min > 0 else "UNVERIFIED_DWELL")
         )
 
         logger.info(
-            f"🤝 Dynamic Conversion Locked | Dwell Time: {dwell_time_min} mins | "
-            f"Verified Local mPOS Nodes ({len(discovered_networks)} rails): {active_mpos_terminals} | "
-            f"Edge-Node POS: {verified_iot_handshakes}"
+            f"🤝 Empirical Conversion Telemetry Locked | Dwell Time: {dwell_time_min} mins "
+            f"(Source: {dwell_source}, Empirical={is_dwell_observed} | GMaps={obs_gmaps_dwell}m, Web={obs_web_dwell}m) | "
+            f"Observed Payment/CICO Nodes: {pay_nodes['observed_cico_terminals']} CICO + "
+            f"{pay_nodes['wigle_commercial_bssids']} WiGLE BSSIDs + {edge_data['edge_pos_handshakes']} Edge POS"
         )
 
         return {
             "status": "PHYSICAL_CONVERSION_LOCKED",
             "structural_conversion_state": conversion_state,
             "average_device_dwell_time_minutes": dwell_time_min,
-            "dynamic_mpos_hardware_detected": active_mpos_terminals,
+            "dwell_source": dwell_source,
+            "is_dwell_empirically_observed": is_dwell_observed,
+            "observed_google_dwell_minutes": obs_gmaps_dwell,
+            "observed_web_dwell_minutes": obs_web_dwell,
+            "edge_vision_dwell_minutes": edge_data["edge_vision_dwell_minutes"],
+            "dynamic_mpos_hardware_detected": total_observed_pay,
+            "observed_cico_terminals": pay_nodes["observed_cico_terminals"],
+            "wigle_commercial_bssids": pay_nodes["wigle_commercial_bssids"],
             "verified_commercial_venues": venue_count,
-            "verified_edge_node_handshakes": verified_iot_handshakes,
-            "provenance": "Coalesced Spatial Venue Geometry + Spatial BSSID Clustering & QoS Physics",
+            "verified_edge_node_handshakes": edge_data["edge_pos_handshakes"],
+            "edge_pos_receipts": edge_data["edge_pos_receipts"],
+            "provenance": f"Empirical Dwell ({dwell_source}) + Literal Observed CICO/WiGLE/Edge Nodes",
         }

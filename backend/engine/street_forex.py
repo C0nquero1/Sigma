@@ -13,15 +13,17 @@ logger = logging.getLogger("StreetAI.Forex")
 
 class LiveStreetForex:
     """
-    100% Globally Dynamic Physical Reality Forex & Liquidity Engine.
-    - Triangulates Live Interbank Spot Feeds (Open-ER + Global Currency API + CoinGecko)
-      with Two-Sided (BUY/SELL) Binance & Bybit P2P OTC Orderbooks.
-    - Computes volume-weighted median clearing rates and clamps thin-book scam outliers.
-    - Measures real local orderbook & commercial settlement depth at (lat, lon).
+    100% Real-Life Forex & Live Multi-Exchange OTC Orderbook Liquidity Engine (Zero Fabricated Vault Math).
+    - Triangulates live Interbank Spot Feeds (Open-ER + Currency-API CDN + CoinGecko)
+      with live Two-Sided (BUY/SELL) P2P OTC Orderbooks across Binance P2P, Bybit P2P, and OKX P2P.
+    - Computes real Order-Book Bid/Ask Spread (%) and Order Flow Imbalance (OFI) across active makers.
+    - Reports strictly REAL live OTC orderbook escrow liquidity (purged all synthetic `$14,500 * cico_nodes`
+      and `$4,200 * merchants` vault formulas).
     """
     def __init__(self, db_ledger=None):
         self.binance_p2p_url = "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search"
         self.bybit_p2p_url = "https://api2.bybit.com/fiat/otc/item/online"
+        self.okx_p2p_url = "https://www.okx.com/v3/c2c/tradingOrders/books"
         self.coingecko_url = "https://api.coingecko.com/api/v3/simple/price"
         self.open_er_url = "https://open.er-api.com/v6/latest/USD"
         self.cdn_fx_url = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json"
@@ -34,11 +36,13 @@ class LiveStreetForex:
             "Accept": "application/json",
         }
 
-    async def _query_binance_p2p(self, fiat: str) -> Tuple[Optional[float], float, List[str], int]:
-        """Sweeps both BUY and SELL sides (up to 40 active merchant ads) and computes median clearing price."""
+    async def _query_binance_p2p(self, fiat: str) -> Dict[str, Any]:
+        """Sweeps both BUY and SELL sides (up to 40 active makers) for real bid/ask depth and OFI."""
         methods = set()
-        weighted_quotes: List[Tuple[float, float]] = []
-        total_liq = 0.0
+        buy_prices: List[float] = []
+        sell_prices: List[float] = []
+        buy_liq = 0.0
+        sell_liq = 0.0
         ad_count = 0
 
         async with httpx.AsyncClient(timeout=5.5, headers=self.headers) as client:
@@ -59,7 +63,7 @@ class LiveStreetForex:
                 for side in ("BUY", "SELL")
             ]
             responses = await asyncio.gather(*tasks, return_exceptions=True)
-            for res in responses:
+            for side, res in zip(("BUY", "SELL"), responses):
                 if isinstance(res, httpx.Response) and res.status_code == 200:
                     ads = res.json().get("data", []) or []
                     for ad in ads:
@@ -68,23 +72,34 @@ class LiveStreetForex:
                         surplus = float(adv.get("surplusAmount", 0.0) or 0.0)
                         if p > 0 and surplus > 0:
                             ad_count += 1
-                            weighted_quotes.append((p, surplus))
-                            total_liq += surplus * p
+                            if side == "BUY":
+                                buy_prices.append(p)
+                                buy_liq += surplus * p
+                            else:
+                                sell_prices.append(p)
+                                sell_liq += surplus * p
                         for m in adv.get("tradeMethods", []):
                             ident = m.get("tradeMethodName") or m.get("identifier")
                             if ident:
                                 methods.add(str(ident))
 
-        if not weighted_quotes:
-            return None, 0.0, list(methods), 0
+        all_prices = sorted(buy_prices + sell_prices)
+        median_price = round(all_prices[len(all_prices) // 2], 4) if all_prices else None
+        buy_med = sorted(buy_prices)[len(buy_prices) // 2] if buy_prices else None
+        sell_med = sorted(sell_prices)[len(sell_prices) // 2] if sell_prices else None
 
-        # Sort by price and take the IQR-filtered median clearing price (eliminates page-1 scam outliers)
-        weighted_quotes.sort(key=lambda x: x[0])
-        mid_idx = len(weighted_quotes) // 2
-        median_price = round(weighted_quotes[mid_idx][0], 4)
-        return median_price, round(total_liq, 2), list(methods), ad_count
+        return {
+            "median_price": median_price,
+            "buy_median": buy_med,
+            "sell_median": sell_med,
+            "buy_liq": round(buy_liq, 2),
+            "sell_liq": round(sell_liq, 2),
+            "total_liq": round(buy_liq + sell_liq, 2),
+            "methods": list(methods),
+            "ad_count": ad_count,
+        }
 
-    async def _query_bybit_p2p(self, fiat: str) -> Tuple[Optional[float], float, List[str], int]:
+    async def _query_bybit_p2p(self, fiat: str) -> Dict[str, Any]:
         payload = {
             "userId": "",
             "tokenId": "USDT",
@@ -99,7 +114,7 @@ class LiveStreetForex:
         prices: List[float] = []
         total_liq = 0.0
         try:
-            async with httpx.AsyncClient(timeout=5.5, headers=self.headers) as client:
+            async with httpx.AsyncClient(timeout=5.0, headers=self.headers) as client:
                 res = await client.post(self.bybit_p2p_url, json=payload)
                 if res.status_code == 200:
                     items = res.json().get("result", {}).get("items", []) or []
@@ -111,12 +126,55 @@ class LiveStreetForex:
                             total_liq += qty * p
                         for pm in item.get("payments", []):
                             methods.add(f"Rail_{pm}")
-                    if prices:
-                        prices.sort()
-                        return prices[len(prices) // 2], round(total_liq, 2), list(methods), len(prices)
         except Exception as e:
             logger.debug(f"Bybit P2P scan degraded for {fiat}: {e}")
-        return None, 0.0, list(methods), 0
+
+        prices.sort()
+        return {
+            "median_price": round(prices[len(prices) // 2], 4) if prices else None,
+            "total_liq": round(total_liq, 2),
+            "methods": list(methods),
+            "ad_count": len(prices),
+        }
+
+    async def _query_okx_p2p(self, fiat: str) -> Dict[str, Any]:
+        """Keyless public OKX P2P orderbook endpoint for additional live OTC market maker coverage."""
+        prices: List[float] = []
+        methods = set()
+        total_liq = 0.0
+        try:
+            async with httpx.AsyncClient(timeout=4.5, headers=self.headers) as client:
+                res = await client.get(
+                    self.okx_p2p_url,
+                    params={
+                        "quoteCurrency": fiat.lower(),
+                        "baseCurrency": "usdt",
+                        "side": "sell",
+                        "paymentMethod": "all",
+                        "userType": "all",
+                    },
+                )
+                if res.status_code == 200:
+                    sell_orders = res.json().get("data", {}).get("sell", []) or []
+                    for ord_item in sell_orders[:20]:
+                        p = float(ord_item.get("price", 0.0) or 0.0)
+                        qty = float(ord_item.get("availableAmount", 0.0) or 0.0)
+                        if p > 0 and qty > 0:
+                            prices.append(p)
+                            total_liq += qty * p
+                        for pm in ord_item.get("paymentMethods", []):
+                            if pm:
+                                methods.add(str(pm))
+        except Exception as e:
+            logger.debug(f"OKX P2P scan degraded for {fiat}: {e}")
+
+        prices.sort()
+        return {
+            "median_price": round(prices[len(prices) // 2], 4) if prices else None,
+            "total_liq": round(total_liq, 2),
+            "methods": list(methods),
+            "ad_count": len(prices),
+        }
 
     async def _fetch_institutional_spot_rate(self, fiat: str) -> Tuple[Optional[float], str]:
         f_up = fiat.upper()
@@ -125,7 +183,6 @@ class LiveStreetForex:
             return 1.0, "USD Sovereign Base"
 
         async with httpx.AsyncClient(timeout=5.5) as client:
-            # Tier 1: Open-ER Live Interbank Spot Rate
             try:
                 res = await client.get(self.open_er_url)
                 if res.status_code == 200:
@@ -135,7 +192,6 @@ class LiveStreetForex:
             except Exception:
                 pass
 
-            # Tier 2: Global Currency Live Spot Ledger (CDN)
             try:
                 res = await client.get(self.cdn_fx_url)
                 if res.status_code == 200:
@@ -145,7 +201,6 @@ class LiveStreetForex:
             except Exception:
                 pass
 
-            # Tier 3: CoinGecko USDT/Fiat Spot Ticker
             try:
                 res = await client.get(
                     self.coingecko_url,
@@ -171,14 +226,10 @@ class LiveStreetForex:
     ) -> Dict[str, Any]:
         fiat = local_currency.upper().strip()
 
-        (
-            (bin_price, bin_liq, bin_methods, bin_ads),
-            (byb_price, byb_liq, byb_methods, byb_ads),
-            (spot_rate, spot_prov),
-            spatial_snapshot,
-        ) = await asyncio.gather(
+        bin_data, byb_data, okx_data, (spot_rate, spot_prov), spatial_snapshot = await asyncio.gather(
             self._query_binance_p2p(fiat),
             self._query_bybit_p2p(fiat),
+            self._query_okx_p2p(fiat),
             self._fetch_institutional_spot_rate(fiat),
             LiveInfrastructureEngine.get_coalesced_spatial_snapshot(lat, lon),
         )
@@ -187,16 +238,36 @@ class LiveStreetForex:
             p["title"]
             for p in spatial_snapshot.get("cico_pois", []) + spatial_snapshot.get("gmaps_pois", [])
             if any(w in str(p.get("type", "")).lower() for w in ("bank", "atm", "financial", "exchange"))
+            and p.get("title")
         ]
-        discovered_methods = list(dict.fromkeys(bin_methods + byb_methods + local_poi_rails))
-        total_p2p_ads = bin_ads + byb_ads
-        p2p_raw_price = bin_price or byb_price
-        p2p_book_liquidity = round(bin_liq + byb_liq, 2)
+        discovered_methods = list(
+            dict.fromkeys(bin_data["methods"] + byb_data["methods"] + okx_data["methods"] + local_poi_rails)
+        )
+        total_p2p_ads = bin_data["ad_count"] + byb_data["ad_count"] + okx_data["ad_count"]
+
+        p2p_candidates = [
+            p for p in (bin_data["median_price"], byb_data["median_price"], okx_data["median_price"]) if p and p > 0
+        ]
+        p2p_raw_price = round(sorted(p2p_candidates)[len(p2p_candidates) // 2], 4) if p2p_candidates else None
+
+        # STRICT REAL LIQUIDITY ONLY: Literal verified live OTC orderbook depth across Binance + Bybit + OKX
+        p2p_book_liquidity = round(
+            bin_data["total_liq"] + byb_data["total_liq"] + okx_data["total_liq"], 2
+        )
+
+        # Real Order-Book Bid/Ask Spread & Order Flow Imbalance (OFI) from Binance two-sided book
+        bid_ask_spread_pct = 0.0
+        if bin_data["buy_median"] and bin_data["sell_median"] and bin_data["sell_median"] > 0:
+            bid_ask_spread_pct = round(
+                abs(bin_data["buy_median"] - bin_data["sell_median"]) / bin_data["sell_median"] * 100.0, 2
+            )
+        ofi_denom = bin_data["buy_liq"] + bin_data["sell_liq"]
+        ofi_imbalance = round((bin_data["buy_liq"] - bin_data["sell_liq"]) / ofi_denom, 3) if ofi_denom > 0 else 0.0
 
         if spot_rate and spot_rate > 0:
-            if p2p_raw_price and total_p2p_ads >= 6 and abs(p2p_raw_price - spot_rate) / spot_rate <= 0.18:
+            if p2p_raw_price and total_p2p_ads >= 4 and abs(p2p_raw_price - spot_rate) / spot_rate <= 0.25:
                 best_rate = round(p2p_raw_price, 2)
-                provenance = f"Live Two-Sided OTC Orderbook + Interbank Triangulation ({total_p2p_ads} active market makers)"
+                provenance = f"Live Multi-Exchange OTC Orderbook + Interbank Triangulation ({total_p2p_ads} active market makers)"
             else:
                 best_rate = round(spot_rate, 2)
                 provenance = f"{spot_prov} (Verified Institutional Clearing Rate)"
@@ -206,42 +277,29 @@ class LiveStreetForex:
         else:
             raise RuntimeError(f"CRITICAL LOSS OF TELEMETRY: All FX & OTC sensors unreachable for {fiat}. Halting.")
 
-        # Compute Zonal Working-Capital & Immediate Settlement Liquidity Pool in local currency
-        cico_nodes = max(1, int(spatial_snapshot.get("osm_cico_count", 6) or 6))
-        if empirical_scope:
-            active_units = int(empirical_scope.get("scoped_economic_units", 250))
-            hourly_visitors = int(empirical_scope.get("hourly_visitors_scoped_baseline", 800))
-            visitor_spend = float(empirical_scope.get("typical_visitor_spend_local", 15.0 * best_rate))
-            # 1. Merchant active till/safe working capital float (3.5 hours of stall cash turnover)
-            merchant_working_float = active_units * visitor_spend * 3.5
-            # 2. Active buyer-in-transit cash float across the market floor (2.5 hours of active flow)
-            floor_turnover_float = hourly_visitors * visitor_spend * 2.5
-            # 3. Local bank branch / CICO agent liquid vault float
-            cico_vault_float = cico_nodes * (14_500.0 * best_rate)
-            zonal_settlement_local = round(merchant_working_float + floor_turnover_float + cico_vault_float, 2)
-        else:
-            verified_merchants = max(1, int(spatial_snapshot.get("verified_merchants_total", 25) or 25))
-            zonal_settlement_local = round(((verified_merchants * 4_200.0) + (cico_nodes * 18_500.0)) * best_rate, 2)
-
-        available_fiat_liquidity = round(p2p_book_liquidity + zonal_settlement_local, 2)
-
         self._rate_memory[fiat] = (time.time(), best_rate)
-        total_rails_count = max(len(discovered_methods), cico_nodes)
+        official_rounded = round(spot_rate or best_rate, 2)
 
         logger.info(
-            f"💱 FX & Liquidity Locked: 1 USD = {best_rate:,.2f} {fiat} (Spot: {(spot_rate or best_rate):,.2f}) | "
-            f"Zonal Working-Capital & Orderbook Liquidity: {available_fiat_liquidity:,.2f} {fiat} | "
-            f"{provenance} | {total_rails_count} verified settlement rails"
+            f"💱 Real FX & OTC Orderbook Locked: 1 USD = {best_rate:,.2f} {fiat} (Spot: {official_rounded:,.2f}) | "
+            f"Verified Live OTC Orderbook Escrow: {p2p_book_liquidity:,.2f} {fiat} "
+            f"(Spread: {bid_ask_spread_pct}%, OFI: {ofi_imbalance:+.3f}, Makers: {total_p2p_ads}) | "
+            f"{len(discovered_methods)} verified settlement rails"
         )
 
         return {
             "pair": f"USD/{fiat}",
             "clearing_price": best_rate,
             "street_rate": best_rate,
-            "official_rate": round(spot_rate or best_rate, 2),
-            "physical_liquidity_available": available_fiat_liquidity,
-            "zonal_working_capital_float_local": zonal_settlement_local,
+            "effective_rate": best_rate,
+            "official_rate": official_rounded,
+            "official_spot_rate": official_rounded,
+            "physical_liquidity_available": p2p_book_liquidity,
+            "zonal_liquidity_local": p2p_book_liquidity,
             "otc_orderbook_escrow_liquidity_local": p2p_book_liquidity,
+            "orderbook_bid_ask_spread_pct": bid_ask_spread_pct,
+            "orderbook_ofi_imbalance": ofi_imbalance,
+            "active_market_makers_count": total_p2p_ads,
             "active_networks_detected": discovered_methods,
             "provenance": provenance,
         }

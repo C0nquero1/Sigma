@@ -8,10 +8,11 @@ import hashlib
 import requests
 import httpx
 import reverse_geocoder as rg
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List, Tuple
 from contextlib import asynccontextmanager
 
-if sys.platform == 'win32':
+if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
@@ -28,7 +29,7 @@ from engine.ui_compiler import build_overview_ui
 from engine.deep_synthesizer import DeepAnalysisSynthesizer
 from engine.metric_engine import MetricExecutionEngine
 
-# 100% Physical Reality OSINT, Empirical Scope & Sensor Engines
+# 100% Empirical OSINT, Scope & Sensor Engines
 from engine.overture_engine import LiveInfrastructureEngine
 from engine.spatial_product_resolver import SpatialProductResolver
 from engine.ground_truth import GroundTruthCalibrator
@@ -122,6 +123,33 @@ market_share = MarketShareEngine()
 metrics_engine = MetricExecutionEngine()
 
 COUNTRY_METADATA_CACHE: Dict[str, Tuple[str, str, str]] = {}
+SPOT_FX_CACHE: Tuple[float, Dict[str, float]] = (0.0, {})
+
+
+async def _fetch_interbank_spot_rate(currency_code: str) -> float:
+    """Fetches live interbank USD -> currency spot rate from open.er-api.com (cached 30 min)."""
+    global SPOT_FX_CACHE
+    curr = (currency_code or "USD").upper().strip()
+    if curr == "USD":
+        return 1.0
+
+    now = time.time()
+    if SPOT_FX_CACHE[1] and (now - SPOT_FX_CACHE[0]) < 1800:
+        if curr in SPOT_FX_CACHE[1]:
+            return float(SPOT_FX_CACHE[1][curr])
+
+    try:
+        async with httpx.AsyncClient(timeout=4.5) as client:
+            res = await client.get("https://open.er-api.com/v6/latest/USD")
+            if res.status_code == 200:
+                rates = res.json().get("rates", {})
+                if isinstance(rates, dict) and rates:
+                    SPOT_FX_CACHE = (now, {k.upper(): float(v) for k, v in rates.items() if v})
+                    if curr in SPOT_FX_CACHE[1]:
+                        return float(SPOT_FX_CACHE[1][curr])
+    except Exception as e:
+        logger.debug(f"Interbank spot FX fetch pivot ({curr}): {e}")
+    return 1.0
 
 
 async def _resolve_live_country_metadata(
@@ -130,19 +158,18 @@ async def _resolve_live_country_metadata(
     """
     100% Live OSINT Sovereign Country & Currency Resolver.
     Returns (verified_iso2_country_code, country_name, active_iso4217_currency_code).
-    Uses BigDataCloud WGS84 Reverse Geocode + Wikidata SPARQL (rank-agnostic P38) + RestCountries.
     """
     clean_cc = (country_code or "").strip().upper()
     c_name = ""
     c_curr = ""
 
     headers = {
-        "User-Agent": "StreetAI-PhysicalEngine/7.0 (https://streetai.io; contact@streetai.io) httpx/0.27",
+        "User-Agent": "StreetAI-PhysicalEngine/9.0 (https://streetai.io; contact@streetai.io) httpx/0.27",
         "Accept": "application/json",
     }
 
     async with httpx.AsyncClient(timeout=7.0, follow_redirects=True, headers=headers) as client:
-        # Live Tier 1: BigDataCloud WGS84 Reverse Geocoder (locks ISO2 + Country Name from coordinates)
+        # Live Tier 1: BigDataCloud WGS84 Reverse Geocoder
         try:
             r_bdc = await client.get(
                 "https://api-bdc.io/data/reverse-geocode-client",
@@ -169,7 +196,7 @@ async def _resolve_live_country_metadata(
         if clean_cc in COUNTRY_METADATA_CACHE:
             return COUNTRY_METADATA_CACHE[clean_cc]
 
-        # Live Tier 3: Wikidata SPARQL with statement path `p:P38/ps:P38`
+        # Live Tier 3: Wikidata SPARQL (`p:P38/ps:P38`)
         try:
             sparql = (
                 f'SELECT ?countryLabel ?isoCurr WHERE {{ '
@@ -184,7 +211,7 @@ async def _resolve_live_country_metadata(
                 params={"query": sparql, "format": "json"},
                 headers={
                     "Accept": "application/sparql-results+json",
-                    "User-Agent": "StreetAI-PhysicalEngine/7.0 (https://streetai.io; contact@streetai.io) httpx/0.27",
+                    "User-Agent": "StreetAI-PhysicalEngine/9.0 (https://streetai.io; contact@streetai.io) httpx/0.27",
                 },
             )
             if r_wd.status_code == 200:
@@ -195,7 +222,7 @@ async def _resolve_live_country_metadata(
         except Exception as e:
             logger.debug(f"Wikidata sovereign currency lookup pivot for {clean_cc}: {e}")
 
-        # Live Tier 4: JSDelivr World-Countries Official ISO-4217 CDN (Zero 301 Redirects, 100% Global Coverage)
+        # Live Tier 4: JSDelivr World-Countries Official ISO-4217 CDN
         if not c_name or len(c_curr) != 3:
             try:
                 if AbsolutePhysicalPricingEngine._world_countries_cache is None:
@@ -247,6 +274,44 @@ class UserPromptRequest(BaseModel):
     prompt: str = Field(..., description="Raw natural language prompt from user")
     explicit_lat: Optional[float] = None
     explicit_lon: Optional[float] = None
+
+
+class EdgeTelemetryIngestRequest(BaseModel):
+    lat: float = Field(..., description="Latitude of automated sensor/POS node")
+    lon: float = Field(..., description="Longitude of automated sensor/POS node")
+    source_system: str = Field(
+        default="automated_edge",
+        description="e.g., frigate_nvr, supervision_cv, esp32_paxcounter, kismet, ltesniffer, odoo_pos, erpnext, openmeter",
+    )
+    rf_probes: Optional[int] = Field(default=None, ge=0)
+    vision_dwell_seconds: Optional[float] = Field(default=None, gt=0)
+    pos_handshakes: Optional[int] = Field(default=None, ge=0)
+    pos_receipts: Optional[int] = Field(default=None, ge=0)
+    ttl_seconds: int = Field(default=1800, ge=60, le=86400)
+
+
+@app.post("/api/v1/telemetry/ingest")
+async def ingest_automated_edge_telemetry(payload: EdgeTelemetryIngestRequest):
+    """
+    Machine-to-machine ingestion endpoint for automated open-source streams
+    (Frigate NVR / Supervision, ESP32-Paxcounter / Kismet / LTESniffer, Odoo POS / OpenMeter).
+    Zero human observers required; binds directly to H3 cell in Redis.
+    """
+    h3_cell = spatial_resolver.get_h3_index(payload.lat, payload.lon)
+    result = db_ledger.ingest_edge_telemetry(
+        h3_cell=h3_cell,
+        rf_probes=payload.rf_probes,
+        vision_dwell_seconds=payload.vision_dwell_seconds,
+        pos_handshakes=payload.pos_handshakes,
+        pos_receipts=payload.pos_receipts,
+        ttl_seconds=payload.ttl_seconds,
+    )
+    return {
+        "status": "INGESTED" if result.get("stored") else "DEGRADED",
+        "source_system": payload.source_system,
+        "h3_cell": h3_cell,
+        "details": result,
+    }
 
 
 @app.post("/trigger-pulse")
@@ -301,9 +366,9 @@ async def process_street_intelligence(request: UserPromptRequest):
             return live_memory_state
 
         # =========================================================================
-        # ⚡ 100% PHYSICAL REALITY CONCURRENT OSINT SENSOR FUSION PIPELINE
+        # ⚡ 100% EMPIRICAL CONCURRENT OSINT & SENSOR FUSION PIPELINE
         # =========================================================================
-        # Step 1: Prime the Single-Shot Coalesced Spatial Multiplexer & Live Sovereign Currency Metadata concurrently
+        # Step 1: Single-Shot Coalesced Spatial Multiplexer + Live Sovereign Currency Metadata
         (country_code, country_name, local_currency), spatial_snapshot = await asyncio.gather(
             _resolve_live_country_metadata(country_code, lat_val, lon_val),
             overture.get_coalesced_spatial_snapshot(lat_val, lon_val),
@@ -315,17 +380,24 @@ async def process_street_intelligence(request: UserPromptRequest):
             or city_info.get("city_name", "")
         )
 
-        # Step 2: Resolve Multi-Sector Ecosystem Portfolio, Ground Truth Density, and Initial Spot Rate concurrently
-        resolved_sku_data, structural_multiplier, (spot_fx, _) = await asyncio.gather(
-            product_resolver.resolve_market_ground_truth(
-                lat=lat_val, lon=lon_val, requested_commodity=commodity, spatial_snapshot=spatial_snapshot
-            ),
+        # Step 2: Live Interbank Spot FX + Structural Density Multiplier + Multi-Sector Native SKU Resolution
+        spot_fx_rate, structural_multiplier = await asyncio.gather(
+            _fetch_interbank_spot_rate(local_currency),
             ground_truth.calculate_dynamic_multiplier(h3_token, lat_val, lon_val),
-            live_forex._fetch_institutional_spot_rate(local_currency),
         )
-        fx_rate_per_usd = float(spot_fx or 1.0)
+        fx_rate_per_usd = float(spot_fx_rate or 1.0)
 
-        # Step 2B: Lock Open-Eyes Empirical Web-Research Scope (buildings, stalls, economic units, footfall, spend)
+        resolved_sku_data = await product_resolver.resolve_market_ground_truth(
+            lat=lat_val,
+            lon=lon_val,
+            requested_commodity=commodity,
+            spatial_snapshot=spatial_snapshot,
+            local_currency=local_currency,
+            fx_rate_per_usd=fx_rate_per_usd,
+            target_name=target_loc or city_name_str,
+        )
+
+        # Step 2B: Whole-Internet Empirical Scope (buildings, stalls, economic units, footfall, spend)
         empirical_scope = await empirical_scope_engine.resolve_empirical_scope(
             lat=lat_val,
             lon=lon_val,
@@ -342,7 +414,7 @@ async def process_street_intelligence(request: UserPromptRequest):
             or spatial_snapshot.get("verified_merchants_total", 0)
         )
 
-        # Step 3: Fire Macro, Port, Working-Capital FX, Scope-Calibrated Pricing, Telco, Capacity, MarketShare & Temporal
+        # Step 3: Macro, Port, Working-Capital FX, Order-Book Pricing, Telco, Capacity, MarketShare & Temporal
         (
             macro_payload,
             nearest_port,
@@ -389,7 +461,7 @@ async def process_street_intelligence(request: UserPromptRequest):
         unit_price = float(pricing_payload.get("price", 0.0))
         sector_breakdown = pricing_payload.get("sector_breakdown", [])
 
-        # Step 4: Foot Traffic & Dwell Conversion Triangulation
+        # Step 4: Mobility, Public Sensors & Empirical Dwell Conversion Triangulation
         crowd_payload = await crowd_engine.get_live_cluster_busyness(lat_val, lon_val, h3_token, active_networks)
         raw_crowd = crowd_payload.get("raw_physical_telemetry", {})
         active_mpos_hardware = int(raw_crowd.get("active_mpos_terminals", 0))
@@ -397,13 +469,14 @@ async def process_street_intelligence(request: UserPromptRequest):
         dwell_mins = float(raw_crowd.get("device_dwell_time_minutes", 0.0))
         foot_kmh = float(raw_crowd.get("foot_velocity_kmh", 0.0))
 
-        temp_density = int(temporal_payload.get("mobile_device_telemetry", {}).get("live_device_density_index", 65))
+        temp_mob = temporal_payload.get("mobile_device_telemetry", {})
+        temp_density = int(temp_mob.get("live_device_density_index", 0) or 0)
         planet_phys = temporal_payload.get("planetary_physics", {})
         is_day = bool(planet_phys.get("is_day", True))
         local_hr = int(planet_phys.get("local_hour", 12))
-        rain_mm = float(planet_phys.get("precipitation_mm", 0.0))
+        rain_mm = float(planet_phys.get("precipitation_mm", 0.0) or 0.0)
 
-        # Step 5: Execute Real-Life Scoped Cash Velocity, Multi-Stall Buys/Hr & Little's Law Active Buyers
+        # Step 5: Execute Zero-Simulation Cohort Cash Velocity & Double-Entry Treasury Float
         metrics_payload = metrics_engine.execute_plan(
             exact_unit_price=unit_price,
             active_mpos_hardware=active_mpos_hardware,
@@ -417,9 +490,43 @@ async def process_street_intelligence(request: UserPromptRequest):
             empirical_scope=empirical_scope,
             local_hour=local_hr,
             precipitation_mm=rain_mm,
+            pricing_payload=pricing_payload,
+            temporal_payload=temporal_payload,
+            crowd_payload=crowd_payload,
+            forex_payload=forex_payload,
+            gateway_payload=gateway_payload,
+            capacity_payload=capacity_payload,
         )
         current_velocity = float(metrics_payload.get("verified_velocity_floor_local", 0.0))
-        active_buyers_now = int(metrics_payload.get("active_buyers_live", active_mpos_hardware))
+        active_buyers_now = int(metrics_payload.get("active_buyers_live", 0))
+        treasury_float = metrics_payload.get("treasury_float_metrics", {})
+
+        # Step 5B: Commit Real Observation & Balanced Double-Entry Settlement Journal into SQLite Ledger
+        today_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        if current_velocity > 0:
+            await db_ledger.commit_historical_volume(h3_token, today_utc, current_velocity)
+
+        ledger_tx_id = db_ledger.record_double_entry_settlement(
+            h3_cell=h3_token,
+            currency=local_currency,
+            authorized_inflow_local=current_velocity,
+            in_transit_float_local=float(treasury_float.get("in_transit_settlement_float_local", 0.0) or 0.0),
+            cleared_cash_local=float(treasury_float.get("cleared_working_capital_hourly_local", 0.0) or 0.0),
+            inventory_payables_local=round(current_velocity * 0.65, 2),
+            reference=f"SCAN:{target_loc}:{commodity}",
+        )
+        db_ledger.record_telemetry_observation(
+            h3_cell=h3_token,
+            commodity=commodity,
+            local_currency=local_currency,
+            hourly_velocity_local=current_velocity,
+            hourly_visitors=int(metrics_payload.get("hourly_visitors_footfall", 0) or 0),
+            clearing_price_local=unit_price,
+            occupancy_pct=temp_mob.get("observed_protobuf_occupancy_pct"),
+            congestion_ratio=float(raw_crowd.get("live_perimeter_congestion_ratio", 1.0) or 1.0),
+            precipitation_mm=rain_mm,
+            operating_state=str(metrics_payload.get("market_operating_state", "UNKNOWN")),
+        )
 
         # Step 6: Extract Anchored 7-Day Historical Ledger & Execute Live ML Ridge Regression
         historical_7d_chart = await historical_engine.generate_7d_ledger(
@@ -467,6 +574,10 @@ async def process_street_intelligence(request: UserPromptRequest):
                 "pricing_matrix": pricing_payload,
                 "live_deterministic": metrics_payload,
                 "ml_projected": ml_projections,
+                "treasury_float_ledger": {
+                    "ledger_tx_id": ledger_tx_id,
+                    **treasury_float,
+                },
             },
             "structural_ground_truth": {
                 "density_multiplier": structural_multiplier,
@@ -474,11 +585,14 @@ async def process_street_intelligence(request: UserPromptRequest):
                 "permanent_buildings_count": empirical_scope.get("permanent_buildings_count", 1),
                 "registered_stalls_complex": empirical_scope.get("registered_stalls_complex", physical_poi_count),
                 "total_zone_economic_units": empirical_scope.get("total_zone_economic_units_complex", physical_poi_count),
+                "osm_3d_gross_floor_sqm": spatial_snapshot.get("total_osm_3d_gross_floor_sqm", 0.0),
+                "spatial_sub_blocks": spatial_snapshot.get("spatial_sub_blocks", []),
                 "empirical_scope": empirical_scope,
                 "scope_mode": resolved_sku_data.get("scope_mode", "LOCATION_ECOSYSTEM"),
                 "resolved_sku": resolved_sku_data.get("resolved_sku", commodity),
                 "sector_portfolio": resolved_sku_data.get("sector_portfolio", []),
             },
+            "empirical_verification_scorecard": metrics_payload.get("empirical_verification_scorecard", {}),
             "macro_logistics": macro_payload,
             "physical_funnel": crowd_payload,
             "digital_gateway": gateway_payload,
@@ -540,6 +654,9 @@ async def stream_street_intelligence(websocket: WebSocket):
                     structural_multiplier=structural_mult,
                     temporal_density_index=temp_density,
                     is_daylight=is_day,
+                    pricing_payload=pricing_payload,
+                    temporal_payload=temporal_payload,
+                    crowd_payload=crowd_payload,
                 )
 
                 tick_payload = {
@@ -547,9 +664,11 @@ async def stream_street_intelligence(websocket: WebSocket):
                     "live_metrics": {
                         "hourly_velocity_floor": metrics.get("verified_velocity_floor_local", 0.0),
                         "active_buyers_live": metrics.get("active_buyers_live", 0),
+                        "instantaneous_clock_hour_active_buyers": metrics.get("instantaneous_clock_hour_active_buyers", 0),
                         "active_mpos_hardware": active_mpos,
                         "device_dwell_time_minutes": dwell_mins,
                         "temporal_context": temporal_payload,
+                        "empirical_verification_scorecard": metrics.get("empirical_verification_scorecard", {}),
                     },
                 }
                 await websocket.send_json(tick_payload)
