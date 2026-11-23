@@ -7,6 +7,7 @@ import asyncio
 from typing import Optional, List, Dict, Any, Tuple
 from engine.resilience_bus import EnterpriseResilienceBus
 from engine.overture_engine import LiveInfrastructureEngine
+from engine.llm_router import llm_router
 
 logger = logging.getLogger("StreetAI.Forex")
 
@@ -36,33 +37,47 @@ class LiveStreetForex:
             "Accept": "application/json",
         }
 
-    async def _query_binance_p2p(self, fiat: str) -> Dict[str, Any]:
-        """Sweeps both BUY and SELL sides (up to 40 active makers) for real bid/ask depth and OFI."""
+    async def _query_binance_p2p(self, fiat: str, country_code: str = "") -> Dict[str, Any]:
+        """Sweeps both BUY and SELL sides filtered by country when shared-currency (e.g. EUR -> IT), failing back to global fiat if thin."""
         methods = set()
         buy_prices: List[float] = []
         sell_prices: List[float] = []
         buy_liq = 0.0
         sell_liq = 0.0
         ad_count = 0
+        cc_list = [country_code.upper()] if (country_code and len(country_code) == 2 and fiat in ("EUR", "USD", "XOF", "XAF")) else []
 
         async with httpx.AsyncClient(timeout=5.5, headers=self.headers) as client:
-            tasks = [
-                client.post(
-                    self.binance_p2p_url,
-                    json={
-                        "fiat": fiat,
-                        "page": 1,
-                        "rows": 20,
-                        "tradeType": side,
-                        "asset": "USDT",
-                        "countries": [],
-                        "payTypes": [],
-                        "publisherType": None,
-                    },
+            async def _fetch_sides(countries_filter: List[str]):
+                return await asyncio.gather(
+                    *[
+                        client.post(
+                            self.binance_p2p_url,
+                            json={
+                                "fiat": fiat,
+                                "page": 1,
+                                "rows": 20,
+                                "tradeType": side,
+                                "asset": "USDT",
+                                "countries": countries_filter,
+                                "payTypes": [],
+                                "publisherType": None,
+                            },
+                        )
+                        for side in ("BUY", "SELL")
+                    ],
+                    return_exceptions=True,
                 )
-                for side in ("BUY", "SELL")
-            ]
-            responses = await asyncio.gather(*tasks, return_exceptions=True)
+
+            responses = await _fetch_sides(cc_list)
+            # If country-filtered EUR/USD book returned 0 ads, fall back to full fiat book
+            has_ads = any(
+                isinstance(r, httpx.Response) and r.status_code == 200 and (r.json().get("data") or [])
+                for r in responses
+            )
+            if cc_list and not has_ads:
+                responses = await _fetch_sides([])
+
             for side, res in zip(("BUY", "SELL"), responses):
                 if isinstance(res, httpx.Response) and res.status_code == 200:
                     ads = res.json().get("data", []) or []
@@ -182,13 +197,23 @@ class LiveStreetForex:
         if f_up == "USD":
             return 1.0, "USD Sovereign Base"
 
-        async with httpx.AsyncClient(timeout=5.5) as client:
+        # Fast-path: 1-hour SQLite cached USD spot table (prevents concurrent network timeouts from halting NGN/INR/KES)
+        cached_table = llm_router.get_cached("fx_spot_table_v1")
+        if isinstance(cached_table, dict) and f_up in cached_table:
+            val = float(cached_table[f_up] or 0.0)
+            if val > 0:
+                return val, "Cached Live Interbank Spot Feed (<=1h)"
+
+        async with httpx.AsyncClient(timeout=8.0) as client:
             try:
                 res = await client.get(self.open_er_url)
                 if res.status_code == 200:
                     rates = res.json().get("rates", {})
-                    if f_up in rates and float(rates[f_up]) > 0:
-                        return float(rates[f_up]), "Open-ER Live Interbank Spot Feed"
+                    if isinstance(rates, dict) and rates:
+                        clean_rates = {k.upper(): float(v) for k, v in rates.items() if v}
+                        llm_router.set_cached("fx_spot_table_v1", clean_rates, ttl_seconds=3600)
+                        if f_up in clean_rates and clean_rates[f_up] > 0:
+                            return clean_rates[f_up], "Open-ER Live Interbank Spot Feed"
             except Exception:
                 pass
 
@@ -196,8 +221,11 @@ class LiveStreetForex:
                 res = await client.get(self.cdn_fx_url)
                 if res.status_code == 200:
                     usd_rates = res.json().get("usd", {})
-                    if f_low in usd_rates and float(usd_rates[f_low]) > 0:
-                        return float(usd_rates[f_low]), "Global Interbank Spot Ledger"
+                    if isinstance(usd_rates, dict) and usd_rates:
+                        clean_rates = {k.upper(): float(v) for k, v in usd_rates.items() if v}
+                        llm_router.set_cached("fx_spot_table_v1", clean_rates, ttl_seconds=3600)
+                        if f_up in clean_rates and clean_rates[f_up] > 0:
+                            return clean_rates[f_up], "Global Interbank Spot Ledger"
             except Exception:
                 pass
 
@@ -227,7 +255,7 @@ class LiveStreetForex:
         fiat = local_currency.upper().strip()
 
         bin_data, byb_data, okx_data, (spot_rate, spot_prov), spatial_snapshot = await asyncio.gather(
-            self._query_binance_p2p(fiat),
+            self._query_binance_p2p(fiat, country_code),
             self._query_bybit_p2p(fiat),
             self._query_okx_p2p(fiat),
             self._fetch_institutional_spot_rate(fiat),
@@ -240,8 +268,9 @@ class LiveStreetForex:
             if any(w in str(p.get("type", "")).lower() for w in ("bank", "atm", "financial", "exchange"))
             and p.get("title")
         ]
+        # Prioritize verified physical local banks/ATMs at the coordinates ahead of cross-border P2P rails
         discovered_methods = list(
-            dict.fromkeys(bin_data["methods"] + byb_data["methods"] + okx_data["methods"] + local_poi_rails)
+            dict.fromkeys(local_poi_rails + bin_data["methods"] + okx_data["methods"] + byb_data["methods"])
         )
         total_p2p_ads = bin_data["ad_count"] + byb_data["ad_count"] + okx_data["ad_count"]
 

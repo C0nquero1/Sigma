@@ -89,6 +89,10 @@ class LiveCrowdPatternEngine:
                 "verified_commercial_venues": int(conversion_data.get("verified_commercial_venues", 0) or 0),
                 "iot_edge_handshakes": int(conversion_data.get("verified_edge_node_handshakes", 0) or 0),
                 "edge_pos_receipts": int(conversion_data.get("edge_pos_receipts", 0) or 0),
+                "tomtom_incidents_count": int(mobility_data.get("tomtom_incidents_count", 0) or 0),
+                "tomtom_road_closures_count": int(mobility_data.get("tomtom_road_closures_count", 0) or 0),
+                "mapbox_segments_observed": int(mobility_data.get("mapbox_segments_observed", 0) or 0),
+                "mapbox_congestion_breakdown": mobility_data.get("mapbox_congestion_breakdown", {}),
             },
             "provenance": f"{mobility_data.get('provenance', '')} | {conversion_data.get('provenance', '')}",
         }

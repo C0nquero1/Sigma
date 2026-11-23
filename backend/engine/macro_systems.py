@@ -83,7 +83,8 @@ class MacroSystemsEngine:
         except Exception as e:
             logger.debug(f"wttr.in degraded for {lat},{lon}: {e}")
 
-        raise RuntimeError(f"CRITICAL: All 3 meteorological physics sensors unreachable for {lat},{lon}. Halting.")
+        logger.warning(f"⚠️ All 3 meteorological sensors unreachable at {lat},{lon}; continuing with neutral weather friction 1.0.")
+return {"weather_friction_multiplier": 1.0, "precipitation_mm": 0.0, "wind_speed_kmh": 0.0, "weather_verified": False, "provenance": "WEATHER_OFFLINE_NEUTRAL"}
 
     async def get_nearest_physical_port(self, lat: float, lon: float) -> Dict[str, Any]:
         from engine.overture_engine import LiveInfrastructureEngine

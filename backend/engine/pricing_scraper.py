@@ -36,29 +36,6 @@ _NON_COMMERCE_HOST_SUBSTRINGS = (
 )
 
 
-def _ddgs_text_search_sync(query: str, max_results: int = 12) -> List[Dict[str, str]]:
-    """Executes a real-web DuckDuckGo search via `ddgs` (or `duckduckgo_search`). Returns [] if unavailable."""
-    try:
-        try:
-            from ddgs import DDGS
-        except ImportError:
-            from duckduckgo_search import DDGS
-
-        results: List[Dict[str, str]] = []
-        with DDGS() as ddgs:
-            for r in ddgs.text(query, max_results=max_results) or []:
-                if isinstance(r, dict):
-                    results.append({
-                        "title": str(r.get("title") or ""),
-                        "href": str(r.get("href") or r.get("link") or ""),
-                        "body": str(r.get("body") or r.get("snippet") or ""),
-                    })
-        return results
-    except Exception as e:
-        logger.debug(f"DDGS search pivot ({query[:50]}): {e}")
-        return []
-
-
 class AbsolutePhysicalPricingEngine:
     """
     100% Real-Life Universal Pricing & Order-Book Clearing Engine (Zero Simulation).
@@ -489,6 +466,20 @@ class AbsolutePhysicalPricingEngine:
                 continue
             if any(bad_p in path_low for bad_p in ("/support/", "/help/", "/contact", "/register", "/login", "/privacy", "/terms")):
                 continue
+            
+            is_finished_jewelry = any(
+                k in product_tokens
+                for k in ("necklace", "pendant", "chain", "ring", "bracelet", "jewelry", "kolye", "altın", "gold", "قلادة", "سلسلة")
+            )
+            if is_finished_jewelry and any(
+                calc in url.lower()
+                for calc in (
+                    "gold-rate", "gold-price-today", "current-gold-price", "livepriceofgold",
+                    "goldbroker", "thegoldprice", "goldprice", "bullion", "spot-price", "canlialtin", "kuyumaltin",
+                    "calculator", "per-gram", "turkey-gold-price", "silver-price", "/prices/silver", "altin-fiyatlari", 
+                )
+            ):
+                continue
 
             combined_meta = f"{hit.get('title', '')} {hit.get('body', '')} {url}".lower()
             if product_tokens and not any(tok in combined_meta for tok in product_tokens):
@@ -797,6 +788,29 @@ class AbsolutePhysicalPricingEngine:
                 "receipt_proofs": rec_pts,
                 "is_empirically_verified": is_verified,
             })
+        
+        # Guard against single raw-material units (e.g. 1 leather hide EUR 43) pricing below retail unit (wallet EUR 52)
+        retail_sec = next((s for s in priced_sectors if "STANDARD" in s["sector_name"].upper()), None)
+        bulk_sec = next(
+            (s for s in priced_sectors if "BULK" in s["sector_name"].upper() or "WHOLESALE" in s["sector_name"].upper()),
+            None,
+        )
+        if (
+            retail_sec
+            and bulk_sec
+            and retail_sec["median_clearing_price_local"] > 0
+            and 0 < bulk_sec["median_clearing_price_local"] < retail_sec["median_clearing_price_local"]
+        ):
+            bulk_sec["price_unit_note"] = "SCRAPED_RAW_UNIT_BELOW_RETAIL_EXCLUDED"
+            bulk_sec["is_empirically_verified"] = False
+            bulk_sec["verified_nodes"] = 0
+            # Recompute harmonic composite excluding the inverted bulk quote
+            active_weight_sum = sum(s["weight"] for s in priced_sectors if s["median_clearing_price_local"] > 0 and s is not bulk_sec)
+            harmonic_denom_accum = sum(
+                s["weight"] / s["median_clearing_price_local"]
+                for s in priced_sectors
+                if s["median_clearing_price_local"] > 0 and s is not bulk_sec
+            )
 
         composite_clearing_price = (
             round(active_weight_sum / harmonic_denom_accum, 2) if harmonic_denom_accum > 0 else 0.0

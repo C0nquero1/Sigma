@@ -149,8 +149,9 @@ class ZonalCapacityEngine:
         q2 = f"{clean_comm} supplier distributor {clean_city} bulk lot pieces boxes".strip()
 
         pattern = (
-            r"\b(?:moq|minimum order(?: quantity)?|min\.?\s*order)[\s:]+(?:is\s+)?([\d,]+)\b"
-            r"|\b([\d,]+)\s+(?:pieces|pcs|units|cartons|cases|boxes|pallets|packs|rolls|bales)\s+(?:moq|minimum|in stock|available|per lot)\b"
+            r"\b(?:moq|minimum order(?: quantity)?|min\.?\s*order)[\s:]+(?:is\s+|of\s+)?([\d,]+)\b"
+            r"|\b(?:pack|box|carton|case|lot|bundle|set)\s+of\s+([\d,]+)\b"
+            r"|\b([\d,]+)\s*(?:pieces|pcs|units|cartons|cases|boxes|pallets|packs|rolls|bales|pairs)\b"
         )
 
         rows1, rows2 = await asyncio.gather(
@@ -167,7 +168,7 @@ class ZonalCapacityEngine:
 
         extracted: List[int] = []
         for m in re.findall(pattern, combined, flags=re.IGNORECASE):
-            raw_num = m[0] or m[1]
+            raw_num = m[0] or m[1] or m[2]
             if not raw_num:
                 continue
             try:

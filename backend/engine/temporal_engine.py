@@ -1,6 +1,6 @@
 import os
 import re
-import math
+import time
 import html
 import httpx
 import logging
@@ -23,28 +23,6 @@ def _clean_city_label(raw_city: str) -> str:
         flags=re.IGNORECASE,
     )
     return c.split(",")[0].strip()
-
-
-def _ddgs_recent_news_sync(query: str, max_results: int = 8) -> List[Dict[str, str]]:
-    """Pulls recent real news articles via `ddgs.news(..., timelimit='w')` (last 7-14 days)."""
-    try:
-        try:
-            from ddgs import DDGS
-        except ImportError:
-            from duckduckgo_search import DDGS
-
-        out: List[Dict[str, str]] = []
-        with DDGS() as ddgs:
-            for r in ddgs.news(query, timelimit="m", max_results=max_results) or []:
-                if isinstance(r, dict):
-                    out.append({
-                        "title": str(r.get("title") or "").strip(),
-                        "date": str(r.get("date") or "").strip(),
-                        "source": str(r.get("source") or "").strip(),
-                    })
-        return out
-    except Exception:
-        return []
 
 
 def _evaluate_osm_opening_hours_string(oh_str: str, local_weekday: int, local_hour: int) -> Optional[bool]:
@@ -105,23 +83,20 @@ def _evaluate_osm_opening_hours_string(oh_str: str, local_weekday: int, local_ho
 
 class DynamicTemporalEngine:
     """
-    100% Real-Life Temporal, OSM Schedule Evaluator, Live Occupancy & GDELT/Bluesky Event Pulse Engine.
-    - Evaluates real OSM `opening_hours` strings + Google Maps live `is_open_now` / hours text.
-    - Fixes false `1%` occupancy matches by requiring >= 4 consecutive hourly points in a genuine
-      Google Maps popular-times histogram block.
-    - Replaces broken Bing RSS social/news with GDELT Doc 2.0 API (keyless, 65 languages, 14d window),
-      Bluesky AT Protocol search (optional `BSKY_HANDLE` + `BSKY_APP_PASSWORD`), and `ddgs.news`.
-    - ZERO fabricated occupancy floors or forced midnight open ratios.
+    100% Real-Life Temporal, OSM Schedule Evaluator, Live Occupancy & Bluesky/Mastodon/GDELT/News Pulse Engine.
     """
     _besttime_unavailable: bool = True
     _bsky_token_cache: Tuple[float, Optional[str]] = (0.0, None)
+    _bsky_auth_blocked_until: float = 0.0
+    _gdelt_lock: Optional[asyncio.Lock] = None
+    _gdelt_last_call: float = 0.0
 
     def __init__(self, db_ledger=None):
         self.db_ledger = db_ledger
         self.meteo_url = "https://api.open-meteo.com/v1/forecast"
         self.metno_url = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
         self.gdelt_url = "https://api.gdeltproject.org/api/v2/doc/doc"
-        self.headers = {"User-Agent": "StreetAI-Temporal-Node/9.3 (https://streetai.io; contact@streetai.io)"}
+        self.headers = {"User-Agent": "StreetAI-Temporal-Node/9.6 (https://streetai.io; contact@streetai.io)"}
         self.browser_headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
             "Accept-Language": "en-US,en;q=0.9",
@@ -196,119 +171,166 @@ class DynamicTemporalEngine:
         return full_addr, full_addr, active_count, spatial_snapshot
 
     async def _get_bluesky_bearer(self, client: httpx.AsyncClient) -> Optional[str]:
-        handle = os.getenv("BSKY_HANDLE", "").strip()
+        handle = os.getenv("BSKY_HANDLE", "").strip().lstrip("@")
         app_pw = os.getenv("BSKY_APP_PASSWORD", "").strip()
         if not (handle and app_pw):
             return None
-        now = datetime.now(timezone.utc).timestamp()
+        now = time.time()
+        if now < DynamicTemporalEngine._bsky_auth_blocked_until:
+            return None
         if self._bsky_token_cache[1] and (now - self._bsky_token_cache[0]) < 3600:
             return self._bsky_token_cache[1]
         try:
             res = await client.post(
                 "https://bsky.social/xrpc/com.atproto.server.createSession",
                 json={"identifier": handle, "password": app_pw},
-                timeout=4.0,
+                timeout=4.5,
             )
             if res.status_code == 200 and res.json().get("accessJwt"):
                 jwt = str(res.json()["accessJwt"])
                 DynamicTemporalEngine._bsky_token_cache = (now, jwt)
                 return jwt
-        except Exception:
-            pass
+            if res.status_code in (400, 401, 403):
+                DynamicTemporalEngine._bsky_auth_blocked_until = time.time() + 600.0
+                logger.warning(
+                    f"🛡️ Bluesky login failed (HTTP {res.status_code}): {res.text[:160]} — "
+                    "Verify BSKY_HANDLE (no '@') & BSKY_APP_PASSWORD. Cooling down 10m."
+                )
+        except Exception as e:
+            logger.debug(f"Bluesky session pivot: {e}")
         return None
+
+    async def _fetch_gdelt_articles_safe(self, query: str) -> List[Dict[str, Any]]:
+        ck = f"gdelt_v1:{query.lower()[:80]}"
+        cached = llm_router.get_cached(ck)
+        if isinstance(cached, list):
+            return cached
+        if DynamicTemporalEngine._gdelt_lock is None:
+            DynamicTemporalEngine._gdelt_lock = asyncio.Lock()
+
+        async with DynamicTemporalEngine._gdelt_lock:
+            elapsed = time.time() - DynamicTemporalEngine._gdelt_last_call
+            if elapsed < 3.0:
+                await asyncio.sleep(3.0 - elapsed)
+            DynamicTemporalEngine._gdelt_last_call = time.time()
+            try:
+                async with httpx.AsyncClient(timeout=8.5, headers=self.headers) as g_client:
+                    res = await g_client.get(
+                        self.gdelt_url,
+                        params={
+                            "query": query,
+                            "mode": "artlist",
+                            "format": "json",
+                            "maxrecords": "15",
+                            "timespan": "14d",
+                            "sort": "datedesc",
+                        },
+                    )
+                    if res.status_code == 200 and res.text.strip().startswith("{"):
+                        arts = res.json().get("articles", []) or []
+                        llm_router.set_cached(ck, arts, ttl_seconds=3600)
+                        return arts
+            except Exception as e:
+                logger.debug(f"GDELT fetch pivot: {e}")
+        return []
 
     async def _probe_gdelt_and_bluesky_pulse(
         self, client: httpx.AsyncClient, venue_name: str, clean_city: str
     ) -> Dict[str, Any]:
-        """
-        Real-time zero-hardware event & social pulse:
-          1. GDELT Doc 2.0 API (`mode=artlist`, `format=json`, `timespan=14d`) with valid quoted syntax.
-          2. Bluesky AT Protocol search (fires ONLY when `BSKY_HANDLE` + `BSKY_APP_PASSWORD` are set; avoids 403).
-          3. Bounded timeout-proof `llm_router.fast_ddgs_news` (`bing,yahoo`).
-        """
-        gdelt_articles: List[Dict[str, Any]] = []
-        bsky_posts_14d = 0
         highlights: List[str] = []
-        cutoff_iso = (datetime.now(timezone.utc) - timedelta(days=14)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        cutoff_dt = datetime.now(timezone.utc) - timedelta(days=14)
+        cutoff_iso = cutoff_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
         clean_v = re.sub(r'["()]', "", venue_name).strip()
-        # GDELT requires clean quoted phrase or parenthesized terms without bare stray punctuation
-        gdelt_query = f'"{clean_v}"' if len(clean_v.split()) >= 2 else f'("{clean_v}" AND "{clean_city}")' if clean_city else f'"{clean_v}"'
+        search_phrase = f"{clean_v} {clean_city}".strip()
+        gdelt_query = (
+            f'"{clean_v}"'
+            if len(clean_v.split()) >= 2
+            else (f'("{clean_v}" AND "{clean_city}")' if clean_city else f'"{clean_v}"')
+        )
         bsky_jwt = await self._get_bluesky_bearer(client)
 
         tasks: List[Any] = [
-            client.get(
-                self.gdelt_url,
-                params={
-                    "query": gdelt_query,
-                    "mode": "artlist",
-                    "format": "json",
-                    "maxrecords": "20",
-                    "timespan": "14d",
-                    "sort": "datedesc",
-                },
-                timeout=5.0,
-            ),
+            self._fetch_gdelt_articles_safe(gdelt_query),
             llm_router.fast_ddgs_news(f'"{clean_v}" {clean_city}'.strip(), max_results=8, timelimit="m"),
+            client.get(
+                "https://mastodon.social/api/v2/search",
+                params={"q": search_phrase, "type": "statuses", "limit": 15},
+                headers={"User-Agent": "StreetAI-Temporal/9.6 (https://streetai.io)"},
+                timeout=4.5,
+            ),
         ]
         if bsky_jwt:
             tasks.append(
                 client.get(
                     "https://bsky.social/xrpc/app.bsky.feed.searchPosts",
-                    params={"q": f"{clean_v} {clean_city}".strip(), "since": cutoff_iso, "limit": 20},
+                    params={"q": search_phrase, "since": cutoff_iso, "limit": 20},
                     headers={"Authorization": f"Bearer {bsky_jwt}"},
-                    timeout=4.5,
+                    timeout=5.0,
                 )
             )
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        r_gdelt = results[0]
-        ddgs_news = results[1]
-        r_bsky = results[2] if len(results) > 2 else None
+        gdelt_articles = results[0] if isinstance(results[0], list) else []
+        ddgs_news = results[1] if isinstance(results[1], list) else []
+        r_masto = results[2]
+        r_bsky = results[3] if len(results) > 3 else None
 
-        # 1. GDELT Doc 2.0 real-time global news
-        if isinstance(r_gdelt, httpx.Response) and r_gdelt.status_code == 200:
-            try:
-                gdelt_articles = r_gdelt.json().get("articles", []) or []
-                for art in gdelt_articles[:3]:
-                    t = str(art.get("title") or "").strip()
-                    if t:
-                        highlights.append(t[:95])
-            except Exception:
-                pass
+        for art in gdelt_articles[:2]:
+            t = str(art.get("title") or "").strip()
+            if t:
+                highlights.append(t[:95])
 
-        # 2. Bluesky AT Protocol posts (<= 14 days, authenticated)
+        bsky_posts_14d = 0
         if isinstance(r_bsky, httpx.Response) and r_bsky.status_code == 200:
             try:
                 posts = r_bsky.json().get("posts", []) or []
                 bsky_posts_14d = len(posts)
                 for p in posts[:2]:
                     txt = str((p.get("record") or {}).get("text") or "").strip()
-                    if txt and len(highlights) < 4:
-                        highlights.append(txt[:95])
+                    if txt and len(highlights) < 5:
+                        highlights.append(f"[Bluesky] {txt[:85]}")
             except Exception:
                 pass
 
-        # 3. Fast DDGS news (`bing,yahoo`)
-        ddgs_count = 0
-        if isinstance(ddgs_news, list):
-            ddgs_count = len(ddgs_news)
-            for item in ddgs_news[:2]:
-                t = item.get("title", "")
-                if t and t[:95] not in highlights and len(highlights) < 4:
-                    highlights.append(t[:95])
+        masto_posts_14d = 0
+        if isinstance(r_masto, httpx.Response) and r_masto.status_code == 200:
+            try:
+                for st in r_masto.json().get("statuses", []) or []:
+                    c_at = str(st.get("created_at") or "")
+                    if c_at:
+                        try:
+                            dt = datetime.fromisoformat(c_at.replace("Z", "+00:00"))
+                            if dt >= cutoff_dt:
+                                masto_posts_14d += 1
+                                if len(highlights) < 5:
+                                    clean_c = html.unescape(re.sub(r"<[^>]+>", " ", str(st.get("content") or ""))).strip()
+                                    if clean_c:
+                                        highlights.append(f"[Mastodon] {clean_c[:85]}")
+                        except Exception:
+                            pass
+            except Exception:
+                pass
 
+        ddgs_count = len(ddgs_news)
+        for item in ddgs_news[:2]:
+            t = item.get("title", "")
+            if t and t[:95] not in highlights and len(highlights) < 5:
+                highlights.append(t[:95])
+
+        total_social_14d = bsky_posts_14d + masto_posts_14d
         recent_news_count = max(len(gdelt_articles), ddgs_count)
         social_pulse_mult = round(
-            min(1.25, 1.0 + (bsky_posts_14d * 0.015) + (recent_news_count * 0.012)),
+            min(1.25, 1.0 + (total_social_14d * 0.012) + (recent_news_count * 0.012)),
             3,
         )
 
         return {
             "gdelt_articles_14d": len(gdelt_articles),
             "bluesky_posts_14d": bsky_posts_14d,
-            "recent_social_posts_14d": bsky_posts_14d,
-            "social_media_posts_indexed": bsky_posts_14d,
+            "mastodon_posts_14d": masto_posts_14d,
+            "recent_social_posts_14d": total_social_14d,
+            "social_media_posts_indexed": total_social_14d,
             "news_articles_indexed": recent_news_count,
             "social_pulse_multiplier": social_pulse_mult,
             "social_highlights": highlights,
@@ -316,11 +338,6 @@ class DynamicTemporalEngine:
 
     @staticmethod
     def _extract_verified_gmaps_histogram(raw_pb: str, local_hour: int) -> Tuple[Optional[int], Optional[int], Optional[str]]:
-        """
-        Strict Google Maps Popular-Times histogram parser.
-        Requires >= 4 distinct hourly tuples `[hour, pct, ...]` within a single contiguous histogram
-        sequence so protobuf header fragments (`[5, 1, null]`) NEVER trigger false `1%` readings.
-        """
         live_status_text: Optional[str] = None
         m_status = re.search(
             r"\b(As busy as it gets|Busier than usual|A little busy|Usually not too busy|Not too busy|Usually a little busy|Less busy than usual)\b",
@@ -330,7 +347,6 @@ class DynamicTemporalEngine:
         if m_status:
             live_status_text = m_status.group(1)
 
-        # Look for genuine multi-hour histogram blocks: `[[6,12,...],[7,25,...],[8,48,...],[9,62,...]]`
         best_map: Dict[int, int] = {}
         for block_m in re.finditer(r"\[\s*(?:\[\d{1,2},\d{1,3},[^\]]{1,90}\]\s*,?\s*){4,24}\]", raw_pb):
             block_str = block_m.group(0)
@@ -339,7 +355,6 @@ class DynamicTemporalEngine:
                 h, pct = int(pair.group(1)), int(pair.group(2))
                 if 0 <= h <= 23 and 1 <= pct <= 100:
                     hr_map[h] = pct
-            # Must contain at least 4 distinct hours with non-trivial variance (>5%)
             if len(hr_map) >= 4 and max(hr_map.values()) >= 15:
                 best_map = hr_map
                 break
@@ -397,9 +412,11 @@ class DynamicTemporalEngine:
                 )
 
             if not isinstance(pulse_data, dict):
+                logger.warning(f"⚠️ Social/News pulse error: {repr(pulse_data)}")
                 pulse_data = {
                     "gdelt_articles_14d": 0,
                     "bluesky_posts_14d": 0,
+                    "mastodon_posts_14d": 0,
                     "recent_social_posts_14d": 0,
                     "social_media_posts_indexed": 0,
                     "news_articles_indexed": 0,
@@ -418,15 +435,17 @@ class DynamicTemporalEngine:
         utc_now = datetime.now(timezone.utc)
         approx_local_dt = utc_now + timedelta(hours=round(lon / 15.0))
 
-        async with httpx.AsyncClient(timeout=5.0, headers=self.headers) as client:
+        async with httpx.AsyncClient(timeout=5.5, headers=self.headers) as client:
             try:
-                params = {
-                    "latitude": lat,
-                    "longitude": lon,
-                    "current": ["is_day", "precipitation", "temperature_2m"],
-                    "timezone": "auto",
-                }
-                res = await client.get(self.meteo_url, params=params)
+                res = await client.get(
+                    self.meteo_url,
+                    params={
+                        "latitude": lat,
+                        "longitude": lon,
+                        "current": ["is_day", "precipitation", "temperature_2m"],
+                        "timezone": "auto",
+                    },
+                )
                 if res.status_code == 200:
                     current = res.json().get("current", {})
                     if current:
@@ -452,22 +471,18 @@ class DynamicTemporalEngine:
                 pass
 
             try:
-                r_met = await client.get(
-                    self.metno_url, params={"lat": round(lat, 4), "lon": round(lon, 4)}
-                )
+                r_met = await client.get(self.metno_url, params={"lat": round(lat, 4), "lon": round(lon, 4)})
                 if r_met.status_code == 200:
                     ts = r_met.json().get("properties", {}).get("timeseries", [])
                     if ts:
                         inst = ts[0].get("data", {}).get("instant", {}).get("details", {})
                         nxt1 = ts[0].get("data", {}).get("next_1_hours", {}).get("details", {})
-                        temp_c = float(inst.get("air_temperature", 0.0))
-                        rain_mm = float(nxt1.get("precipitation_amount", 0.0))
                         return {
                             "is_day": 6 <= approx_local_dt.hour <= 18,
                             "local_hour": approx_local_dt.hour,
                             "local_weekday": approx_local_dt.weekday(),
-                            "precipitation_mm": rain_mm,
-                            "ambient_temperature_c": temp_c,
+                            "precipitation_mm": float(nxt1.get("precipitation_amount", 0.0)),
+                            "ambient_temperature_c": float(inst.get("air_temperature", 0.0)),
                             "weather_source": "MET Norway",
                         }
             except Exception:
@@ -538,7 +553,6 @@ class DynamicTemporalEngine:
         obs_trading_occ = occ_social["observed_trading_window_occupancy_pct"]
         social_mult = float(occ_social["social_pulse_multiplier"])
         rain_friction = max(0.50, 1.0 - (rain_mm * 0.038))
-
         is_occ_observed = (obs_current_occ is not None) or (obs_trading_occ is not None)
 
         if obs_trading_occ is not None:
@@ -575,6 +589,7 @@ class DynamicTemporalEngine:
             "live_event_pulse_multiplier": social_mult,
             "gdelt_articles_14d": occ_social["gdelt_articles_14d"],
             "bluesky_posts_14d": occ_social["bluesky_posts_14d"],
+            "mastodon_posts_14d": occ_social.get("mastodon_posts_14d", 0),
             "recent_social_posts_14d": occ_social["recent_social_posts_14d"],
             "social_media_posts_indexed": occ_social["social_media_posts_indexed"],
             "news_articles_indexed": occ_social["news_articles_indexed"],
@@ -582,9 +597,9 @@ class DynamicTemporalEngine:
             "venue_anchor": venue_anchor,
             "provenance": (
                 f"Verified GMaps Histogram (Observed={is_occ_observed}) + {schedule_source} + "
-                f"GDELT/Bluesky/DDGS 14d Pulse ({occ_social['gdelt_articles_14d']} GDELT, "
-                f"{occ_social['bluesky_posts_14d']} Bluesky, {occ_social['news_articles_indexed']} news) + "
-                f"{solar_data['weather_source']} ({local_hour:02d}:00 {operating_state})"
+                f"Bluesky/Mastodon/GDELT/DDGS 14d Pulse ({occ_social['gdelt_articles_14d']} GDELT, "
+                f"{occ_social['bluesky_posts_14d']} Bluesky, {occ_social.get('mastodon_posts_14d', 0)} Mastodon, "
+                f"{occ_social['news_articles_indexed']} news) + {solar_data['weather_source']} ({local_hour:02d}:00 {operating_state})"
             ),
         }
 
@@ -593,7 +608,8 @@ class DynamicTemporalEngine:
             f"⏱️ Empirical Temporal Reality Locked | Venue: {venue_anchor} | "
             f"Observed Occupancy: {obs_current_occ}% now / {obs_trading_occ}% trading (Status: {occ_social['live_occupancy_status_text']}) | "
             f"Clock @ {local_hour:02d}:00 [{operating_state}] Open: {open_pct_log} ({osm_evaluated_count} OSM schedules) | "
-            f"14d Event Pulse: {social_mult}x (GDELT: {occ_social['gdelt_articles_14d']}, Bluesky: {occ_social['bluesky_posts_14d']}, News: {occ_social['news_articles_indexed']}) | "
+            f"14d Event Pulse: {social_mult}x (GDELT: {occ_social['gdelt_articles_14d']}, Bluesky: {occ_social['bluesky_posts_14d']}, "
+            f"Mastodon: {occ_social.get('mastodon_posts_14d', 0)}, News: {occ_social['news_articles_indexed']}) | "
             f"Weather: {solar_data['weather_source']} (Rain: {rain_mm}mm)"
         )
 

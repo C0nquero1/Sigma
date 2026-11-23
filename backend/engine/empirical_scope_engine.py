@@ -329,7 +329,7 @@ class EmpiricalScopeEngine:
         spatial_snapshot: Dict[str, Any],
     ) -> Dict[str, Any]:
         clean_comm = (commodity or "general_merchandise").strip().lower()
-        cache_key = f"scope_v3:{round(lat, 3)}:{round(lon, 3)}:{local_currency}:{clean_comm}"
+        cache_key = f"scope_v4:{round(lat, 3)}:{round(lon, 3)}:{local_currency}:{clean_comm}"
         if cache_key in self._scope_cache:
             return self._scope_cache[cache_key]
 
@@ -418,6 +418,7 @@ class EmpiricalScopeEngine:
 
         open_hr = osm_open_hr if osm_open_hr is not None else _safe_int(parsed.get("open_hour"), 8)
         close_hr = osm_close_hr if osm_close_hr is not None else _safe_int(parsed.get("close_hour"), 19)
+        if (close_hr - open_hr) < 6: open_hr, close_hr = 8, 19
         open_hr = max(0, min(23, open_hr))
         close_hr = max(1, min(24, close_hr))
         active_hours = float(close_hr - open_hr) if close_hr > open_hr else 11.0

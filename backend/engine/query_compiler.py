@@ -6,7 +6,7 @@ import logging
 from typing import Optional, Dict, Any, List, Tuple
 import httpx
 from pydantic import BaseModel, ConfigDict
-from engine.llm_router import llm_router
+from engine.llm_router import llm_router, locationiq_pool
 
 logger = logging.getLogger("StreetAI.QueryCompiler")
 
@@ -193,6 +193,44 @@ async def _pre_verify_physical_location(
                                 return res_tuple
             except Exception as e:
                 logger.debug(f"Photon geocode pivot ({variant}): {e}")
+        
+        # ------------------------------------------------------------------
+        # TIER 1B: LocationIQ Forward Geocoding (2 Rotating Free Keys = 10k/day)
+        # ------------------------------------------------------------------
+        liq_key = locationiq_pool.next_key()
+        if liq_key:
+            for variant in [full_q_cc, full_q, clean_q]:
+                if not variant:
+                    continue
+                try:
+                    liq_params: Dict[str, Any] = {
+                        "key": liq_key,
+                        "q": variant,
+                        "format": "json",
+                        "addressdetails": 1,
+                        "limit": 5,
+                    }
+                    if country_iso2 and len(country_iso2) == 2:
+                        liq_params["countrycodes"] = country_iso2.lower()
+                    r_liq = await client.get("https://us1.locationiq.com/v1/search", params=liq_params)
+                    if r_liq.status_code == 429:
+                        locationiq_pool.mark_cooldown(liq_key, 15.0)
+                        liq_key = locationiq_pool.next_key() or liq_key
+                        continue
+                    if r_liq.status_code == 200 and isinstance(r_liq.json(), list):
+                        for item in r_liq.json():
+                            lat_f, lon_f = float(item["lat"]), float(item["lon"])
+                            cc_item = (item.get("address", {}).get("country_code") or country_iso2 or "").upper() or None
+                            if _within_city(lat_f, lon_f):
+                                res_tuple = (round(lat_f, 6), round(lon_f, 6), cc_item)
+                                LOCATION_CACHE[cache_key] = res_tuple
+                                llm_router.set_cached(cache_key, list(res_tuple), ttl_seconds=2592000)
+                                logger.info(
+                                    f"📍 Physical Reality Locked: '{clean_q}' -> ({lat_f:.4f}, {lon_f:.4f}) via LocationIQ"
+                                )
+                                return res_tuple
+                except Exception as e:
+                    logger.debug(f"LocationIQ geocode pivot ({variant}): {e}")
 
         # ------------------------------------------------------------------
         # TIER 2: Esri ArcGIS World GeocodeServer (Fixed UnboundLocalError!)

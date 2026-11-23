@@ -271,23 +271,9 @@ async def _resolve_live_country_metadata(
     return result_tuple
 
 
-def _prewarm_duckdb_overture_extensions():
-    """Installs DuckDB httpfs & spatial once at startup so Overture GeoParquet queries never time out."""
-    try:
-        import duckdb
-        con = duckdb.connect(":memory:")
-        con.execute("INSTALL httpfs; LOAD httpfs;")
-        con.execute("INSTALL spatial; LOAD spatial;")
-        con.close()
-        logger.info("🗺️ DuckDB Overture extensions (httpfs + spatial) pre-warmed.")
-    except Exception as e:
-        logger.debug(f"DuckDB pre-warm skipped: {e}")
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     llm_router.refresh_providers()
-    asyncio.create_task(asyncio.to_thread(_prewarm_duckdb_overture_extensions))
     logger.info(
         f"Intelligence Core operational | Groq Model: {ACTIVE_GROQ_MODEL} | "
         f"LLM Router Routes: {len(llm_router.providers)}"
@@ -339,7 +325,7 @@ async def runtime_health_check():
         "llm_router_providers": [p["id"] for p in llm_router.providers],
         "redis_connected": db_ledger.redis_client is not None,
         "runtime_capabilities": {
-            "duckdb_overture_geoparquet": importlib.util.find_spec("duckdb") is not None,
+            "overturemaps_pyarrow": importlib.util.find_spec("overturemaps") is not None,
             "ddgs_real_web_search": (
                 importlib.util.find_spec("ddgs") is not None
                 or importlib.util.find_spec("duckduckgo_search") is not None

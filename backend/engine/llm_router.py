@@ -5,11 +5,16 @@ import hashlib
 import sqlite3
 import logging
 import asyncio
+import requests
 import httpx
 from dotenv import load_dotenv
 from typing import Dict, Any, List, Optional
 
 logger = logging.getLogger("StreetAI.LLMRouter")
+
+_EXCLUDED_GROQ_SUBSTRINGS = (
+    "orpheus", "whisper", "guard", "tts", "audio", "allam", "vision", "embed", "safeguard", "prompt-guard"
+)
 
 
 def _ddgs_text_sync(query: str, max_results: int = 10, backend: str = "yahoo,startpage") -> List[Dict[str, str]]:
@@ -61,14 +66,49 @@ def _ddgs_news_sync(query: str, max_results: int = 8, timelimit: str = "m", back
         return []
 
 
+def _discover_live_groq_models(api_key: str) -> List[str]:
+    """Queries Groq's live `/openai/v1/models` endpoint so deprecated 404 model IDs are never used."""
+    preferred_order = [
+        "openai/gpt-oss-120b",
+        "openai/gpt-oss-20b",
+        "qwen/qwen3.8-27b",
+        "qwen/qwen3-32b",
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+    ]
+    try:
+        res = requests.get(
+            "https://api.groq.com/openai/v1/models",
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=5.0,
+        )
+        if res.status_code == 200:
+            raw_ids = [str(m.get("id") or "") for m in res.json().get("data", []) if m.get("id")]
+            valid = [
+                mid for mid in raw_ids
+                if not any(ex in mid.lower() for ex in _EXCLUDED_GROQ_SUBSTRINGS)
+            ]
+            ordered = [m for m in preferred_order if m in valid]
+            for m in valid:
+                if m not in ordered:
+                    ordered.append(m)
+            if ordered:
+                logger.info(f"🚀 LLMRouter Live Groq Models Discovered: {ordered[:6]}")
+                return ordered[:6]
+    except Exception as e:
+        logger.warning(f"⚡ Groq live model discovery pivot: {e}")
+
+    return ["openai/gpt-oss-120b", "openai/gpt-oss-20b"]
+
+
 class ResilientFreeLLMRouter:
     """
     Zero-Cost, Rate-Limit-Immune Multi-Provider LLM Router, Persistent SQLite WAL Cache,
     and Shared Bounded-Concurrency Web Search Gateway.
-    - Uses verified active Groq production models (`llama-3.3-70b-versatile`, `qwen/qwen3-32b`,
-      `openai/gpt-oss-120b`, `llama-3.1-8b-instant`) and immediately cools down 400/404/429 endpoints.
+    - Dynamically discovers live Groq models from `/openai/v1/models` (zero stale 404 model names).
+    - Automatically retries HTTP 400 (`json_validate_failed` / reasoning-budget errors) without strict
+      `response_format` and with sufficient token headroom instead of disabling working models.
     - Rotates seamlessly across Groq, Cerebras, OpenRouter, Gemini, Mistral, GitHub Models, and SambaNova.
-    - Centralizes `ddgs` search behind a bounded semaphore + 6-hour SQLite cache so scans never stampede or time out.
     """
     _rr_index: int = 0
     _cooldowns: Dict[str, float] = {}
@@ -198,94 +238,57 @@ class ResilientFreeLLMRouter:
             logger.warning("⚠️ LLM Router found 0 API keys in environment.")
 
     @staticmethod
+    def _parse_multi_keys(plural_env: str, singular_env: str) -> List[str]:
+        keys: List[str] = []
+        raw_multi = os.getenv(plural_env, "")
+        if raw_multi:
+            keys.extend([k.strip() for k in raw_multi.split(",") if k.strip()])
+        single = os.getenv(singular_env, "").strip()
+        if single and single not in keys:
+            keys.append(single)
+        for i in range(2, 10):
+            k_i = os.getenv(f"{singular_env}_{i}", "").strip()
+            if k_i and k_i not in keys:
+                keys.append(k_i)
+        return keys
+
+    @staticmethod
     def _discover_providers() -> List[Dict[str, str]]:
         endpoints: List[Dict[str, str]] = []
 
-        # 1. Groq Multi-Key Pool (Verified Active 2026 Production Models — zero dead 404 IDs!)
-        groq_keys: List[str] = []
-        multi = os.getenv("GROQ_API_KEYS", "")
-        if multi:
-            groq_keys.extend([k.strip() for k in multi.split(",") if k.strip()])
-        primary = os.getenv("GROQ_API_KEY", "").strip()
-        if primary and primary not in groq_keys:
-            groq_keys.append(primary)
-        for i in range(2, 10):
-            k_i = os.getenv(f"GROQ_API_KEY_{i}", "").strip()
-            if k_i and k_i not in groq_keys:
-                groq_keys.append(k_i)
+        # 1. Groq Multi-Key Pool (3 accounts interleaved so rapid calls spread across accounts!)
+        groq_keys = ResilientFreeLLMRouter._parse_multi_keys("GROQ_API_KEYS", "GROQ_API_KEY")
+        if groq_keys:
+            live_groq_models = _discover_live_groq_models(groq_keys[0])
+            for model in live_groq_models:
+                for idx, gk in enumerate(groq_keys):
+                    endpoints.append({
+                        "id": f"groq_{idx}_{model}",
+                        "url": "https://api.groq.com/openai/v1/chat/completions",
+                        "key": gk,
+                        "model": model,
+                    })
 
-        for idx, gk in enumerate(groq_keys):
-            for model in (
-                "llama-3.3-70b-versatile",
-                "qwen/qwen3-32b",
-                "openai/gpt-oss-120b",
-                "llama-3.1-8b-instant",
-            ):
+        # 2. Google Gemini Free Tier Multi-Key Pool (2 separate accounts/projects; 2026 free models)
+        # Note: New 2026 free projects route to gemini-3.8-flash / gemini-3.5-flash-lite / gemma-4-31b-it
+        gem_keys = ResilientFreeLLMRouter._parse_multi_keys("GEMINI_API_KEYS", "GEMINI_API_KEY")
+        for g_mod in ("gemini-3.8-flash", "gemini-3.5-flash-lite"):
+            for idx, gk in enumerate(gem_keys):
                 endpoints.append({
-                    "id": f"groq_{idx}_{model}",
-                    "url": "https://api.groq.com/openai/v1/chat/completions",
+                    "id": f"gemini_{idx}_{g_mod}",
+                    "url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
                     "key": gk,
-                    "model": model,
+                    "model": g_mod,
                 })
 
-        # 2. Cerebras Free Tier
-        cer_key = os.getenv("CEREBRAS_API_KEY", "").strip()
-        if cer_key:
+        # 3. OpenRouter Free Models Router Multi-Key Pool (2 accounts -> `openrouter/free`)
+        or_keys = ResilientFreeLLMRouter._parse_multi_keys("OPENROUTER_API_KEYS", "OPENROUTER_API_KEY")
+        for idx, ok in enumerate(or_keys):
             endpoints.append({
-                "id": "cerebras_llama33_70b",
-                "url": "https://api.cerebras.ai/v1/chat/completions",
-                "key": cer_key,
-                "model": "llama-3.3-70b",
-            })
-
-        # 3. OpenRouter Free Models Router
-        or_key = os.getenv("OPENROUTER_API_KEY", "").strip()
-        if or_key:
-            endpoints.append({
-                "id": "openrouter_free",
+                "id": f"openrouter_{idx}_free",
                 "url": "https://openrouter.ai/api/v1/chat/completions",
-                "key": or_key,
+                "key": ok,
                 "model": "openrouter/free",
-            })
-
-        # 4. Google Gemini OpenAI-Compatible Free Tier
-        gem_key = os.getenv("GEMINI_API_KEY", "").strip()
-        if gem_key:
-            endpoints.append({
-                "id": "gemini_flash",
-                "url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-                "key": gem_key,
-                "model": "gemini-2.5-flash",
-            })
-
-        # 5. Mistral Experiment Free Tier
-        mis_key = os.getenv("MISTRAL_API_KEY", "").strip()
-        if mis_key:
-            endpoints.append({
-                "id": "mistral_small",
-                "url": "https://api.mistral.ai/v1/chat/completions",
-                "key": mis_key,
-                "model": "mistral-small-latest",
-            })
-
-        # 6. GitHub Models Free Tier
-        gh_key = os.getenv("GITHUB_TOKEN", "").strip()
-        if gh_key:
-            endpoints.append({
-                "id": "github_models",
-                "url": "https://models.inference.ai.azure.com/chat/completions",
-                "key": gh_key,
-                "model": "gpt-4o-mini",
-            })
-
-        # 7. SambaNova Free Tier
-        sn_key = os.getenv("SAMBANOVA_API_KEY", "").strip()
-        if sn_key:
-            endpoints.append({
-                "id": "sambanova_llama33",
-                "url": "https://api.sambanova.ai/v1/chat/completions",
-                "key": sn_key,
-                "model": "Meta-Llama-3.3-70B-Instruct",
             })
 
         return endpoints
@@ -339,7 +342,7 @@ class ResilientFreeLLMRouter:
         n = len(self.providers)
         start_i = ResilientFreeLLMRouter._rr_index % n
 
-        async with httpx.AsyncClient(timeout=14.0) as client:
+        async with httpx.AsyncClient(timeout=16.0) as client:
             for offset in range(n):
                 prov = self.providers[(start_i + offset) % n]
                 pid = prov["id"]
@@ -354,27 +357,48 @@ class ResilientFreeLLMRouter:
                     headers["HTTP-Referer"] = "https://streetai.io"
                     headers["X-Title"] = "Sigma Physical Reality Engine"
 
+                m_low = prov["model"].lower()
+                is_reasoning_model = any(tok in m_low for tok in ("gpt-oss", "qwen3", "deepseek", "gemini-3", "o1", "o3"))
+                # Reasoning models spend tokens thinking before emitting JSON; ensure headroom!
+                eff_max_tokens = max(max_tokens, 1400) if is_reasoning_model else max_tokens
+
                 body: Dict[str, Any] = {
                     "model": prov["model"],
                     "messages": [{"role": "user", "content": prompt}],
-                    "max_tokens": max_tokens,
+                    "max_tokens": eff_max_tokens,
                     "temperature": 0.0,
                 }
-                if "openrouter.ai" not in prov["url"] and "qwen3" not in prov["model"]:
+                if "openrouter.ai" not in prov["url"] and not is_reasoning_model:
                     body["response_format"] = {"type": "json_object"}
 
                 try:
                     res = await client.post(prov["url"], headers=headers, json=body)
+
+                    # On HTTP 400, retry ONCE without `response_format` before failing over (never 24h-ban live models!)
+                    if res.status_code == 400 and "response_format" in body:
+                        logger.debug(f"LLM {pid} returned 400 with json_object ({res.text[:140]}); retrying plain JSON.")
+                        body.pop("response_format", None)
+                        body["max_tokens"] = max(eff_max_tokens, 1400)
+                        res = await client.post(prov["url"], headers=headers, json=body)
+
                     if res.status_code == 429:
                         self._cooldowns[pid] = time.time() + 65.0
                         logger.warning(f"⚡ LLM provider {pid} hit 429; cooling down 65s and failing over.")
                         continue
-                    if res.status_code in (400, 404):
+                    if res.status_code == 404:
                         self._cooldowns[pid] = time.time() + 86400.0
-                        logger.warning(f"⚡ LLM provider {pid} returned HTTP {res.status_code}; disabling 24h.")
+                        logger.warning(f"⚡ LLM provider {pid} returned HTTP 404; disabling 24h.")
                         continue
                     if res.status_code in (401, 403):
                         self._cooldowns[pid] = time.time() + 3600.0
+                        continue
+                    if res.status_code == 400:
+                        err_low = (res.text or "").lower()
+                        if any(tok in err_low for tok in ("api key", "api_key_invalid", "invalid_argument")):
+                            self._cooldowns[pid] = time.time() + 86400.0
+                            logger.warning(f"⚡ LLM provider {pid} has an invalid API key (HTTP 400); disabling 24h.")
+                        else:
+                            logger.warning(f"⚡ LLM provider {pid} returned HTTP 400: {res.text[:160]}")
                         continue
                     if res.status_code == 200:
                         raw_txt = res.json()["choices"][0]["message"]["content"] or ""
@@ -390,4 +414,46 @@ class ResilientFreeLLMRouter:
         return {}
 
 
+class RotatingKeyPool:
+    """Thread/async-safe round-robin API key rotator with per-key 429/401 cooldown tracking."""
+    def __init__(self, plural_env: str, singular_env: str):
+        self.plural_env = plural_env
+        self.singular_env = singular_env
+        self._keys: List[str] = []
+        self._idx: int = 0
+        self._cooldowns: Dict[str, float] = {}
+        self.reload()
+
+    def reload(self):
+        load_dotenv(override=False)
+        self._keys = ResilientFreeLLMRouter._parse_multi_keys(self.plural_env, self.singular_env)
+
+    @property
+    def count(self) -> int:
+        if not self._keys:
+            self.reload()
+        return len(self._keys)
+
+    def next_key(self) -> Optional[str]:
+        if not self._keys:
+            self.reload()
+        if not self._keys:
+            return None
+        now = time.time()
+        n = len(self._keys)
+        for offset in range(n):
+            k = self._keys[(self._idx + offset) % n]
+            if self._cooldowns.get(k, 0.0) <= now:
+                self._idx = (self._idx + offset + 1) % n
+                return k
+        return None
+
+    def mark_cooldown(self, key: str, seconds: float = 300.0):
+        if key:
+            self._cooldowns[key] = time.time() + seconds
+
+
 llm_router = ResilientFreeLLMRouter()
+locationiq_pool = RotatingKeyPool("LOCATIONIQ_API_KEYS", "LOCATIONIQ_API_KEY")
+wigle_pool = RotatingKeyPool("WIGLE_API_TOKENS", "WIGLE_API_TOKEN")
+mapbox_pool = RotatingKeyPool("MAPBOX_ACCESS_TOKENS", "MAPBOX_ACCESS_TOKEN")

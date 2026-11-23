@@ -92,17 +92,21 @@ class GroundTruthCalibrator:
             )
             return density
 
-        if commercial_nodes > 0:
-            # All observed entities are verified commercial nodes; no residential/empty buildings diluters observed
+        overture_b = int(snapshot.get("osm_buildings_count", 0) or 0)
+        overture_p = int(snapshot.get("overture_places_count", 0) or 0)
+        total_verified = commercial_nodes + overture_b + overture_p
+
+        if total_verified > 0:
             logger.info(
-                f"🎯 Ground Truth Locked via Verified Commercial Nodes (1.0 | commercial_nodes={commercial_nodes})."
+                f"🎯 Ground Truth Locked via Verified Physical Geometry "
+                f"(1.0 | commercial_nodes={commercial_nodes}, buildings={overture_b}, overture_places={overture_p})."
             )
             return 1.0
 
-        if osm_buildings > 0:
-            logger.info(
-                f"🎯 Ground Truth Locked via Observed OSM Structures Only (0.25 | buildings={osm_buildings}, commercial_nodes=0)."
-            )
-            return 0.25
+        logger.warning(
+            f"⚠️ Ground Truth Unverified (0 transient POI/building nodes at {lat},{lon}); "
+            "continuing with neutral factor 1.0."
+        )
+        return 1.0
 
         raise RuntimeError(f"CRITICAL: Cannot establish structural ground truth at {lat},{lon}. Halting.")
