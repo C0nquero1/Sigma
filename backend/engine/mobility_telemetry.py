@@ -26,8 +26,34 @@ def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return 2.0 * r * math.asin(min(1.0, math.sqrt(a)))
 
 
+_CV2_MISSING_WARNED: bool = False
+_YOLO_MODEL_INSTANCE: Any = None
+_YOLO_LOAD_ATTEMPTED: bool = False
+
+
+def _get_yolo_model() -> Any:
+    """Loads YOLOv8n once per process (auto-downloads 6MB `yolov8n.pt` if `ultralytics` installed)."""
+    global _YOLO_MODEL_INSTANCE, _YOLO_LOAD_ATTEMPTED
+    if _YOLO_LOAD_ATTEMPTED:
+        return _YOLO_MODEL_INSTANCE
+    _YOLO_LOAD_ATTEMPTED = True
+    try:
+        from ultralytics import YOLO
+        model_path = os.getenv("YOLO_MODEL_PATH", "yolov8n.pt")
+        _YOLO_MODEL_INSTANCE = YOLO(model_path)
+        logger.info(f"🧠 Neural Crowd Vision Armed: Ultralytics YOLOv8 ({model_path})")
+    except Exception as e:
+        logger.debug(f"Ultralytics YOLOv8 unavailable ({e}); using OpenCV HOG fallback.")
+        _YOLO_MODEL_INSTANCE = None
+    return _YOLO_MODEL_INSTANCE
+
+
 def _detect_people_in_frame(frame) -> Optional[int]:
-    """Runs Ultralytics YOLOv8 (if weights exist) or OpenCV HOG+SVM on a decoded BGR frame."""
+    """
+    Runs singleton Ultralytics YOLOv8n (person class 0, conf>=0.25) on decoded BGR frames,
+    falling back to OpenCV HOG+SVM if ultralytics is unavailable.
+    Upscales compact Windy preview frames (e.g. 200x112) so tiny street pedestrians resolve cleanly.
+    """
     global _CV2_MISSING_WARNED
     if frame is None or getattr(frame, "size", 0) == 0:
         return None
@@ -40,30 +66,28 @@ def _detect_people_in_frame(frame) -> Optional[int]:
         return None
 
     try:
-        try:
-            from ultralytics import YOLO
-            model_path = os.getenv("YOLO_MODEL_PATH", "yolov8n.pt")
-            if os.path.exists(model_path):
-                model = YOLO(model_path)
-                results = model.predict(frame, classes=[0], conf=0.35, verbose=False)
-                if results and results[0].boxes is not None:
-                    return int(len(results[0].boxes))
-        except Exception:
-            pass
+        h, w = frame.shape[:2]
+        if h < 260:
+            scale = 360.0 / max(1, h)
+            frame = cv2.resize(frame, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_CUBIC)
+        elif w > 960:
+            scale = 960.0 / w
+            frame = cv2.resize(frame, (int(w * scale), int(h * scale)))
+
+        yolo_model = _get_yolo_model()
+        if yolo_model is not None:
+            results = yolo_model.predict(frame, classes=[0], conf=0.25, imgsz=640, verbose=False)
+            if results and results[0].boxes is not None:
+                return int(len(results[0].boxes))
+            return 0
 
         hog = cv2.HOGDescriptor()
         hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
-        h, w = frame.shape[:2]
-        if h > 260:
-            scale = 360.0 / max(1,h)
-            frame = cv2.resize(frame, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_CUBIC)
-        elif w > 960:
-           scale = 960.0 / w 
-           frame = cv2.resize(frame, (int(w * scale), int(h * scale)))
         _, weights = hog.detectMultiScale(frame, winStride=(8, 8), padding=(4, 4), scale=1.05)
         valid_count = sum(1 for wt in weights if float(wt) >= 0.45) if len(weights) > 0 else 0
         return int(valid_count)
-    except Exception:
+    except Exception as e:
+        logger.debug(f"Frame person detection error: {e}")
         return None
 
 
@@ -146,14 +170,25 @@ def _decode_tomtom_relative0_tile_png(png_bytes: bytes) -> Optional[Dict[str, An
 
 
 def _capture_live_ytdlp_stream_person_count(query: str) -> Tuple[Optional[int], Optional[str]]:
+    """
+    Discovers an active live public street/plaza YouTube stream via `yt-dlp`,
+    warms up 5 frames to hit a clean keyframe, and runs YOLOv8n person detection.
+    """
     try:
         import cv2
     except ImportError:
         return None, None
     try:
         proc = subprocess.run(
-            ["yt-dlp", "--dump-json", "--no-warnings", "--playlist-items", "1-3", f"ytsearch3:{query} live cam"],
-            capture_output=True, text=True, timeout=6.0,
+            [
+                "yt-dlp",
+                "--dump-json",
+                "--no-warnings",
+                "--no-playlist",
+                "--playlist-items", "1-4",
+                f"ytsearch4:{query} live street webcam",
+            ],
+            capture_output=True, text=True, timeout=7.5,
         )
         if proc.returncode != 0 or not proc.stdout:
             return None, None
@@ -170,8 +205,12 @@ def _capture_live_ytdlp_stream_person_count(query: str) -> Tuple[Optional[int], 
                 continue
             cap = cv2.VideoCapture(stream_url)
             try:
-                ok, frame = cap.read()
-                if ok and frame is not None:
+                frame = None
+                for _ in range(5):
+                    ok, f = cap.read()
+                    if ok and f is not None and f.size > 0:
+                        frame = f
+                if frame is not None:
                     cnt = _detect_people_in_frame(frame)
                     if cnt is not None:
                         return cnt, str(webpage_url)
@@ -717,7 +756,8 @@ class LiveMobilityTelemetry:
                         data = res.json()
                         if data.get("success") is True:
                             wigle_bssids = int(data.get("totalResults", 0) or 0)
-                            llm_router.set_cached(wigle_ck, wigle_bssids, ttl_seconds=86400)
+                            if wigle_bssids > 0:
+                                llm_router.set_cached(wigle_ck, wigle_bssids, ttl_seconds=86400)
                             logger.info(f"📡 WiGLE RF Survey Locked ({lat:.4f},{lon:.4f}): {wigle_bssids} commercial BSSIDs.")
                             break
                 except Exception as e:

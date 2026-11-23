@@ -10,6 +10,7 @@ import redis.asyncio as redis
 from engine.overture_engine import LiveInfrastructureEngine, GOOGLE_CONSENT_COOKIES
 from engine.temporal_engine import DynamicTemporalEngine
 from engine.llm_router import llm_router
+from engine.live_occupancy_browser import live_occupancy_browser
 
 logger = logging.getLogger("StreetAI.PhysicalConversion")
 
@@ -233,6 +234,13 @@ class LivePhysicalConversionEngine:
             if isinstance(ddgs_rows, list) and ddgs_rows:
                 ddgs_txt = " ".join(f"{r.get('title', '')} {r.get('body', '')}" for r in ddgs_rows)
                 web_dwells.extend(_parse_duration_to_minutes(ddgs_txt))
+
+        if not gmaps_dwells:
+            pw_data = await live_occupancy_browser.fetch_live_place_telemetry(
+                lat, lon, anchor_name, city_label, local_hour=12
+            )
+            if pw_data.get("observed_dwell_minutes"):
+                gmaps_dwells.append(float(pw_data["observed_dwell_minutes"]))
 
         obs_gmaps = round(sorted(gmaps_dwells)[len(gmaps_dwells) // 2], 1) if gmaps_dwells else None
         obs_web = round(sorted(web_dwells)[len(web_dwells) // 2], 1) if web_dwells else None

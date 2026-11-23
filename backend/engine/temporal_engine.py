@@ -9,6 +9,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional, Tuple, Set, List
 from engine.overture_engine import LiveInfrastructureEngine, GOOGLE_CONSENT_COOKIES
 from engine.llm_router import llm_router
+from engine.live_occupancy_browser import live_occupancy_browser
 
 logger = logging.getLogger("StreetAI.TemporalEngine")
 
@@ -424,10 +425,35 @@ class DynamicTemporalEngine:
                     "social_highlights": [],
                 }
 
+        pw_open_now: Optional[bool] = None
+        pw_hours_text: Optional[str] = None
+        pw_live_pct: Optional[int] = None
+        pw_sub_open_ratio: Optional[float] = None
+        pw_sub_observed: int = 0
+        if obs_current_pct is None and obs_trading_pct is None:
+            pw_data = await live_occupancy_browser.fetch_live_place_telemetry(
+                lat, lon, venue_name, clean_city, local_hour
+            )
+            if pw_data.get("browser_verified"):
+                pw_live_pct = pw_data.get("observed_live_busyness_pct")
+                obs_current_pct = pw_data.get("observed_current_hour_occupancy_pct")
+                obs_trading_pct = pw_data.get("observed_trading_window_occupancy_pct")
+                if pw_data.get("live_occupancy_status_text"):
+                    live_status_text = pw_data["live_occupancy_status_text"]
+                pw_open_now = pw_data.get("is_open_now")
+                pw_hours_text = pw_data.get("observed_hours_text")
+                pw_sub_open_ratio = pw_data.get("sub_merchants_open_ratio")
+                pw_sub_observed = int(pw_data.get("sub_merchants_observed", 0) or 0)
+
         return {
+            "observed_live_busyness_pct": pw_live_pct,
             "observed_current_hour_occupancy_pct": obs_current_pct,
             "observed_trading_window_occupancy_pct": obs_trading_pct,
             "live_occupancy_status_text": live_status_text,
+            "browser_is_open_now": pw_open_now,
+            "browser_hours_text": pw_hours_text,
+            "browser_sub_open_ratio": pw_sub_open_ratio,
+            "browser_sub_observed": pw_sub_observed,
             **pulse_data,
         }
 
@@ -548,6 +574,22 @@ class DynamicTemporalEngine:
         occ_social = await self._probe_live_occupancy_and_social_pulse(
             lat, lon, venue_anchor, city_hint or "", local_hour
         )
+
+        b_open = occ_social.get("browser_is_open_now")
+        b_sub_ratio = occ_social.get("browser_sub_open_ratio")
+        b_sub_cnt = int(occ_social.get("browser_sub_observed", 0) or 0)
+        if b_open is False:
+            clock_open_ratio = 0.0
+            schedule_source = f"GMAPS_LIVE_BADGE ({occ_social.get('browser_hours_text') or 'Closed'})"
+        elif b_open is True and b_sub_ratio is not None and b_sub_cnt >= 3 and len(observed_states) < 3:
+            clock_open_ratio = float(b_sub_ratio)
+            schedule_source = (
+                f"GMAPS_LIVE_SUBMERCHANT_RATIO ({int(round(b_sub_ratio * 100))}% of {b_sub_cnt} inner shops open | "
+                f"{occ_social.get('browser_hours_text') or 'Open'})"
+            )
+        elif clock_open_ratio is None and b_open is True:
+            clock_open_ratio = 1.0
+            schedule_source = f"GMAPS_LIVE_BADGE ({occ_social.get('browser_hours_text') or 'Open'})"
 
         obs_current_occ = occ_social["observed_current_hour_occupancy_pct"]
         obs_trading_occ = occ_social["observed_trading_window_occupancy_pct"]

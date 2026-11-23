@@ -418,10 +418,11 @@ class EmpiricalScopeEngine:
 
         open_hr = osm_open_hr if osm_open_hr is not None else _safe_int(parsed.get("open_hour"), 8)
         close_hr = osm_close_hr if osm_close_hr is not None else _safe_int(parsed.get("close_hour"), 19)
-        if (close_hr - open_hr) < 6: open_hr, close_hr = 8, 19
+        if close_hr > open_hr and (close_hr - open_hr) < 6:
+            open_hr, close_hr = 8, 19
         open_hr = max(0, min(23, open_hr))
         close_hr = max(1, min(24, close_hr))
-        active_hours = float(close_hr - open_hr) if close_hr > open_hr else 11.0
+        active_hours = float(close_hr - open_hr) if close_hr > open_hr else float((24 - open_hr) + close_hr)
         active_hours = max(4.0, min(24.0, active_hours))
 
         llm_visitors = _safe_int(parsed.get("daily_visitors_complex"), 0)
