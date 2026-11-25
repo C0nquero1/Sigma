@@ -242,7 +242,7 @@ class ResilientFreeLLMRouter:
         rows = await self._query_openserp(clean_q, max_results=max_results)
         if not rows:
             async with self._get_ddgs_semaphore():
-                for backend_pair in ("yahoo,startpage", "duckduckgo,bing"):
+                for backend_pair in ("yahoo,brave", "startpage,mojeek", "duckduckgo"):
                     try:
                         rows = await asyncio.wait_for(
                             asyncio.to_thread(_ddgs_text_sync, clean_q, max_results, backend_pair),

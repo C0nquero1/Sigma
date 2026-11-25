@@ -721,11 +721,10 @@ class LiveMobilityTelemetry:
             except Exception:
                 pass
 
-        wigle_ck = f"wigle_rf_v1:{round(lat, 4)}:{round(lon, 4)}"
+        wigle_ck = f"wigle_rf_v2:{round(lat, 4)}:{round(lon, 4)}"
         cached_w = llm_router.get_cached(wigle_ck)
-        if isinstance(cached_w, int) and cached_w >= 0:
-            if wigle_bssids > 0:
-                llm_router.set_cached(wigle_ck, wigle_bssids, ttl_seconds=86400)
+        if isinstance(cached_w, (int, float)) and int(cached_w) > 0:
+            wigle_bssids = int(cached_w)
         elif wigle_pool.count > 0:
             delta = 0.0022
             params = {

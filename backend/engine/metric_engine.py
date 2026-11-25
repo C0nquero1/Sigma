@@ -26,12 +26,19 @@ class MetricExecutionEngine:
         if clock_open_ratio is not None and clock_open_ratio < 0.20:
             return ("CLOSED_PRE_OPEN" if local_hour < open_hr else "AFTER_HOURS_CLOSED"), False
 
-        if close_hr > open_hr:
-            if not (open_hr <= local_hour < close_hr):
-                return ("CLOSED_PRE_OPEN" if local_hour < open_hr else "AFTER_HOURS_CLOSED"), False
-        else:
-            if not (local_hour >= open_hr or local_hour < close_hr):
-                return "AFTER_HOURS_CLOSED", False
+        # Live verified open signal (GMaps OpenNow=True / live OSM schedules >= 25% open)
+        # overrides narrow static close_hr tags (e.g., Gamarra open until 21:30 despite 17:00 office tag)
+        live_verified_open = clock_open_ratio is not None and clock_open_ratio >= 0.25
+
+        in_window = (
+            (open_hr <= local_hour < close_hr)
+            if close_hr > open_hr
+            else (local_hour >= open_hr or local_hour < close_hr)
+        )
+        if not in_window:
+            if live_verified_open:
+                return ("CLOSING_HOUR" if local_hour >= close_hr else "OPENING_HOUR"), True
+            return ("CLOSED_PRE_OPEN" if local_hour < open_hr else "AFTER_HOURS_CLOSED"), False
 
         if local_hour == open_hr:
             return "OPENING_HOUR", True

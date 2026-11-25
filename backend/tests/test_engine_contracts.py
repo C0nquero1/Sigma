@@ -62,3 +62,15 @@ def test_overnight_24h_badge_rejected_on_traditional_markets():
     fake_node[203] = [None, [None, None, None, None, ["Open 24 hours"]]]
     parsed = _parse_place_node_fields(fake_node, local_hour=23, local_weekday_mon0=0)
     assert parsed["is_open_now"] is None
+
+
+def test_popular_times_scanner_rejects_static_30_metadata_without_bars():
+    # Google Maps metadata node with 5-element list at [0] and static 30 at [7][1], zero hour bars
+    fake_meta_node = [
+        [[1, "Monday"], [2, "Tuesday"], [3, "Wednesday"], [4, "Thursday"], [5, "Friday"]],
+        None, None, None, None, None, None,
+        ["meta", 30],
+    ]
+    res = scan_tree_for_popular_times_and_spend(fake_meta_node, target_gmaps_day=3)
+    assert res["hourly_histogram"] == {}
+    assert res["observed_live_busyness_pct"] is None

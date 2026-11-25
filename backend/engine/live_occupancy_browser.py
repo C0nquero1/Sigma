@@ -140,6 +140,7 @@ def scan_tree_for_popular_times_and_spend(
     """
     hourly_map: Dict[int, int] = {}
     live_pct: Optional[int] = None
+    live_from_text: bool = False
     status_text: Optional[str] = None
     dwell_mins: Optional[float] = None
     reported_spend_ranges: List[Tuple[float, float]] = []
@@ -164,7 +165,7 @@ def scan_tree_for_popular_times_and_spend(
         return valid_rows >= 4
 
     def _walk(obj: Any, depth: int = 0):
-        nonlocal live_pct, status_text, dwell_mins, recent_review_mentions
+        nonlocal live_pct, live_from_text, status_text, dwell_mins, recent_review_mentions
         if depth > 14:
             return
         if isinstance(obj, str):
@@ -180,6 +181,7 @@ def scan_tree_for_popular_times_and_spend(
                 m_lv = re.search(r"currently\s+(\d{1,3})%\s+busy", low)
                 if m_lv:
                     live_pct = min(100, max(0, int(m_lv.group(1))))
+                    live_from_text = True
 
             if status_text is None:
                 m_st = re.search(
@@ -191,7 +193,6 @@ def scan_tree_for_popular_times_and_spend(
                 if m_st:
                     status_text = m_st.group(1)
 
-            # Shopper-reported spend brackets (e.g., "TRY 400–800", "€10–20", "$20–30")
             m_sp = re.search(
                 r"(?:reported\s+by\s+\d+|per\s+person|spend)[^\d]{0,16}(\d[\d,.]*)\s*[–—\-]\s*(\d[\d,.]*)",
                 low,
@@ -210,7 +211,6 @@ def scan_tree_for_popular_times_and_spend(
             return
 
         if isinstance(obj, list):
-            # Structural match for 7-day Popular Times block: [[day_1_to_7, [[hr, pct, ...], ...]], ...]
             if not hourly_map and 5 <= len(obj) <= 7 and all(isinstance(d, list) and len(d) >= 2 for d in obj):
                 day_ids = [d[0] for d in obj if isinstance(d[0], int) and not isinstance(d[0], bool) and 1 <= d[0] <= 7]
                 if len(set(day_ids)) >= 5:
@@ -223,12 +223,13 @@ def scan_tree_for_popular_times_and_spend(
                                 hourly_map[int(hr_row[0])] = int(round(float(hr_row[1])))
                         return
 
-            # Structural match for Popular Times parent wrapper carrying live_pct at [7][1]
+            # STRICT GUARD: obj[0] MUST contain verified hourly bar rows (eliminates static metadata '30')
             if (
                 live_pct is None
                 and len(obj) >= 8
                 and isinstance(obj[0], list)
                 and 5 <= len(obj[0]) <= 7
+                and any(isinstance(d, list) and len(d) >= 2 and _is_hour_bar_list(d[1]) for d in obj[0])
                 and isinstance(obj[7], list)
                 and len(obj[7]) >= 2
                 and isinstance(obj[7][1], (int, float))
@@ -241,6 +242,10 @@ def scan_tree_for_popular_times_and_spend(
                 _walk(item, depth + 1)
 
     _walk(root, 0)
+    # Final invariant: never emit live_pct when 0 histogram bars AND no explicit busyness text exist
+    if not hourly_map and not live_from_text and status_text is None:
+        live_pct = None
+
     return {
         "hourly_histogram": hourly_map,
         "observed_live_busyness_pct": live_pct,
@@ -336,60 +341,6 @@ def _parse_place_node_fields(
     }
 
 
-async def _fetch_serpapi_live_popular_times(
-    client: httpx.AsyncClient, ftid: str, lat: float, lon: float, local_hour: int, local_wd: int
-) -> Dict[str, Any]:
-    """
-    Optional authenticated fallback via SerpApi `google_maps&type=place` (active ONLY if `SERPAPI_API_KEYS`
-    is configured in `.env`). Returns Google's live smartphone `live_hash` + 7-day `graph_results`.
-    """
-    api_key = serpapi_pool.next_key()
-    if not api_key or not ftid:
-        return {}
-    try:
-        data_param = f"!4m5!3m4!1s{ftid}!8m2!3d{lat:.6f}!4d{lon:.6f}"
-        r = await client.get(
-            "https://serpapi.com/search.json",
-            params={"engine": "google_maps", "type": "place", "data": data_param, "hl": "en", "api_key": api_key},
-            timeout=8.0,
-        )
-        if r.status_code == 429:
-            serpapi_pool.mark_cooldown(api_key, 3600.0)
-            return {}
-        if r.status_code != 200:
-            return {}
-        place = r.json().get("place_results") or {}
-        pt = place.get("popular_times") or {}
-        live_hash = pt.get("live_hash") or {}
-        live_pct = None
-        if isinstance(live_hash.get("info"), str):
-            m_lv = re.search(r"(\d{1,3})%", live_hash["info"])
-            if m_lv:
-                live_pct = int(m_lv.group(1))
-
-        days_en = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
-        day_name = days_en[local_wd % 7]
-        graph = (pt.get("graph_results") or {}).get(day_name) or []
-        hourly_map: Dict[int, int] = {}
-        for row in graph:
-            if isinstance(row, dict) and row.get("busyness_score") is not None:
-                m_t = re.search(r"(\d{1,2})\s*(am|pm)", str(row.get("time") or ""), re.I)
-                if m_t:
-                    hr = int(m_t.group(1)) % 12 + (12 if m_t.group(2).lower() == "pm" else 0)
-                    hourly_map[hr] = int(row["busyness_score"])
-
-        dwell_mins = _parse_dwell_minutes_any(live_hash.get("time_spent"))
-        return {
-            "observed_live_busyness_pct": live_pct,
-            "live_occupancy_status_text": live_hash.get("info"),
-            "hourly_histogram": hourly_map,
-            "observed_dwell_minutes": dwell_mins,
-        }
-    except Exception as e:
-        logger.debug(f"SerpApi popular_times fallback degraded: {e}")
-        return {}
-
-
 class LiveOccupancyBrowser:
     """
     Sub-Second, Zero-Chromium Google Maps Live Telemetry Engine:
@@ -434,7 +385,7 @@ class LiveOccupancyBrowser:
 
         has_auth_cookie = bool(os.getenv("GMAPS_COOKIE_HEADER", "").strip())
         auth_tag = "auth" if has_auth_cookie else "anon"
-        ck = f"gmaps_tch_v4:{auth_tag}:{round(lat, 3)}:{round(lon, 3)}:{clean_v.lower()[:40]}"
+        ck = f"gmaps_tch_v5:{auth_tag}:{round(lat, 3)}:{round(lon, 3)}:{clean_v.lower()[:40]}"
         cached = llm_router.get_cached(ck)
         if isinstance(cached, dict):
             return cached

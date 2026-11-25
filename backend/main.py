@@ -51,6 +51,7 @@ from engine.historical_exhaust import HistoricalExhaustEngine
 from engine.ml_regression_engine import PhysicalForecastingEngine
 from engine.market_share_engine import MarketShareEngine
 from engine.resilience_bus import EnterpriseResilienceBus
+from engine.pos_receipt_engine import pos_receipt_engine
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("StreetAI.Main")
@@ -476,13 +477,14 @@ async def process_street_intelligence(request: UserPromptRequest):
             or spatial_snapshot.get("verified_merchants_total", 0)
         )
 
-        # Step 3: Macro, Port, Working-Capital FX, Order-Book Pricing, Telco, Capacity, MarketShare & Temporal
+        # Step 3: Macro, Port, Working-Capital FX, Order-Book Pricing, Telco, POS, Capacity, MarketShare & Temporal
         (
             macro_payload,
             nearest_port,
             forex_payload,
             pricing_payload,
             gateway_payload,
+            pos_receipt_payload,
             capacity_payload,
             market_share_data,
             temporal_payload,
@@ -509,6 +511,14 @@ async def process_street_intelligence(request: UserPromptRequest):
                 country_name=country_name,
                 currency_code=local_currency,
                 spatial_snapshot=spatial_snapshot,
+            ),
+            pos_receipt_engine.capture_empirical_pos_telemetry(
+                lat=lat_val,
+                lon=lon_val,
+                venue_name=target_loc,
+                city_name=city_name_str,
+                currency=local_currency,
+                country_code=country_code,
             ),
             zonal_capacity.calculate_mass_depletion_and_cap(
                 lat_val, lon_val, commodity, city_name_str, empirical_scope=empirical_scope
@@ -679,6 +689,7 @@ async def process_street_intelligence(request: UserPromptRequest):
                 "sector_portfolio": resolved_sku_data.get("sector_portfolio", []),
             },
             "empirical_verification_scorecard": metrics_payload.get("empirical_verification_scorecard", {}),
+            "empirical_pos_receipt_telemetry": pos_receipt_payload,
             "macro_logistics": macro_payload,
             "physical_funnel": crowd_payload,
             "digital_gateway": gateway_payload,

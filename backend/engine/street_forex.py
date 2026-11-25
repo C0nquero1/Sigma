@@ -32,9 +32,13 @@ class LiveStreetForex:
         self._rate_memory: Dict[str, Tuple[float, float]] = {}
         self.bus = EnterpriseResilienceBus()
         self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+            ),
             "Content-Type": "application/json",
-            "Accept": "application/json",
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "en-US,en;q=0.9",
         }
 
     async def _query_binance_p2p(self, fiat: str, country_code: str = "") -> Dict[str, Any]:
@@ -79,7 +83,10 @@ class LiveStreetForex:
                 responses = await _fetch_sides([])
 
             for side, res in zip(("BUY", "SELL"), responses):
-                if isinstance(res, httpx.Response) and res.status_code == 200:
+              if isinstance(res, Exception):
+                  logger.debug(f"Binance P2P {fiat} {side} error: {type(res).__name__}: {res}")
+                  continue
+              if isinstance(res, httpx.Response) and res.status_code == 200:
                     ads = res.json().get("data", []) or []
                     for ad in ads:
                         adv = ad.get("adv", {})

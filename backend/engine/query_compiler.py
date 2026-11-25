@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import math
 import asyncio
@@ -164,6 +165,46 @@ async def _pre_verify_physical_location(
     if city_hint and city_hint.lower() not in clean_q.lower():
         full_q = f"{clean_q}, {city_hint}"
     full_q_cc = f"{full_q}, {country_iso2.upper()}" if (country_iso2 and len(country_iso2) == 2) else full_q
+    
+    def _pick_best_photon_feature(features: list, query_text: str) -> Optional[dict]:
+        """
+        Ranks Photon OSM candidates so specific markets, streets, and neighborhoods
+        outrank generic city/monument centroids (e.g. Pasar Tanah Abang over Monas Square).
+        """
+        if not features:
+            return None
+        q_low = (query_text or "").lower()
+        q_tokens = {
+            w for w in re.findall(r"[a-zA-Z0-9\u00C0-\u024F]{3,}", q_low)
+            if w not in ("market", "street", "road", "near", "the", "and")
+        }
+        wants_market = any(k in q_low for k in ("market", "bazaar", "souk", "emporium", "mercato", "pasar", "mall", "plaza"))
+        wants_street = any(k in q_low for k in ("street", "road", "rue", "avenida", "calle", "rua", "jalan", "allee", "lane"))
+
+        best_feat = features[0]
+        best_score = -999
+        for feat in features:
+            props = feat.get("properties") or {}
+            osm_key = str(props.get("osm_key") or "").lower()
+            osm_val = str(props.get("osm_value") or "").lower()
+            name_low = str(props.get("name") or "").lower()
+            score = 0
+
+            if q_tokens:
+                score += sum(3 for tok in q_tokens if tok in name_low)
+            if wants_market and (osm_val in ("marketplace", "mall", "department_store", "commercial", "retail") or osm_key == "shop"):
+                score += 8
+            if wants_street and osm_key == "highway":
+                score += 8
+            if osm_val in ("monument", "memorial", "city", "administrative", "county", "state"):
+                score -= 5
+            if osm_val in ("neighbourhood", "suburb", "quarter", "commercial", "retail"):
+                score += 3
+
+            if score > best_score:
+                best_score = score
+                best_feat = feat
+        return best_feat
 
     async with httpx.AsyncClient(timeout=6.5, headers=HEADERS) as client:
         # ------------------------------------------------------------------

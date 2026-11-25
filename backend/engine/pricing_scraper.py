@@ -39,16 +39,12 @@ _NON_COMMERCE_HOST_SUBSTRINGS = (
 class AbsolutePhysicalPricingEngine:
     """
     100% Real-Life Universal Pricing & Order-Book Clearing Engine (Zero Simulation).
-    - Replaces broken Bing RSS with `ddgs` real-web commerce discovery + product-keyword relevance gating
-      (eliminates unrelated crawls like GTA V, WhatsApp, Shopify forums, or Shakespeare books).
-    - PriceGhost-style 4-layer extractor:
-        1. Properly parsed `<script type="application/ld+json">` with strict `priceCurrency` matching.
-        2. Microdata (`itemprop="price"`) & OpenGraph (`product:price:amount` / `og:price:amount`).
-        3. E-commerce DOM price attributes (`data-price`, `"final_price"`, `"salePrice"`).
-        4. Visible text native-currency symbol regex (Wikidata official-language filtered symbols).
+    - Schema-Priority Retail Extraction: JSON-LD Product/Offer (strict priceCurrency lock) ->
+      Microdata/OpenGraph -> visible text fallback gated against bullion/service blogs.
+    - Observed sold-volume weighting from marketplace listings + strict live-only harmonic clearing
+      (UNVERIFIED_REF 0-pt guesses never enter the harmonic ticket denominator).
     - Food-gated & per-currency deduplicated Open Prices receipt proofs (`prices.openfoodfacts.org`).
-    - Live commodity exchange futures via Yahoo Finance (`GC=F`, `SI=F`, `CT=F`, `KC=F`, `ZR=F`, `SB=F`, `HG=F`)
-      + optional Twelve Data.
+    - Live commodity exchange futures via Yahoo Finance + optional Twelve Data.
     - World Bank PPP (`PA.NUS.PPPC.RF` + `PA.NUS.PPP / FX`) supporting devalued currencies down to `0.05`.
     """
     _world_countries_cache: Optional[List[Dict[str, Any]]] = None
@@ -67,6 +63,17 @@ class AbsolutePhysicalPricingEngine:
         "rice": ("ZR=F", "ZR"),
         "sugar": ("SB=F", "SB"),
         "copper": ("HG=F", "HG"),
+    }
+
+    _NON_RETAIL_PAGE_CUES = (
+        "gold price per gram", "today gold rate", "live gold price", "24k gold price",
+        "22k gold price", "carpet cleaning price", "dry cleaning price", "halı yıkama",
+        "laser cutting service", "cnc cutting service", "price list of cars", "on-road price",
+    )
+
+    _AMBIGUOUS_DISTRICT_TO_CITY: Dict[str, str] = {
+        "la victoria": "Lima",
+        "ojo": "Lagos",
     }
 
     def __init__(self):
@@ -371,12 +378,6 @@ class AbsolutePhysicalPricingEngine:
                 extracted.append(parsed_val)
         return extracted
 
-    _NON_RETAIL_PAGE_CUES = (
-        "gold price per gram", "today gold rate", "live gold price", "24k gold price",
-        "22k gold price", "carpet cleaning price", "dry cleaning price", "halı yıkama",
-        "laser cutting service", "cnc cutting service", "price list of cars", "on-road price",
-    )
-
     def _extract_prices_priceghost_4layer(
         self,
         raw_html: str,
@@ -394,7 +395,6 @@ class AbsolutePhysicalPricingEngine:
         tier1_prices: List[Tuple[float, int]] = []
         tier2_prices: List[Tuple[float, int]] = []
 
-        # Extract observed real sold volume on page (Shopee/Tokopedia/Amazon/MercadoLibre: "1.2k+ sold", "350 terjual")
         sold_weight = 1
         m_sold = re.search(
             r"\b(\d+(?:\.\d+)?)\s*([kKmM])?\+?\s*(?:sold|terjual|vendidos|bought in past month)\b",
@@ -497,7 +497,7 @@ class AbsolutePhysicalPricingEngine:
                 continue
             if any(bad_p in path_low for bad_p in ("/support/", "/help/", "/contact", "/register", "/login", "/privacy", "/terms")):
                 continue
-            
+
             url_low = url.lower()
             if any(
                 junk in url_low
@@ -529,7 +529,7 @@ class AbsolutePhysicalPricingEngine:
 
             combined_meta = f"{hit.get('title', '')} {hit.get('body', '')} {url}".lower()
             if product_tokens and not any(tok in combined_meta for tok in product_tokens):
-                continue  # Guarantees zero GTA V / WhatsApp / Shakespeare off-topic crawls!
+                continue
 
             if url not in candidate_urls:
                 if cc_low and host.endswith(f".{cc_low}"):
@@ -552,7 +552,6 @@ class AbsolutePhysicalPricingEngine:
                         p_res.text[:150000], curr, currency_tokens, fx_rate_per_usd
                     )
                     for pv, wt in weighted_pts:
-                        # Volume-weight high-velocity sold items up to 3x in the empirical order book
                         prices.extend([pv] * min(3, max(1, wt)))
         return prices
 
@@ -593,11 +592,6 @@ class AbsolutePhysicalPricingEngine:
             "spread_pct": spread_pct,
             "verified_count": m,
         }
-
-   _AMBIGUOUS_DISTRICT_TO_CITY: Dict[str, str] = {
-        "la victoria": "Lima",
-        "ojo": "Lagos",
-    }
 
     @classmethod
     def _extract_clean_city_name(cls, location_label: str) -> str:
@@ -694,7 +688,6 @@ class AbsolutePhysicalPricingEngine:
             if isinstance(ddg_en_res, list):
                 all_hits.extend(ddg_en_res)
 
-            # 1. Extract real local prices directly from relevant DDGS commerce snippets
             for hit in all_hits:
                 snippet_txt = f"{hit.get('title', '')} {hit.get('body', '')}"
                 if product_tokens and not any(tok in snippet_txt.lower() for tok in product_tokens):
@@ -703,7 +696,6 @@ class AbsolutePhysicalPricingEngine:
                     if min_local <= p_val <= max_local:
                         ask_candidates.append(round(p_val, 2))
 
-            # 2. Deep-crawl up to 4 relevance-verified local commerce pages for JSON-LD/Microdata prices
             if len(ask_candidates) < 6 and all_hits:
                 deep_asks = await self._crawl_relevant_commerce_urls(
                     client, all_hits, product_tokens, country_code, curr, currency_tokens, fx_rate_per_usd
@@ -788,9 +780,6 @@ class AbsolutePhysicalPricingEngine:
         priced_sectors: List[Dict[str, Any]] = []
         total_verified_points = 0
         total_receipt_samples = 0
-        verified_sector_count = 0
-        active_weight_sum = 0.0
-        harmonic_denom_accum = 0.0
         p25_vals: List[float] = []
         p75_vals: List[float] = []
         exchange_ticks: List[Dict[str, Any]] = []
@@ -809,7 +798,6 @@ class AbsolutePhysicalPricingEngine:
                 final_sector_price = scraped_clearing
                 verified_pts = pts
                 is_verified = True
-                verified_sector_count += 1
                 total_verified_points += pts
                 total_receipt_samples += rec_pts
                 if stats["p25"] > 0:
@@ -825,10 +813,6 @@ class AbsolutePhysicalPricingEngine:
                 verified_pts = 0
                 is_verified = False
 
-            if final_sector_price > 0:
-                active_weight_sum += w
-                harmonic_denom_accum += w / final_sector_price
-
             priced_sectors.append({
                 "sector_name": sector_meta.get("sector_name", commodity),
                 "search_item": s_item,
@@ -841,10 +825,25 @@ class AbsolutePhysicalPricingEngine:
                 "receipt_proofs": rec_pts,
                 "is_empirically_verified": is_verified,
             })
-        
+
+        # Guard against single raw-material units pricing below retail unit
+        retail_sec = next((s for s in priced_sectors if "STANDARD" in s["sector_name"].upper()), None)
+        bulk_sec = next(
+            (s for s in priced_sectors if "BULK" in s["sector_name"].upper() or "WHOLESALE" in s["sector_name"].upper()),
+            None,
+        )
+        if (
+            retail_sec
+            and bulk_sec
+            and retail_sec["median_clearing_price_local"] > 0
+            and 0 < bulk_sec["median_clearing_price_local"] < retail_sec["median_clearing_price_local"]
+        ):
+            bulk_sec["price_unit_note"] = "SCRAPED_RAW_UNIT_BELOW_RETAIL_EXCLUDED"
+            bulk_sec["is_empirically_verified"] = False
+            bulk_sec["verified_nodes"] = 0
+
         # STRICT REAL-LIFE MATH LOCK:
         # Compute order-book harmonic clearing ticket strictly from LIVE empirically scraped sectors.
-        # NEVER mix UNVERIFIED_REF (0 pts) guesses into the harmonic denominator.
         live_priced_sectors = [
             s for s in priced_sectors
             if s.get("is_empirically_verified") and float(s.get("median_clearing_price_local") or 0.0) > 0
