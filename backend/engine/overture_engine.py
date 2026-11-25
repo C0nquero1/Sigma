@@ -6,7 +6,7 @@ import httpx
 import logging
 import asyncio
 from typing import Dict, Any, List, Tuple, Optional
-from engine.llm_router import llm_router, locationiq_pool
+from engine.llm_router import llm_router, locationiq_pool, overpass_ch_pool, nextgis_pool
 
 logger = logging.getLogger("StreetAI.OvertureMultiplexer")
 
@@ -180,9 +180,9 @@ class LiveInfrastructureEngine:
     _wigle_exhausted: bool = False
 
     OVERPASS_MIRRORS = [
-        "https://overpass.private.coffee/api/interpreter",
-        "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+        "https://overpass.maprva.org/api/interpreter",
         "https://overpass-api.de/api/interpreter",
+        "https://overpass.private.coffee/api/interpreter",
     ]
 
     def __init__(self):
@@ -348,13 +348,21 @@ class LiveInfrastructureEngine:
             )
         return out
 
+    def _build_overpass_endpoints(self) -> List[Tuple[str, str]]:
+        """Returns ordered `(display_name, url)` list without ever logging secret API keys."""
+        endpoints: List[Tuple[str, str]] = []
+        ovp_key = overpass_ch_pool.next_key()
+        if ovp_key:
+            endpoints.append(("overpass.ch", f"https://api.overpass.ch/v1/{ovp_key}/cpp/interpreter"))
+        ng_key = nextgis_pool.next_key()
+        if ng_key:
+            endpoints.append(("overpass.nextgis.com", f"https://overpass.nextgis.com/{ng_key}/api/interpreter"))
+        for m in self.OVERPASS_MIRRORS:
+            endpoints.append((m, m))
+        return endpoints
+
     async def _fetch_coalesced_overpass(self, lat: float, lon: float) -> Dict[str, Any]:
-        """
-        Single ultra-lightweight `out center tags` Overpass query (ZERO heavy polygon `out geom`!)
-        strictly targeting `opening_hours`, surveillance cameras, webcams, pedestrian crossings,
-        transit stops, and supplemental OSM shop metadata. Cached 7 days in SQLite.
-        """
-        osm_cache_key = f"osm_meta_v3:{round(lat, 4)}:{round(lon, 4)}"
+        osm_cache_key = f"osm_meta_v4:{round(lat, 4)}:{round(lon, 4)}"
         cached_osm = llm_router.get_cached(osm_cache_key)
         if isinstance(cached_osm, dict) and (
             cached_osm.get("osm_shops_count", 0) > 0
@@ -363,10 +371,10 @@ class LiveInfrastructureEngine:
         ):
             return cached_osm
 
-        d = 0.0025  # ~275m core
+        d = 0.0025
         bbox = f"{lat - d:.5f},{lon - d:.5f},{lat + d:.5f},{lon + d:.5f}"
         q_light = (
-            f"[out:json][timeout:8];("
+            f"[out:json][timeout:10];("
             f'nwr["amenity"~"marketplace|bank|atm|bureau_de_change|money_transfer|pharmacy|restaurant|cafe"]({bbox});'
             f'node["man_made"="surveillance"]({bbox});'
             f'node["contact:webcam"]({bbox});'
@@ -377,19 +385,23 @@ class LiveInfrastructureEngine:
         )
 
         els: Optional[List[Dict[str, Any]]] = None
-        async with httpx.AsyncClient(timeout=10.0, headers=self.headers) as client:
-            for mirror_url in self.OVERPASS_MIRRORS:
-                try:
-                    res = await client.post(mirror_url, data={"data": q_light})
-                    if res.status_code == 200:
-                        cand = res.json().get("elements", [])
-                        if isinstance(cand, list):
-                            els = cand
-                            break
-                    else:
-                        logger.warning(f"⚡ Overpass mirror {mirror_url} returned HTTP {res.status_code}")
-                except Exception as e:
-                    logger.warning(f"⚡ Overpass mirror {mirror_url} error: {e}")
+        async with llm_router.get_overpass_semaphore():
+            async with httpx.AsyncClient(timeout=12.0, headers=self.headers) as client:
+                for label, mirror_url in self._build_overpass_endpoints():
+                    try:
+                        res = await client.post(mirror_url, data={"data": q_light})
+                        if res.status_code == 200:
+                            cand = res.json().get("elements", [])
+                            if isinstance(cand, list):
+                                els = cand
+                                break
+                        elif res.status_code == 429:
+                            logger.warning(f"⚡ Overpass mirror {label} rate-limited (429); pivoting.")
+                        else:
+                            logger.warning(f"⚡ Overpass mirror {label} returned HTTP {res.status_code}")
+                    except Exception as e:
+                        logger.warning(f"⚡ Overpass mirror {label} error: {type(e).__name__}")
+                await asyncio.sleep(0.35)
 
         parsed = self._parse_overpass_elements(els or [])
         if (
@@ -519,12 +531,15 @@ class LiveInfrastructureEngine:
     async def _fetch_google_maps_direct_pb(
         self, lat: float, lon: float, query_str: str, default_type: str
     ) -> List[Dict[str, Any]]:
+        from urllib.parse import quote_plus
         pb_param = (
-            f"!4m12!1m3!1d2200.0!2d{lon}!3d{lat}"
+            f"!4m12!1m3!1d2200.0!2d{lon:.6f}!3d{lat:.6f}"
             f"!2m3!1f0!2f0!3f0!3m2!1i1280!2i800!4f13.1!7i20!10b1"
         )
-        url = "https://www.google.com/search"
-        params = {"tbm": "map", "authuser": "0", "hl": "en", "ucbcb": "1", "pb": pb_param, "q": query_str}
+        raw_url = (
+            f"https://www.google.com/search?tbm=map&authuser=0&hl=en&gl=us&ucbcb=1"
+            f"&q={quote_plus(query_str)}&pb={pb_param}"
+        )
         pois: List[Dict[str, Any]] = []
         seen_titles = set()
 
@@ -535,7 +550,7 @@ class LiveInfrastructureEngine:
                 headers=self.browser_headers,
                 cookies=GOOGLE_CONSENT_COOKIES,
             ) as client:
-                res = await client.get(url, params=params)
+                res = await client.get(raw_url)
                 if res.status_code == 200 and res.text and "consent.google.com" not in str(res.url):
                     raw_text = res.text
                     coord_matches = list(
@@ -549,10 +564,10 @@ class LiveInfrastructureEngine:
                         end_idx = min(len(raw_text), m.end() + 650)
                         window = raw_text[start_idx:end_idx]
 
-                        candidates = re.findall(r'\\"([A-Za-z0-9\u00C0-\u024F][^"\\]{2,48})\\"', window)
+                        candidates = re.findall(r'(?:\\"|")([A-Za-z0-9\u00C0-\u024F][^"\\]{2,48})(?:\\"|")', window)
                         chosen_title = ""
                         for cand in candidates:
-                            if self._is_valid_merchant_title(cand) and not cand.startswith(("http", "0x", "ChIJ")):
+                            if self._is_valid_merchant_title(cand) and not cand.startswith(("http", "0x", "ChIJ", "AF1Qip")):
                                 chosen_title = cand.strip()
                                 break
 

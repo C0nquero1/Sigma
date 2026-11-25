@@ -309,6 +309,27 @@ class LiveStreetForex:
         self._rate_memory[fiat] = (time.time(), best_rate)
         official_rounded = round(spot_rate or best_rate, 2)
 
+        otc_ck = f"otc_book_v1:{fiat.upper()}"
+        if total_p2p_ads > 0 and p2p_book_liquidity > 0:
+            llm_router.set_cached(
+                otc_ck,
+                {
+                    "p2p_book_liquidity": float(p2p_book_liquidity),
+                    "best_rate": float(best_rate),
+                    "total_p2p_ads": int(total_p2p_ads),
+                    "ofi_imbalance": float(ofi_imbalance),
+                    "bid_ask_spread_pct": float(bid_ask_spread_pct),
+                },
+                ttl_seconds=1800,
+            )
+        else:
+            cached_otc = llm_router.get_cached(otc_ck)
+            if isinstance(cached_otc, dict) and cached_otc.get("total_p2p_ads", 0) > 0:
+                p2p_book_liquidity = float(cached_otc["p2p_book_liquidity"])
+                total_p2p_ads = int(cached_otc["total_p2p_ads"])
+                ofi_imbalance = float(cached_otc.get("ofi_imbalance", 0.0))
+                bid_ask_spread_pct = float(cached_otc.get("bid_ask_spread_pct", 0.0))
+
         logger.info(
             f"💱 Real FX & OTC Orderbook Locked: 1 USD = {best_rate:,.2f} {fiat} (Spot: {official_rounded:,.2f}) | "
             f"Verified Live OTC Orderbook Escrow: {p2p_book_liquidity:,.2f} {fiat} "

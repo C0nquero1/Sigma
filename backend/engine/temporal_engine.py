@@ -25,6 +25,24 @@ def _clean_city_label(raw_city: str) -> str:
     )
     return c.split(",")[0].strip()
 
+_TZ_FINDER: Any = None
+
+
+def _get_exact_local_datetime(lat: float, lon: float) -> Tuple[datetime, str]:
+    """Resolves exact legal local time (handles UTC+3 Turkey, UTC+5:30 India, DST) via IANA ZoneInfo."""
+    global _TZ_FINDER
+    utc_now = datetime.now(timezone.utc)
+    try:
+        from zoneinfo import ZoneInfo
+        from timezonefinder import TimezoneFinder
+        if _TZ_FINDER is None:
+            _TZ_FINDER = TimezoneFinder(in_memory=True)
+        tz_name = _TZ_FINDER.timezone_at(lat=lat, lng=lon)
+        if tz_name:
+            return utc_now.astimezone(ZoneInfo(tz_name)), tz_name
+    except Exception:
+        pass
+    return utc_now + timedelta(hours=round(lon / 15.0)), "SOLAR_LON_APPROX"
 
 def _evaluate_osm_opening_hours_string(oh_str: str, local_weekday: int, local_hour: int) -> Optional[bool]:
     s = (oh_str or "").strip()
@@ -458,8 +476,7 @@ class DynamicTemporalEngine:
         }
 
     async def _measure_live_planetary_physics(self, lat: float, lon: float) -> Dict[str, Any]:
-        utc_now = datetime.now(timezone.utc)
-        approx_local_dt = utc_now + timedelta(hours=round(lon / 15.0))
+        approx_local_dt, iana_tz = _get_exact_local_datetime(lat, lon)
 
         async with httpx.AsyncClient(timeout=5.5, headers=self.headers) as client:
             try:
@@ -576,6 +593,9 @@ class DynamicTemporalEngine:
         )
 
         b_open = occ_social.get("browser_is_open_now")
+        b_hours_txt = str(occ_social.get("browser_hours_text") or "")
+        if "24 hours" in b_hours_txt.lower() and (local_hour >= 21 or local_hour < 5):
+            b_open = None  # Ignore unreliable crowdsourced 24/7 tags on traditional markets overnight
         b_sub_ratio = occ_social.get("browser_sub_open_ratio")
         b_sub_cnt = int(occ_social.get("browser_sub_observed", 0) or 0)
         if b_open is False:

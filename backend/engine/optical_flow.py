@@ -187,6 +187,11 @@ class LivePhysicalConversionEngine:
         loc_meta = snapshot.get("location_meta", {})
         city_label = _clean_city_label(city_hint or loc_meta.get("city") or loc_meta.get("country") or "")
         anchor_name = self._select_market_anchor_name(venues, snapshot, venue_hint=venue_hint)
+        
+        dwell_ck = f"dwell_emp_v1:{round(lat, 3)}:{round(lon, 3)}:{anchor_name.lower()[:40]}"
+        cached_dwell = llm_router.get_cached(dwell_ck)
+        if isinstance(cached_dwell, dict) and (cached_dwell.get("obs_gmaps") or cached_dwell.get("obs_web")):
+            return cached_dwell.get("obs_gmaps"), cached_dwell.get("obs_web"), anchor_name
 
         pb_param = (
             f"!4m12!1m3!1d1500.0!2d{lon}!3d{lat}"
@@ -244,7 +249,14 @@ class LivePhysicalConversionEngine:
 
         obs_gmaps = round(sorted(gmaps_dwells)[len(gmaps_dwells) // 2], 1) if gmaps_dwells else None
         obs_web = round(sorted(web_dwells)[len(web_dwells) // 2], 1) if web_dwells else None
+        if obs_gmaps is not None or obs_web is not None:
+            llm_router.set_cached(
+                dwell_ck,
+                {"obs_gmaps": obs_gmaps, "obs_web": obs_web},
+                ttl_seconds=604800,  # 7 days
+            )
         return obs_gmaps, obs_web, anchor_name
+        
 
     @staticmethod
     def _compute_physical_traversal_floor_minutes(

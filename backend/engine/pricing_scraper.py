@@ -371,23 +371,42 @@ class AbsolutePhysicalPricingEngine:
                 extracted.append(parsed_val)
         return extracted
 
+    _NON_RETAIL_PAGE_CUES = (
+        "gold price per gram", "today gold rate", "live gold price", "24k gold price",
+        "22k gold price", "carpet cleaning price", "dry cleaning price", "halı yıkama",
+        "laser cutting service", "cnc cutting service", "price list of cars", "on-road price",
+    )
+
     def _extract_prices_priceghost_4layer(
         self,
         raw_html: str,
         curr: str,
         currency_tokens: List[str],
         fx_rate_per_usd: float = 1.0,
-    ) -> List[float]:
+    ) -> List[Tuple[float, int]]:
         """
-        PriceGhost-style 4-layer extraction on real e-commerce HTML:
-          1. Structured `<script type="application/ld+json">` Product/Offer parsing with strict `priceCurrency` check.
-          2. Regex fallback for Microdata (`itemprop="price"`), OpenGraph (`product:price:amount`), `data-price`, `"final_price"`.
-          3. Visible page text matched against safe native currency tokens.
+        Schema-Priority Retail Extractor returning `(price, observed_sold_weight)` pairs:
+          - Tier 1: `<script type="application/ld+json">` `@type: Product/Offer` with strict `priceCurrency == curr`.
+          - Tier 2: OpenGraph / Microdata (`product:price:amount`, `itemprop="price"`) with currency check.
+          - Tier 3 (only if Tier 1 & 2 empty AND page has no bullion/service cues): Visible text native currency regex.
         """
-        extracted: List[float] = []
         curr_up = curr.upper()
+        tier1_prices: List[Tuple[float, int]] = []
+        tier2_prices: List[Tuple[float, int]] = []
 
-        # Layer 1: Native JSON-LD <script> object traversal
+        # Extract observed real sold volume on page (Shopee/Tokopedia/Amazon/MercadoLibre: "1.2k+ sold", "350 terjual")
+        sold_weight = 1
+        m_sold = re.search(
+            r"\b(\d+(?:\.\d+)?)\s*([kKmM])?\+?\s*(?:sold|terjual|vendidos|bought in past month)\b",
+            raw_html[:120000],
+            flags=re.IGNORECASE,
+        )
+        if m_sold:
+            sv = float(m_sold.group(1))
+            mult = 1000.0 if (m_sold.group(2) or "").lower() == "k" else (1_000_000.0 if (m_sold.group(2) or "").lower() == "m" else 1.0)
+            sold_weight = max(1, min(15, int(math.log10(max(10.0, sv * mult)) * 3.0)))
+
+        # Tier 1: Strict JSON-LD Product/Offer traversal
         for m_ld in re.finditer(
             r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>',
             raw_html,
@@ -401,27 +420,33 @@ class AbsolutePhysicalPricingEngine:
                     if isinstance(node, list):
                         stack.extend(node)
                     elif isinstance(node, dict):
+                        ntype = str(node.get("@type") or "").lower()
                         p_curr = str(node.get("priceCurrency") or "").upper()
                         if p_curr and p_curr != curr_up:
                             continue
-                        for pk in ("price", "lowPrice", "highPrice"):
-                            if pk in node and node[pk] is not None:
-                                pv = self._parse_localized_number(str(node[pk]), fx_rate_per_usd)
-                                if pv is not None:
-                                    extracted.append(pv)
+                        is_offer_like = any(t in ntype for t in ("offer", "product")) or bool(p_curr)
+                        if is_offer_like:
+                            for pk in ("price", "lowPrice", "highPrice"):
+                                if pk in node and node[pk] is not None:
+                                    pv = self._parse_localized_number(str(node[pk]), fx_rate_per_usd)
+                                    if pv is not None:
+                                        tier1_prices.append((pv, sold_weight))
                         for v in node.values():
                             if isinstance(v, (dict, list)):
                                 stack.append(v)
             except Exception:
                 pass
 
-        # Layer 2: Microdata, OpenGraph & e-commerce JSON attributes with nearby currency verification
+        if tier1_prices:
+            return tier1_prices
+
+        # Tier 2: Microdata & OpenGraph structured product tags with currency verification
         for m_json in re.finditer(
             r'(?:"price"|"lowPrice"|"highPrice"|"final_price"|"salePrice"|itemprop\s*=\s*["\']price["\'][^>]{0,40}content|product:price:amount|og:price:amount|data-price)\s*(?:content\s*=\s*|[:=]\s*)["\']?(\d{1,9}(?:[.,]\d{1,3})?)["\']?',
             raw_html,
             flags=re.IGNORECASE,
         ):
-            ctx_win = raw_html[max(0, m_json.start() - 180): min(len(raw_html), m_json.end() + 180)]
+            ctx_win = raw_html[max(0, m_json.start() - 220): min(len(raw_html), m_json.end() + 220)]
             cur_m = re.search(
                 r'(?:"priceCurrency"|product:price:currency|og:price:currency|itemprop\s*=\s*["\']priceCurrency["\'][^>]{0,30}content)\s*(?:content\s*=\s*|[:=]\s*)["\']([A-Z]{3})["\']',
                 ctx_win,
@@ -431,12 +456,18 @@ class AbsolutePhysicalPricingEngine:
                 continue
             p_val = self._parse_localized_number(m_json.group(1), fx_rate_per_usd)
             if p_val is not None:
-                extracted.append(p_val)
+                tier2_prices.append((p_val, sold_weight))
 
-        # Layer 3: Visible text prices matched against safe native currency tokens
+        if tier2_prices:
+            return tier2_prices
+
+        # Tier 3: Visible text fallback — strictly gated against bullion tables & service blogs
         vis_text = self._strip_scripts_and_tags(raw_html)
-        extracted.extend(self._extract_prices_from_text(vis_text, currency_tokens, fx_rate_per_usd))
-        return extracted
+        vis_low = vis_text[:4000].lower()
+        if any(cue in vis_low for cue in self._NON_RETAIL_PAGE_CUES):
+            return []
+
+        return [(p, 1) for p in self._extract_prices_from_text(vis_text, currency_tokens, fx_rate_per_usd)]
 
     async def _crawl_relevant_commerce_urls(
         self,
@@ -467,16 +498,31 @@ class AbsolutePhysicalPricingEngine:
             if any(bad_p in path_low for bad_p in ("/support/", "/help/", "/contact", "/register", "/login", "/privacy", "/terms")):
                 continue
             
+            url_low = url.lower()
+            if any(
+                junk in url_low
+                for junk in (
+                    "hali-yikama", "yikama", "dry-cleaning", "carpet-cleaning",
+                    "cleaning-price", "repair-cost", "tamir-fiyat", "imalati_",
+                    "laser-cutting", "carbon-fiber", "wholesale-saree-markets",
+                    "instadahab", "anlikfiyat", "dahabpulse", "gold-price",
+                    "zigwheels", "hyundaimobil", "otodana", "harga-mobil",
+                )
+            ):
+                continue
+
             is_finished_jewelry = any(
                 k in product_tokens
-                for k in ("necklace", "pendant", "chain", "ring", "bracelet", "jewelry", "kolye", "altın", "gold", "قلادة", "سلسلة")
+                for k in ("necklace", "pendant", "chain", "ring", "bracelet", "jewelry", "kolye", "altın", "gold", "silver", "قلادة", "سلسلة")
             )
             if is_finished_jewelry and any(
-                calc in url.lower()
+                calc in url_low
                 for calc in (
-                    "gold-rate", "gold-price-today", "current-gold-price", "livepriceofgold",
-                    "goldbroker", "thegoldprice", "goldprice", "bullion", "spot-price", "canlialtin", "kuyumaltin",
-                    "calculator", "per-gram", "turkey-gold-price", "silver-price", "/prices/silver", "altin-fiyatlari", 
+                    "gold-rate", "goldrate", "globalgoldrate", "gold-price-today",
+                    "current-gold-price", "livepriceofgold", "goldbroker", "thegoldprice",
+                    "goldprice", "silver-price", "/prices/silver", "altin-fiyatlari",
+                    "canlialtin", "kuyumaltin", "bullion", "spot-price", "calculator",
+                    "per-gram", "turkey-gold-price", "egy.gold",
                 )
             ):
                 continue
@@ -502,11 +548,12 @@ class AbsolutePhysicalPricingEngine:
                     and p_res.text
                     and "consent.google.com" not in str(p_res.url)
                 ):
-                    prices.extend(
-                        self._extract_prices_priceghost_4layer(
-                            p_res.text[:150000], curr, currency_tokens, fx_rate_per_usd
-                        )
+                    weighted_pts = self._extract_prices_priceghost_4layer(
+                        p_res.text[:150000], curr, currency_tokens, fx_rate_per_usd
                     )
+                    for pv, wt in weighted_pts:
+                        # Volume-weight high-velocity sold items up to 3x in the empirical order book
+                        prices.extend([pv] * min(3, max(1, wt)))
         return prices
 
     @staticmethod
@@ -547,19 +594,25 @@ class AbsolutePhysicalPricingEngine:
             "verified_count": m,
         }
 
-    @staticmethod
-    def _extract_clean_city_name(location_label: str) -> str:
+   _AMBIGUOUS_DISTRICT_TO_CITY: Dict[str, str] = {
+        "la victoria": "Lima",
+        "ojo": "Lagos",
+    }
+
+    @classmethod
+    def _extract_clean_city_name(cls, location_label: str) -> str:
         parts = [p.strip() for p in location_label.split(",") if p.strip()]
         non_coord_parts = [
             p for p in parts if not re.match(r"^-?\d+(?:\.\d+)?$", p) and any(c.isalpha() for c in p)
         ]
         raw_city = non_coord_parts[-2] if len(non_coord_parts) >= 2 else (non_coord_parts[0] if non_coord_parts else "")
-        return re.sub(
+        cleaned = re.sub(
             r"^(?:Special Capital Region of|Metropolitan City of|Province of)\s+",
             "",
             raw_city,
             flags=re.IGNORECASE,
         ).strip()
+        return cls._AMBIGUOUS_DISTRICT_TO_CITY.get(cleaned.lower(), cleaned)
 
     @staticmethod
     def _simplify_product_query(raw_item: str) -> str:
@@ -789,48 +842,40 @@ class AbsolutePhysicalPricingEngine:
                 "is_empirically_verified": is_verified,
             })
         
-        # Guard against single raw-material units (e.g. 1 leather hide EUR 43) pricing below retail unit (wallet EUR 52)
-        retail_sec = next((s for s in priced_sectors if "STANDARD" in s["sector_name"].upper()), None)
-        bulk_sec = next(
-            (s for s in priced_sectors if "BULK" in s["sector_name"].upper() or "WHOLESALE" in s["sector_name"].upper()),
-            None,
-        )
-        if (
-            retail_sec
-            and bulk_sec
-            and retail_sec["median_clearing_price_local"] > 0
-            and 0 < bulk_sec["median_clearing_price_local"] < retail_sec["median_clearing_price_local"]
-        ):
-            bulk_sec["price_unit_note"] = "SCRAPED_RAW_UNIT_BELOW_RETAIL_EXCLUDED"
-            bulk_sec["is_empirically_verified"] = False
-            bulk_sec["verified_nodes"] = 0
-            # Recompute harmonic composite excluding the inverted bulk quote
-            active_weight_sum = sum(s["weight"] for s in priced_sectors if s["median_clearing_price_local"] > 0 and s is not bulk_sec)
-            harmonic_denom_accum = sum(
-                s["weight"] / s["median_clearing_price_local"]
-                for s in priced_sectors
-                if s["median_clearing_price_local"] > 0 and s is not bulk_sec
-            )
+        # STRICT REAL-LIFE MATH LOCK:
+        # Compute order-book harmonic clearing ticket strictly from LIVE empirically scraped sectors.
+        # NEVER mix UNVERIFIED_REF (0 pts) guesses into the harmonic denominator.
+        live_priced_sectors = [
+            s for s in priced_sectors
+            if s.get("is_empirically_verified") and float(s.get("median_clearing_price_local") or 0.0) > 0
+        ]
 
-        composite_clearing_price = (
-            round(active_weight_sum / harmonic_denom_accum, 2) if harmonic_denom_accum > 0 else 0.0
-        )
-        live_coverage_pct = round((verified_sector_count / max(1, len(portfolio))) * 100.0, 1)
+        if live_priced_sectors:
+            live_w_sum = sum(float(s["weight"]) for s in live_priced_sectors)
+            live_h_denom = sum(float(s["weight"]) / float(s["median_clearing_price_local"]) for s in live_priced_sectors)
+            composite_clearing_price = round(live_w_sum / live_h_denom, 2) if live_h_denom > 0 else 0.0
+            is_price_empirically_verified = True
+        else:
+            composite_clearing_price = 0.0
+            is_price_empirically_verified = False
+
+        live_coverage_pct = round((len(live_priced_sectors) / max(1, len(portfolio))) * 100.0, 1)
 
         sectors_log = ", ".join(
             f"{s['sector_name']}: {curr} {s['median_clearing_price_local']:,.2f} "
-            f"({'LIVE ' + str(s['verified_nodes']) + ' pts' if s['is_empirically_verified'] else 'UNVERIFIED_REF 0 pts'})"
+            f"({'LIVE ' + str(s['verified_nodes']) + ' pts' if s['is_empirically_verified'] else 'UNVERIFIED_EXCLUDED 0 pts'})"
             for s in priced_sectors
         )
 
         logger.info(
-            f"💵 Physical Price Matrix Locked ({scope_mode} | Live PPP={ppp_ratio} | Live Coverage={live_coverage_pct}%): "
-            f"{curr} {composite_clearing_price:,.2f} order-book harmonic clearing ticket "
+            f"💵 Physical Price Matrix Locked ({scope_mode} | Live PPP={ppp_ratio} | Live Coverage={live_coverage_pct}% | Verified={is_price_empirically_verified}): "
+            f"{curr} {composite_clearing_price:,.2f} live-only harmonic clearing ticket "
             f"({total_verified_points} verified listings, {total_receipt_samples} OpenPrices receipts | Sectors: [{sectors_log}])"
         )
 
         return {
             "price": composite_clearing_price,
+            "is_price_empirically_verified": is_price_empirically_verified,
             "currency": curr,
             "world_bank_ppp_price_level_ratio": ppp_ratio,
             "scope_mode": scope_mode,
@@ -842,11 +887,11 @@ class AbsolutePhysicalPricingEngine:
             "live_data_coverage_pct": live_coverage_pct,
             "basket_price_distribution": {
                 "p25_local": round(sum(p25_vals) / len(p25_vals), 2) if p25_vals else None,
-                "p50_clearing_local": composite_clearing_price,
+                "p50_clearing_local": composite_clearing_price if is_price_empirically_verified else None,
                 "p75_local": round(sum(p75_vals) / len(p75_vals), 2) if p75_vals else None,
             },
             "provenance": (
-                "DDGS Relevance-Gated Commerce Discovery + PriceGhost 4-Layer JSON-LD Extractor + "
-                "Open Prices Food Receipts + Live Yahoo/TwelveData Commodity Futures + World Bank PPP"
+                "Schema-Priority JSON-LD/OG Volume-Weighted Extractor + Live-Only Harmonic Clearing + "
+                "Open Prices Food Receipts + Live Commodity Futures + World Bank PPP"
             ),
         }

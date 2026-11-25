@@ -18,7 +18,7 @@ _EXCLUDED_GROQ_SUBSTRINGS = (
 
 
 def _ddgs_text_sync(query: str, max_results: int = 10, backend: str = "yahoo,startpage") -> List[Dict[str, str]]:
-    """Fast, timeout-proof DDGS text search pinned to reliable backends (bypasses Mojeek timeouts & Brave 429s)."""
+    """Timeout-hardened DDGS text search."""
     try:
         try:
             from ddgs import DDGS
@@ -26,7 +26,7 @@ def _ddgs_text_sync(query: str, max_results: int = 10, backend: str = "yahoo,sta
             from duckduckgo_search import DDGS
 
         out: List[Dict[str, str]] = []
-        with DDGS(timeout=5) as ddgs:
+        with DDGS(timeout=7) as ddgs:
             rows = ddgs.text(query, max_results=max_results, backend=backend) or []
             for r in rows:
                 if isinstance(r, dict):
@@ -37,12 +37,12 @@ def _ddgs_text_sync(query: str, max_results: int = 10, backend: str = "yahoo,sta
                     })
         return out
     except Exception as e:
-        logger.debug(f"fast_ddgs_text pivot ({query[:45]}): {e}")
+        logger.debug(f"fast_ddgs_text pivot ({backend} | {query[:40]}): {e}")
         return []
 
 
 def _ddgs_news_sync(query: str, max_results: int = 8, timelimit: str = "m", backend: str = "bing,yahoo") -> List[Dict[str, str]]:
-    """Fast, timeout-proof DDGS news search pinned to bing/yahoo backends."""
+    """Timeout-hardened DDGS news search."""
     try:
         try:
             from ddgs import DDGS
@@ -50,7 +50,7 @@ def _ddgs_news_sync(query: str, max_results: int = 8, timelimit: str = "m", back
             from duckduckgo_search import DDGS
 
         out: List[Dict[str, str]] = []
-        with DDGS(timeout=5) as ddgs:
+        with DDGS(timeout=7) as ddgs:
             rows = ddgs.news(query, timelimit=timelimit, max_results=max_results, backend=backend) or []
             for r in rows:
                 if isinstance(r, dict):
@@ -62,7 +62,7 @@ def _ddgs_news_sync(query: str, max_results: int = 8, timelimit: str = "m", back
                     })
         return out
     except Exception as e:
-        logger.debug(f"fast_ddgs_news pivot ({query[:45]}): {e}")
+        logger.debug(f"fast_ddgs_news pivot ({backend} | {query[:40]}): {e}")
         return []
 
 
@@ -117,13 +117,30 @@ class ResilientFreeLLMRouter:
         self.db_path = db_path
         self.providers: List[Dict[str, str]] = []
         self._ddgs_sem: Optional[asyncio.Semaphore] = None
+        self._overpass_sem: Optional[asyncio.Semaphore] = None
+        self._gdelt_sem: Optional[asyncio.Semaphore] = None
+        self._last_gdelt_ts: float = 0.0
         self._init_cache_table()
         self.refresh_providers()
 
     def _get_ddgs_semaphore(self) -> asyncio.Semaphore:
         if self._ddgs_sem is None:
-            self._ddgs_sem = asyncio.Semaphore(4)
+            self._ddgs_sem = asyncio.Semaphore(2)
         return self._ddgs_sem
+
+    def get_overpass_semaphore(self) -> asyncio.Semaphore:
+        if self._overpass_sem is None:
+            self._overpass_sem = asyncio.Semaphore(1)
+        return self._overpass_sem
+
+    async def acquire_gdelt_slot(self, min_interval_sec: float = 5.5):
+        if self._gdelt_sem is None:
+            self._gdelt_sem = asyncio.Semaphore(1)
+        async with self._gdelt_sem:
+            wait = min_interval_sec - (time.time() - self._last_gdelt_ts)
+            if wait > 0:
+                await asyncio.sleep(wait)
+            self._last_gdelt_ts = time.time()
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path, timeout=5.0)
@@ -174,27 +191,68 @@ class ResilientFreeLLMRouter:
         except Exception:
             pass
 
+    async def _query_openserp(self, query: str, max_results: int = 10) -> List[Dict[str, str]]:
+        """Free self-hosted OpenSERP gateway (/mega/search) — eliminates Yahoo/Startpage timeouts."""
+        base = os.getenv("OPENSERP_BASE_URL", "").strip().rstrip("/")
+        if not base:
+            return []
+        mode = os.getenv("OPENSERP_MODE", "any").strip().lower()
+        if mode not in ("any", "balanced", "fast"):
+            mode = "any"
+        try:
+            async with httpx.AsyncClient(timeout=8.5) as client:
+                r = await client.get(
+                    f"{base}/mega/search",
+                    params={"text": query, "limit": max_results, "mode": mode, "format": "json"},
+                )
+                if r.status_code == 200:
+                    data = r.json()
+                    items = data.get("results") if isinstance(data, dict) else (data if isinstance(data, list) else [])
+                    out: List[Dict[str, str]] = []
+                    for item in items:
+                        if not isinstance(item, dict) or not item.get("url"):
+                            continue
+                        if str(item.get("type") or "").lower() == "ad":
+                            continue
+                        out.append({
+                            "title": str(item.get("title") or "").strip(),
+                            "href": str(item.get("url") or "").strip(),
+                            "body": str(item.get("description") or item.get("snippet") or "").strip(),
+                        })
+                        if len(out) >= max_results:
+                            break
+                    return out
+        except Exception as e:
+            logger.debug(f"OpenSERP local gateway unavailable ({e}); falling back to ddgs.")
+        return []
+
     async def fast_ddgs_text(
         self, query: str, max_results: int = 10, cache_ttl_seconds: int = 21600
     ) -> List[Dict[str, str]]:
-        """Bounded, timeout-proof web search (`backend='yahoo,startpage'`) with 6-hour SQLite cache."""
+        """Bounded, failover-hardened web search (OpenSERP -> yahoo,startpage -> duckduckgo,bing) with 6h SQLite cache."""
         clean_q = (query or "").strip()
         if not clean_q:
             return []
-        ck = "ddgs_txt_v1:" + hashlib.sha256(f"{clean_q}:{max_results}".encode("utf-8")).hexdigest()[:24]
+        ck = "ddgs_txt_v2:" + hashlib.sha256(f"{clean_q}:{max_results}".encode("utf-8")).hexdigest()[:24]
         if cache_ttl_seconds > 0:
             hit = self.get_cached(ck)
             if isinstance(hit, list) and hit:
                 return hit
 
-        async with self._get_ddgs_semaphore():
-            try:
-                rows = await asyncio.wait_for(
-                    asyncio.to_thread(_ddgs_text_sync, clean_q, max_results, "yahoo,startpage"),
-                    timeout=7.5,
-                )
-            except asyncio.TimeoutError:
-                rows = []
+        rows = await self._query_openserp(clean_q, max_results=max_results)
+        if not rows:
+            async with self._get_ddgs_semaphore():
+                for backend_pair in ("yahoo,startpage", "duckduckgo,bing"):
+                    try:
+                        rows = await asyncio.wait_for(
+                            asyncio.to_thread(_ddgs_text_sync, clean_q, max_results, backend_pair),
+                            timeout=9.5,
+                        )
+                    except asyncio.TimeoutError:
+                        rows = []
+                    if rows:
+                        break
+                    await asyncio.sleep(0.25)
 
         if rows and cache_ttl_seconds > 0:
             self.set_cached(ck, rows, ttl_seconds=cache_ttl_seconds)
@@ -203,24 +261,29 @@ class ResilientFreeLLMRouter:
     async def fast_ddgs_news(
         self, query: str, max_results: int = 8, timelimit: str = "m", cache_ttl_seconds: int = 3600
     ) -> List[Dict[str, str]]:
-        """Bounded, timeout-proof news search (`backend='bing,yahoo'`) with 1-hour SQLite cache."""
+        """Bounded, failover-hardened news search (`bing,yahoo` -> `duckduckgo`) with 1h SQLite cache."""
         clean_q = (query or "").strip()
         if not clean_q:
             return []
-        ck = "ddgs_news_v1:" + hashlib.sha256(f"{clean_q}:{timelimit}:{max_results}".encode("utf-8")).hexdigest()[:24]
+        ck = "ddgs_news_v2:" + hashlib.sha256(f"{clean_q}:{timelimit}:{max_results}".encode("utf-8")).hexdigest()[:24]
         if cache_ttl_seconds > 0:
             hit = self.get_cached(ck)
             if isinstance(hit, list):
                 return hit
 
+        rows: List[Dict[str, str]] = []
         async with self._get_ddgs_semaphore():
-            try:
-                rows = await asyncio.wait_for(
-                    asyncio.to_thread(_ddgs_news_sync, clean_q, max_results, timelimit, "bing,yahoo"),
-                    timeout=7.0,
-                )
-            except asyncio.TimeoutError:
-                rows = []
+            for backend_pair in ("bing,yahoo", "duckduckgo"):
+                try:
+                    rows = await asyncio.wait_for(
+                        asyncio.to_thread(_ddgs_news_sync, clean_q, max_results, timelimit, backend_pair),
+                        timeout=9.0,
+                    )
+                except asyncio.TimeoutError:
+                    rows = []
+                if rows:
+                    break
+                await asyncio.sleep(0.25)
 
         if rows and cache_ttl_seconds > 0:
             self.set_cached(ck, rows, ttl_seconds=cache_ttl_seconds)
@@ -457,3 +520,5 @@ llm_router = ResilientFreeLLMRouter()
 locationiq_pool = RotatingKeyPool("LOCATIONIQ_API_KEYS", "LOCATIONIQ_API_KEY")
 wigle_pool = RotatingKeyPool("WIGLE_API_TOKENS", "WIGLE_API_TOKEN")
 mapbox_pool = RotatingKeyPool("MAPBOX_ACCESS_TOKENS", "MAPBOX_ACCESS_TOKEN")
+overpass_ch_pool = RotatingKeyPool("OVERPASS_CH_API_KEYS", "OVERPASS_CH_API_KEY")
+nextgis_pool = RotatingKeyPool("NEXTGIS_API_KEYS", "NEXTGIS_API_KEY")

@@ -110,15 +110,18 @@ class MetricExecutionEngine:
             local_hour, open_hr, close_hr, peak_start, peak_end, clock_open_ratio
         )
 
-        # 3. Verified Weather & Event Modulator (ZERO commuter-car inflation of human footfall)
+        # 3. Verified Weather & Event Modulator (damps unconfirmed social buzz to <= +5% physical lift)
         rain_friction = max(0.45, 1.0 - (max(0.0, float(precipitation_mm or 0.0)) * 0.035))
         if is_occ_observed and obs_trading_occ and obs_trading_occ > 0:
             occupancy_factor = max(0.35, min(1.50, float(obs_trading_occ) / 70.0))
         else:
             occupancy_factor = 1.0
 
+        # Social/news mentions reflect attention, not 1:1 physical crowd volume; cap unconfirmed lift at +5%
+        damped_event_factor = 1.0 + min(0.05, max(0.0, (social_pulse_mult - 1.0) * 0.20))
+
         live_sensor_modulator = round(
-            max(0.40, min(1.50, occupancy_factor * rain_friction * social_pulse_mult)),
+            max(0.40, min(1.50, occupancy_factor * rain_friction * damped_event_factor)),
             4,
         )
 
